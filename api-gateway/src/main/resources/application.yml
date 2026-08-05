@@ -49,7 +49,7 @@ management:
           - health
           - gateway
 
-#eureka:
-#  client:
-#    service-url:
-#      defaultZone: http://localhost:8761/eureka/
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
