@@ -1,7 +1,6 @@
 spring:
   application:
     name: platform-management-service
-
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -13,3 +12,6 @@ spring:
       ddl-auto: update
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
+
+server:
+  port: 8084
