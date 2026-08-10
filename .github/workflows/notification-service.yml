@@ -30,9 +30,6 @@ jobs:
       # - name: Give Permissions to Maven in ubuntu -- run 2
       #   run: chmod +x mvnw
 
-      - name: see files
-        run: ls -la
-
       - name: Build & Test Notification Service
         run: ./mvnw clean test -pl services/notification-service -am
 
