@@ -1,15 +1,15 @@
-name: Notification Service Pipeline
+name: Event Management Service Pipeline
 
 on:
   push:
-    branches: ["notification-service"]
+    branches: ["event-management-service"]
     paths:
-      - "services/notification-service/**"
+      - "services/event-management-service/**"
       - "pom.xml"
   pull_request:
     branches: ["main"]
     paths:
-      - "services/notification-service/**"
+      - "services/event-management-service/**"
       - "pom.xml"
 
 jobs:
@@ -34,14 +34,14 @@ jobs:
       - name: see files
         run: ls -la
 
-      - name: Build & Test Notification Service
-        run: ./mvnw clean test -pl services/notification-service -am
+      - name: Build & Test Event Management Service
+        run: ./mvnw clean test -pl services/event-management-service -am
 
-      - name: Package Notification Service
-        run: ./mvnw package -DskipTests -pl services/notification-service -am
+      - name: Package Event Management Service
+        run: ./mvnw package -DskipTests -pl services/event-management-service -am
 
-      - name: Upload Notification Service Artifact
+      - name: Upload Event Management Service Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: notification-service-jar
-          path: services/notification-service/target/*.jar
+          name: event-management-service-jar
+          path: services/event-management-service/target/*.jar

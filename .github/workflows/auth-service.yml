@@ -1,15 +1,15 @@
-name: Notification Service Pipeline
+name: Auth Service Pipeline
 
 on:
   push:
-    branches: ["notification-service"]
+    branches: ["auth-service"]
     paths:
-      - "services/notification-service/**"
+      - "services/auth-service/**"
       - "pom.xml"
   pull_request:
     branches: ["main"]
     paths:
-      - "services/notification-service/**"
+      - "services/auth-service/**"
       - "pom.xml"
 
 jobs:
@@ -34,14 +34,14 @@ jobs:
       - name: see files
         run: ls -la
 
-      - name: Build & Test Notification Service
-        run: ./mvnw clean test -pl services/notification-service -am
+      - name: Build & Test Auth Service
+        run: ./mvnw clean test -pl services/auth-service -am
 
-      - name: Package Notification Service
-        run: ./mvnw package -DskipTests -pl services/notification-service -am
+      - name: Package Auth Service
+        run: ./mvnw package -DskipTests -pl services/auth-service -am
 
-      - name: Upload Notification Service Artifact
+      - name: Upload Auth Service Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: notification-service-jar
-          path: services/notification-service/target/*.jar
+          name: auth-service-jar
+          path: services/auth-service/target/*.jar

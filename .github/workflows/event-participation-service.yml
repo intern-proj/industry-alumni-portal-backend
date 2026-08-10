@@ -1,15 +1,15 @@
-name: Notification Service Pipeline
+name: Event Participation Service Pipeline
 
 on:
   push:
-    branches: ["notification-service"]
+    branches: ["event-participation-service"]
     paths:
-      - "services/notification-service/**"
+      - "services/event-participation-service/**"
       - "pom.xml"
   pull_request:
     branches: ["main"]
     paths:
-      - "services/notification-service/**"
+      - "services/event-participation-service/**"
       - "pom.xml"
 
 jobs:
@@ -34,14 +34,14 @@ jobs:
       - name: see files
         run: ls -la
 
-      - name: Build & Test Notification Service
-        run: ./mvnw clean test -pl services/notification-service -am
+      - name: Build & Test Event Participation Service
+        run: ./mvnw clean test -pl services/event-participation-service -am
 
-      - name: Package Notification Service
-        run: ./mvnw package -DskipTests -pl services/notification-service -am
+      - name: Package Event Participation Service
+        run: ./mvnw package -DskipTests -pl services/event-participation-service -am
 
-      - name: Upload Notification Service Artifact
+      - name: Upload Event Participation Service Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: notification-service-jar
-          path: services/notification-service/target/*.jar
+          name: event-participation-service-jar
+          path: services/event-participation-service/target/*.jar

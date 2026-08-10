@@ -1,15 +1,15 @@
-name: Notification Service Pipeline
+name: Application Service Pipeline
 
 on:
   push:
-    branches: ["notification-service"]
+    branches: ["feature/application-service"]
     paths:
-      - "services/notification-service/**"
+      - "services/application-service/**"
       - "pom.xml"
   pull_request:
     branches: ["main"]
     paths:
-      - "services/notification-service/**"
+      - "services/application-service/**"
       - "pom.xml"
 
 jobs:
@@ -34,14 +34,14 @@ jobs:
       - name: see files
         run: ls -la
 
-      - name: Build & Test Notification Service
-        run: ./mvnw clean test -pl services/notification-service -am
+      - name: Build & Test Application Service
+        run: ./mvnw clean test -pl services/application-service -am
 
-      - name: Package Notification Service
-        run: ./mvnw package -DskipTests -pl services/notification-service -am
+      - name: Package Application Service
+        run: ./mvnw package -DskipTests -pl services/application-service -am
 
-      - name: Upload Notification Service Artifact
+      - name: Upload Application Service Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: notification-service-jar
-          path: services/notification-service/target/*.jar
+          name: application-service-jar
+          path: services/application-service/target/*.jar

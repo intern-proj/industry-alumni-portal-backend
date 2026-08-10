@@ -1,15 +1,15 @@
-name: Notification Service Pipeline
+name: Vacancy Service Pipeline
 
 on:
   push:
-    branches: ["notification-service"]
+    branches: ["vacancy_service"]
     paths:
-      - "services/notification-service/**"
+      - "services/vacancy-service/**"
       - "pom.xml"
   pull_request:
     branches: ["main"]
     paths:
-      - "services/notification-service/**"
+      - "services/vacancy-service/**"
       - "pom.xml"
 
 jobs:
@@ -34,14 +34,14 @@ jobs:
       - name: see files
         run: ls -la
 
-      - name: Build & Test Notification Service
-        run: ./mvnw clean test -pl services/notification-service -am
+      - name: Build & Test Vacancy Service
+        run: ./mvnw clean test -pl services/vacancy-service -am
 
-      - name: Package Notification Service
-        run: ./mvnw package -DskipTests -pl services/notification-service -am
+      - name: Package Vacancy Service
+        run: ./mvnw package -DskipTests -pl services/vacancy-service -am
 
-      - name: Upload Notification Service Artifact
+      - name: Upload Vacancy Service Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: notification-service-jar
-          path: services/notification-service/target/*.jar
+          name: vacancy-service-jar
+          path: services/vacancy-service/target/*.jar

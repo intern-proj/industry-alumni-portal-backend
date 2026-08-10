@@ -1,15 +1,15 @@
-name: Notification Service Pipeline
+name: User Profile Service Pipeline
 
 on:
   push:
-    branches: ["notification-service"]
+    branches: ["user-profile-service"]
     paths:
-      - "services/notification-service/**"
+      - "services/user-service/**"
       - "pom.xml"
   pull_request:
     branches: ["main"]
     paths:
-      - "services/notification-service/**"
+      - "services/user-service/**"
       - "pom.xml"
 
 jobs:
@@ -34,14 +34,14 @@ jobs:
       - name: see files
         run: ls -la
 
-      - name: Build & Test Notification Service
-        run: ./mvnw clean test -pl services/notification-service -am
+      - name: Build & Test User Profile Service
+        run: ./mvnw clean test -pl services/user-service -am
 
-      - name: Package Notification Service
-        run: ./mvnw package -DskipTests -pl services/notification-service -am
+      - name: Package User Profile Service
+        run: ./mvnw package -DskipTests -pl services/user-service -am
 
-      - name: Upload Notification Service Artifact
+      - name: Upload User Profile Service Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: notification-service-jar
-          path: services/notification-service/target/*.jar
+          name: user-service-jar
+          path: services/user-service/target/*.jar
