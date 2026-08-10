@@ -27,8 +27,12 @@ jobs:
           distribution: "temurin"
           cache: "maven"
 
-      # - name: Give Permissions to Maven in ubuntu -- run 2
+      # - name: Give Permissions to Maven in ubuntu
       #   run: chmod +x mvnw
+
+#      to see what files are in the project folder
+      - name: see files
+        run: ls -la
 
       - name: Build & Test Notification Service
         run: ./mvnw clean test -pl services/notification-service -am
