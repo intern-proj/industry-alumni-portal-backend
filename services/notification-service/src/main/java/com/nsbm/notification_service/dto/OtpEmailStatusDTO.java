@@ -11,11 +11,34 @@ import lombok.NoArgsConstructor;
 public class OtpEmailStatusDTO {
 
     @NotBlank(message = "To Email Cannot be Blank")
-    String toEmail;
+    private String toEmail;
 
     @NotBlank(message = "Event Status Cannot Be Blank")
-    Boolean status = false;
+    private Boolean status = false;
 
-    String error;
+    private String error;
 
+    public String getToEmail() {
+        return toEmail;
+    }
+
+    public void setToEmail(String toEmail) {
+        this.toEmail = toEmail;
+    }
+
+    public Boolean getStatus() {
+        return status;
+    }
+
+    public void setStatus(Boolean status) {
+        this.status = status;
+    }
+
+    public String getError() {
+        return error;
+    }
+
+    public void setError(String error) {
+        this.error = error;
+    }
 }

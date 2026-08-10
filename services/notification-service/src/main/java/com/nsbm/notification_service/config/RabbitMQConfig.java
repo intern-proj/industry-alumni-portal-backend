@@ -71,6 +71,6 @@ public class RabbitMQConfig {
 
     @Bean
     public MessageConverter jsonMessageConverter(){
-        return new JacksonJsonMessageConverter();
+        return new JacksonJsonMessageConverter("com.nsbm.notification_service.dto");
     }
 }

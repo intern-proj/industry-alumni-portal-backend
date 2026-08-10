@@ -3,54 +3,75 @@ package com.nsbm.notification_service;
 import com.nsbm.notification_service.config.RabbitMQConfig;
 import com.nsbm.notification_service.dto.OtpEmailDTO;
 import com.nsbm.notification_service.dto.OtpEmailStatusDTO;
-import lombok.extern.slf4j.Slf4j;
+import com.nsbm.notification_service.listener.OtpListener;
+import com.nsbm.notification_service.service.core.EmailDeliveryService;
+import com.nsbm.notification_service.service.handlers.OtpSendingService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-@Slf4j
-@SpringBootTest
+@ExtendWith(MockitoExtension.class)
 public class NotificationServiceApplicationTest {
 
-    @Autowired
+    @Mock
+    private EmailDeliveryService emailDeliveryService;
+
+    @Mock
+    private OtpSendingService otpSendingService;
+
+    @Mock
     private RabbitTemplate rabbitTemplate;
 
+    @InjectMocks
+    private OtpListener otpListener;
+
     @Test
-    void test_SendOtp() {
+    void test_SendOtp_ListenerProcessing() {
         OtpEmailDTO otp = new OtpEmailDTO(
                 "prasadkvithana@gmail.com",
                 "123456"
         );
 
-        // 1. Asynchronously publish OTP request event (Fire and Forget)
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.EXCHANGE_NAME,
-                "notification.otp",
-                otp
+        when(otpSendingService.OtpProcessing(otp)).thenReturn(true);
+
+        otpListener.handleOTP(otp);
+
+        verify(otpSendingService).OtpProcessing(otp);
+
+        ArgumentCaptor<OtpEmailStatusDTO> captor = ArgumentCaptor.forClass(OtpEmailStatusDTO.class);
+        verify(rabbitTemplate).convertAndSend(
+                eq(RabbitMQConfig.EXCHANGE_NAME),
+                eq("notification.status.otp"),
+                captor.capture()
         );
 
-        log.info("OTP request published asynchronously. Waiting for status response...");
+        OtpEmailStatusDTO statusDTO = captor.getValue();
+        assertEquals("prasadkvithana@gmail.com", statusDTO.getToEmail());
+        assertTrue(statusDTO.getStatus());
+    }
 
-        // 2. Poll the status queue for up to 15 seconds to receive the processed status event
-        OtpEmailStatusDTO statusDTO = (OtpEmailStatusDTO) rabbitTemplate.receiveAndConvert(
-                "otp.status.queue",
-                15000 // Timeout in milliseconds
-        );
+    @Test
+    void test_OtpSendingService_Processing() {
+        OtpSendingService sendingService = new OtpSendingService(emailDeliveryService);
 
-        // 3. Assertions
-        assertNotNull(statusDTO, "Timed out waiting for delivery status from notification.status.otp!");
+        OtpEmailDTO otp = new OtpEmailDTO("prasadkvithana@gmail.com", "123456");
+        doNothing().when(emailDeliveryService).sendEmail(anyString(), anyString(), anyString());
 
-        if (Boolean.TRUE.equals(statusDTO.getStatus())) {
-            log.info("OTP Test Executed Successfully for recipient: {}", statusDTO.getToEmail());
-        } else {
-            log.info("Something went wrong when sending the OTP code to {}", statusDTO.getToEmail());
-            log.error("Error details: {}", statusDTO.getError());
-        }
+        boolean result = sendingService.OtpProcessing(otp);
 
-        assertTrue(statusDTO.getStatus(), "Email delivery failed: " + statusDTO.getError());
+        assertTrue(result);
+        verify(emailDeliveryService).sendEmail(eq("prasadkvithana@gmail.com"), anyString(), anyString());
     }
 }
