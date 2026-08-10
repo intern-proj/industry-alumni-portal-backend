@@ -1,0 +1,47 @@
+name: Vacancy Service Pipeline
+
+on:
+  push:
+    branches: ["vacancy_service"]
+    paths:
+      - "services/vacancy-service/**"
+      - "pom.xml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "services/vacancy-service/**"
+      - "pom.xml"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v7
+
+      - name: Install JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Give Permissions to Maven in ubuntu
+        run: chmod +x mvnw
+
+      #      to see what files are in the project folder
+      - name: see files
+        run: ls -la
+
+      - name: Build & Test Vacancy Service
+        run: ./mvnw clean test -pl services/vacancy-service -am
+
+      - name: Package Vacancy Service
+        run: ./mvnw package -DskipTests -pl services/vacancy-service -am
+
+      - name: Upload Vacancy Service Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vacancy-service-jar
+          path: services/vacancy-service/target/*.jar
