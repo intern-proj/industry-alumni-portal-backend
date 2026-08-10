@@ -1,0 +1,57 @@
+server:
+  port: ${PORT:8081}
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/auth_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgrespassword}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET_KEY:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    expiration-milliseconds: 86400000
+  admin:
+    default-username: ${ADMIN_DEFAULT_USER:admin}
+    default-password: ${ADMIN_DEFAULT_PASS:admin@123}
+    default-email: ${ADMIN_DEFAULT_EMAIL:kgamadushika@students.nsbm.ac.lk}
+  otp:
+    expiration-minutes: 5
+  rabbitmq:
+    exchange: ${RABBITMQ_EXCHANGE:notification.exchange}
+    routing-key: ${RABBITMQ_ROUTING_KEY:notification.routingkey}
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"
+  endpoint:
+    health:
+      show-details: never
+
