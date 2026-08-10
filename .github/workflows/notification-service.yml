@@ -27,8 +27,8 @@ jobs:
           distribution: "temurin"
           cache: "maven"
 
-      # - name: Give Permissions to Maven in ubuntu
-      #   run: chmod +x mvnw
+      - name: Give Permissions to Maven in ubuntu
+        run: chmod +x mvnw
 
 #      to see what files are in the project folder
       - name: see files
