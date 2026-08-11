@@ -24,7 +24,7 @@ spring:
     password: guest
 
 #    template:
-#      reply-timeout: 10000ms  --- test 5
+#      reply-timeout: 10000ms  --- test 6
 
 eureka:
   client:
