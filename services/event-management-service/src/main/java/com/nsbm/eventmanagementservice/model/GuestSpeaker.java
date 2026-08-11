@@ -32,9 +32,8 @@ public class GuestSpeaker {
     @Column(name = "photo_url")
     private String photoUrl;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id")
-    private Organization organization;
+    @Column(name = "organization_id")
+    private Long organizationId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

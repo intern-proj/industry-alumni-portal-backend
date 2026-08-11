@@ -40,9 +40,8 @@ public class Event {
     @JoinColumn(name = "venue_id")
     private Venue venue;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id")
-    private Organization organization;
+    @Column(name = "organization_id")
+    private Long organizationId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
