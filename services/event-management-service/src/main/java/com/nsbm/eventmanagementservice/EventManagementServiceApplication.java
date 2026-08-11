@@ -9,3 +9,5 @@ public class EventManagementServiceApplication {
         SpringApplication.run(EventManagementServiceApplication.class, args);
     }
 }
+
+//comment
