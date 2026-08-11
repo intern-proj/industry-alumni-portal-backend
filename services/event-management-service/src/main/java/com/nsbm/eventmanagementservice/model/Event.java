@@ -49,6 +49,15 @@ public class Event {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "coordinator_user_id")
+    private Long coordinatorUserId;
+
+    @Column(name = "coordinator_name")
+    private String coordinatorName;
+
+    @Column(name = "coordinator_email")
+    private String coordinatorEmail;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
