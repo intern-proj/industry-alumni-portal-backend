@@ -40,8 +40,8 @@ public class NotificationServiceApplicationTest {
     @Test
     void test_SendOtp_ListenerProcessing() {
         OtpEmailDTO otp = new OtpEmailDTO(
-                "prasadkvithana@gmail.com",
-                "123456"
+//                "prasadkvithana@gmail.com",
+//                "123456"
         );
 
         when(otpSendingService.OtpProcessing(otp)).thenReturn(true);
