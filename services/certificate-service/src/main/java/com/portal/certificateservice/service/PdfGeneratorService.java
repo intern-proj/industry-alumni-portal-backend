@@ -1,11 +1,16 @@
 package com.portal.certificateservice.service;
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.PdfWriter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.awt.Color;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
@@ -25,6 +30,10 @@ public class PdfGeneratorService {
     private String baseUrl;
 
     public String generatePdfCertificate(UUID certificateId, String verificationCode, String studentName, String eventTitle, LocalDateTime issuedAt) {
+        return generatePdfCertificate(certificateId, verificationCode, studentName, eventTitle, issuedAt, null);
+    }
+
+    public String generatePdfCertificate(UUID certificateId, String verificationCode, String studentName, String eventTitle, LocalDateTime issuedAt, String templateFilePath) {
         try {
             Path uploadDir = Paths.get(storagePath);
             if (!Files.exists(uploadDir)) {
@@ -35,9 +44,17 @@ public class PdfGeneratorService {
             Path filePath = uploadDir.resolve(filename);
 
             Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 36);
-            PdfWriter.getInstance(document, new FileOutputStream(filePath.toFile()));
+            PdfWriter writer = PdfWriter.getInstance(document, new FileOutputStream(filePath.toFile()));
 
             document.open();
+
+            // Background Image (if template image provided)
+            if (templateFilePath != null && !templateFilePath.isBlank() && new File(templateFilePath).exists()) {
+                Image bgImage = Image.getInstance(templateFilePath);
+                bgImage.setAbsolutePosition(0, 0);
+                bgImage.scaleToFit(PageSize.A4.getHeight(), PageSize.A4.getWidth());
+                document.add(bgImage);
+            }
 
             // Styling fonts
             Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 26, Color.DARK_GRAY);
@@ -45,7 +62,7 @@ public class PdfGeneratorService {
             Font recipientFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, new Color(16, 124, 65));
             Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 13, Color.BLACK);
             Font eventFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, Color.DARK_GRAY);
-            Font codeFont = FontFactory.getFont(FontFactory.COURIER_BOLD, 11, Color.GRAY);
+            Font codeFont = FontFactory.getFont(FontFactory.COURIER_BOLD, 10, Color.DARK_GRAY);
 
             // Title
             Paragraph title = new Paragraph("CERTIFICATE OF PARTICIPATION", titleFont);
@@ -55,48 +72,66 @@ public class PdfGeneratorService {
 
             Paragraph subTitle = new Paragraph("NSBM Faculty of Computing - Industry Collaboration Portal", subtitleFont);
             subTitle.setAlignment(Element.ALIGN_CENTER);
-            subTitle.setSpacingAfter(25);
+            subTitle.setSpacingAfter(20);
             document.add(subTitle);
 
             // Content
             Paragraph isPresentedTo = new Paragraph("This is to proudly certify that", bodyFont);
             isPresentedTo.setAlignment(Element.ALIGN_CENTER);
-            isPresentedTo.setSpacingAfter(15);
+            isPresentedTo.setSpacingAfter(12);
             document.add(isPresentedTo);
 
             String displayName = (studentName != null && !studentName.isBlank()) ? studentName : "Valued Student";
             Paragraph recipientName = new Paragraph(displayName, recipientFont);
             recipientName.setAlignment(Element.ALIGN_CENTER);
-            recipientName.setSpacingAfter(15);
+            recipientName.setSpacingAfter(12);
             document.add(recipientName);
 
             Paragraph forParticipating = new Paragraph("has successfully attended and completed the event / workshop:", bodyFont);
             forParticipating.setAlignment(Element.ALIGN_CENTER);
-            forParticipating.setSpacingAfter(15);
+            forParticipating.setSpacingAfter(12);
             document.add(forParticipating);
 
             String displayEvent = (eventTitle != null && !eventTitle.isBlank()) ? eventTitle : "Industry Collaboration Workshop";
             Paragraph eventName = new Paragraph("\"" + displayEvent + "\"", eventFont);
             eventName.setAlignment(Element.ALIGN_CENTER);
-            eventName.setSpacingAfter(30);
+            eventName.setSpacingAfter(20);
             document.add(eventName);
 
-            // Date & Verification Code
+            // Date & Verification Code text
             String formattedDate = issuedAt != null ? issuedAt.format(DateTimeFormatter.ofPattern("MMMM dd, yyyy")) : LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMMM dd, yyyy"));
             Paragraph issueDate = new Paragraph("Issued Date: " + formattedDate, bodyFont);
             issueDate.setAlignment(Element.ALIGN_CENTER);
-            issueDate.setSpacingAfter(10);
+            issueDate.setSpacingAfter(8);
             document.add(issueDate);
 
-            Paragraph codePara = new Paragraph("Verification Code: " + verificationCode + " | Verify at: " + baseUrl + "/api/v1/certificates/verify/" + verificationCode, codeFont);
+            // Generate Unique Verification QR Code Image
+            String verifyUrl = baseUrl + "/api/v1/certificates/verify/" + verificationCode;
+            byte[] qrCodeImageBytes = generateQrCodeImage(verifyUrl, 120, 120);
+            Image qrCodeImage = Image.getInstance(qrCodeImageBytes);
+            qrCodeImage.setAlignment(Element.ALIGN_CENTER);
+            qrCodeImage.scaleAbsolute(100, 100);
+            qrCodeImage.setSpacingBefore(10);
+            qrCodeImage.setSpacingAfter(5);
+            document.add(qrCodeImage);
+
+            Paragraph codePara = new Paragraph("Verification Code: " + verificationCode + "\nScan QR to Verify Authenticity", codeFont);
             codePara.setAlignment(Element.ALIGN_CENTER);
-            codePara.setSpacingAfter(20);
+            codePara.setSpacingAfter(15);
             document.add(codePara);
 
             document.close();
             return filePath.toAbsolutePath().toString();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate PDF certificate: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to generate PDF certificate with QR code: " + e.getMessage(), e);
         }
+    }
+
+    private byte[] generateQrCodeImage(String text, int width, int height) throws Exception {
+        QRCodeWriter qrCodeWriter = new QRCodeWriter();
+        BitMatrix bitMatrix = qrCodeWriter.encode(text, BarcodeFormat.QR_CODE, width, height);
+        ByteArrayOutputStream pngOutputStream = new ByteArrayOutputStream();
+        MatrixToImageWriter.writeToStream(bitMatrix, "PNG", pngOutputStream);
+        return pngOutputStream.toByteArray();
     }
 }

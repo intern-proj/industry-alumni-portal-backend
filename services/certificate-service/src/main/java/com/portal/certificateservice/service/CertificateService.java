@@ -60,7 +60,8 @@ public class CertificateService {
                 verificationCode,
                 request.getStudentName(),
                 request.getEventTitle(),
-                issuedAt
+                issuedAt,
+                template.getTemplateFilePath()
         );
 
         Certificate certificate = new Certificate(
@@ -105,7 +106,8 @@ public class CertificateService {
                     verificationCode,
                     "Student (" + studentId.toString().substring(0, 8) + ")",
                     request.getEventTitle(),
-                    issuedAt
+                    issuedAt,
+                    template.getTemplateFilePath()
             );
 
             Certificate certificate = new Certificate(

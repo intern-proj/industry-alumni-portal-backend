@@ -70,7 +70,7 @@ class CertificateServiceTest {
 
         when(certificateRepository.existsByStudentIdAndEventId(studentId, eventId)).thenReturn(false);
         when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
-        when(pdfGeneratorService.generatePdfCertificate(any(), anyString(), anyString(), anyString(), any())).thenReturn("/storage/cert.pdf");
+        when(pdfGeneratorService.generatePdfCertificate(any(), anyString(), anyString(), anyString(), any(), any())).thenReturn("/storage/cert.pdf");
 
         Certificate savedCert = new Certificate(studentId, eventId, templateId, "CERT-12345678", "/storage/cert.pdf", "ISSUED", LocalDateTime.now());
         savedCert.setId(UUID.randomUUID());
