@@ -29,13 +29,10 @@ spring:
         locator:
           enabled: false
       routes:
-#        - id: auth-service
-#          uri: lb://auth-service
-#          predicates:
-#            - Path=${api.path}/auth/**
-#          filters:
-#            - StripPrefix=2
-
+        - id: application-service
+          uri: lb://application-service
+          predicates:
+            - Path=${api.path}/applications/**
 
 management:
   endpoint:

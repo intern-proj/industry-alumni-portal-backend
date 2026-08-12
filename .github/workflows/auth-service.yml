@@ -1,0 +1,47 @@
+name: Auth Service Pipeline
+
+on:
+  push:
+    branches: ["auth-service"]
+    paths:
+      - "services/auth-service/**"
+      - "pom.xml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "services/auth-service/**"
+      - "pom.xml"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v7
+
+      - name: Install JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Give Permissions to Maven in ubuntu
+        run: chmod +x mvnw
+
+      #      to see what files are in the project folder
+      - name: see files
+        run: ls -la
+
+      - name: Build & Test Auth Service
+        run: ./mvnw clean test -pl services/auth-service -am
+
+      - name: Package Auth Service
+        run: ./mvnw package -DskipTests -pl services/auth-service -am
+
+      - name: Upload Auth Service Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-service-jar
+          path: services/auth-service/target/*.jar
