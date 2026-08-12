@@ -1,12 +1,13 @@
 package com.nsbm.authservice.controller;
 
-import com.nsbm.authservice.dto.StaffInvitationRequest;
+import com.nsbm.authservice.dto.*;
 import com.nsbm.authservice.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -22,6 +23,12 @@ public class AuthController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> inviteStaff(@Valid @RequestBody StaffInvitationRequest request) {
         authService.inviteStaff(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PostMapping("/staff/complete-registration")
+    public ResponseEntity<Void> completeStaffRegistration(@Valid @RequestBody CompleteStaffRegistrationRequest request) {
+        authService.completeStaffRegistration(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }

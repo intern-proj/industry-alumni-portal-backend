@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface PendingStaffRepository extends JpaRepository<PendingStaff, Long> {
     boolean existsByEmail(String email);
     Optional<PendingStaff> findByInvitationToken(String invitationToken);
+
 }
