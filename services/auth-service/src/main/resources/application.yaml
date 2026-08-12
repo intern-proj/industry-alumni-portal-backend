@@ -4,6 +4,7 @@ server:
 spring:
   application:
     name: auth-service
+#    database connection string
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/auth_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
