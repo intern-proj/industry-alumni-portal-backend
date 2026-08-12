@@ -25,4 +25,27 @@ spring:
 certificate:
   storage:
     path: ${CERTIFICATE_STORAGE_PATH:./uploads/certificates}
-  baseUrl: ${PORTAL_BASE_URL:https://portal.nsbm.ac.lk}
+  baseUrl: ${PORTAL_BASE_URL:https://portal.nsbm.ac.lk}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+  datasource:
+    url: jdbc:h2:mem:certificatedb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driverClassName: org.h2.Driver
+    username: sa
+    password: 
+  h2:
+    console:
+      enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+
