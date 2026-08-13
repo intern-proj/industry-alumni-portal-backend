@@ -1,0 +1,47 @@
+name: Event Management Service Pipeline
+
+on:
+  push:
+    branches: ["event-management-service"]
+    paths:
+      - "services/event-management-service/**"
+      - "pom.xml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "services/event-management-service/**"
+      - "pom.xml"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v7
+
+      - name: Install JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Give Permissions to Maven in ubuntu
+        run: chmod +x mvnw
+
+      #      to see what files are in the project folder
+      - name: see files
+        run: ls -la
+
+      - name: Build & Test Event Management Service
+        run: ./mvnw clean test -pl services/event-management-service -am
+
+      - name: Package Event Management Service
+        run: ./mvnw package -DskipTests -pl services/event-management-service -am
+
+      - name: Upload Event Management Service Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: event-management-service-jar
+          path: services/event-management-service/target/*.jar

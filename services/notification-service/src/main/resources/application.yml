@@ -1,0 +1,32 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: notification-service
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: otakuslimesgeneration@gmail.com
+    password: gzes urwv wnpy tixo
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+#    template:
+#      reply-timeout: 10000ms  --- test 5
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
