@@ -39,8 +39,26 @@ public class RegistrationService {
                 .toList();
     }
 
-    
-    
- 
+    public RegistrationResponse updateStatus(UUID registrationId, Registration.RegistrationStatus newStatus) {
+    Registration registration = registrationRepository.findById(registrationId)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                    "Registration with ID " + registrationId + " was not found."));
+    registration.setStatus(newStatus);
+    return RegistrationResponse.from(registrationRepository.save(registration));
+    }
 
+    public void delete(UUID registrationId) {
+    if (!registrationRepository.existsById(registrationId)) {
+        throw new ResourceNotFoundException("Registration with ID " + registrationId + " was not found.");
+    }
+    registrationRepository.deleteById(registrationId);
+}
+
+    public List<RegistrationResponse> getAll() {
+    return registrationRepository.findAll().stream()
+            .map(RegistrationResponse::from)
+            .toList();
+}
+
+    
 }

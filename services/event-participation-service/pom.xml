@@ -30,6 +30,10 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
 
     <dependency>
         <groupId>org.postgresql</groupId>
@@ -56,6 +60,8 @@
        <groupId>org.flywaydb</groupId>
        <artifactId>flyway-database-postgresql</artifactId>
     </dependency>
+
+    
     </dependencies>
 
 	<build>
@@ -79,6 +85,7 @@
 								<path>
 									<groupId>org.projectlombok</groupId>
 									<artifactId>lombok</artifactId>
+									<version>${lombok.version}</version>
 								</path>
 							</annotationProcessorPaths>
 						</configuration>
@@ -94,6 +101,7 @@
 								<path>
 									<groupId>org.projectlombok</groupId>
 									<artifactId>lombok</artifactId>
+									<version>${lombok.version}</version>
 								</path>
 							</annotationProcessorPaths>
 						</configuration>
