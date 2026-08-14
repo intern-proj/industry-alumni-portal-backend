@@ -33,6 +33,14 @@ spring:
           uri: lb://application-service
           predicates:
             - Path=${api.path}/applications/**
+        - id: audit-storage-service-audit
+          uri: lb://audit-storage-service
+          predicates:
+            - Path=/api/audit/**
+        - id: audit-storage-service-storage
+          uri: lb://audit-storage-service
+          predicates:
+            - Path=/api/storage/**
 
 management:
   endpoint:
