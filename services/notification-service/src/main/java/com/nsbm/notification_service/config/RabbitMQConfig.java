@@ -25,11 +25,6 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Queue otpStatusQueue() {
-        return new Queue("otp.status.queue", true);
-    }
-
-    @Bean
     public Queue remindersQueue() {
         return new Queue("reminders.queue", true);
     }
@@ -45,13 +40,40 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Binding otpBinding(Queue otpQueue, TopicExchange notificationExchange) {
-        return BindingBuilder.bind(otpQueue).to(notificationExchange).with("notification.otp");
+    public Queue updateQueue() {
+        return new Queue("update.queue", true);
+    }
+
+
+    @Bean
+    public Queue otpStatusQueue() {
+        return new Queue("otp.status.queue", true);
     }
 
     @Bean
-    public Binding otpStatusBinding(Queue otpStatusQueue, TopicExchange notificationExchange) {
-        return BindingBuilder.bind(otpStatusQueue).to(notificationExchange).with("notification.status.otp");
+    public Queue announcementStatusQueue() {
+        return new Queue("announcement.status.queue", true);
+    }
+
+    @Bean
+    public Queue invitationStatusQueue() {
+        return new Queue("invitation.status.queue", true);
+    }
+
+    @Bean
+    public Queue reminderStatusQueue() {
+        return new Queue("reminder.status.queue", true);
+    }
+
+    @Bean
+    public Queue updateStatusQueue() {
+        return new Queue("update.status.queue", true);
+    }
+
+
+    @Bean
+    public Binding otpBinding(Queue otpQueue, TopicExchange notificationExchange) {
+        return BindingBuilder.bind(otpQueue).to(notificationExchange).with("notification.otp");
     }
 
     @Bean
@@ -70,7 +92,38 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public MessageConverter jsonMessageConverter(){
+    public Binding updateBinding(Queue updateQueue, TopicExchange notificationExchange) {
+        return BindingBuilder.bind(updateQueue).to(notificationExchange).with("notification.update");
+    }
+
+
+    @Bean
+    public Binding otpStatusBinding(Queue otpStatusQueue, TopicExchange notificationExchange) {
+        return BindingBuilder.bind(otpStatusQueue).to(notificationExchange).with("notification.status.otp");
+    }
+
+    @Bean
+    public Binding announcementStatusBinding(Queue announcementStatusQueue, TopicExchange notificationExchange) {
+        return BindingBuilder.bind(announcementStatusQueue).to(notificationExchange).with("notification.status.announcement");
+    }
+
+    @Bean
+    public Binding invitationStatusBinding(Queue invitationStatusQueue, TopicExchange notificationExchange) {
+        return BindingBuilder.bind(invitationStatusQueue).to(notificationExchange).with("notification.status.invitation");
+    }
+
+    @Bean
+    public Binding reminderStatusBinding(Queue reminderStatusQueue, TopicExchange notificationExchange) {
+        return BindingBuilder.bind(reminderStatusQueue).to(notificationExchange).with("notification.status.reminder");
+    }
+
+    @Bean
+    public Binding updateStatusBinding(Queue updateStatusQueue, TopicExchange notificationExchange) {
+        return BindingBuilder.bind(updateStatusQueue).to(notificationExchange).with("notification.status.update");
+    }
+
+    @Bean
+    public MessageConverter jsonMessageConverter() {
         return new JacksonJsonMessageConverter("com.nsbm.notification_service.dto");
     }
 }
