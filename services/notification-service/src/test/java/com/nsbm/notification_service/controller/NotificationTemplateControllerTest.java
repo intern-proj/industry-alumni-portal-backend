@@ -51,7 +51,7 @@ class NotificationTemplateControllerTest {
 
         when(templateService.getAllTemplates()).thenReturn(List.of(dto));
 
-        mockMvc.perform(get("/api/v1/templates"))
+        mockMvc.perform(get("/templates"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].templateCode").value("ANNOUNCEMENT_EMAIL"));
     }
@@ -75,7 +75,7 @@ class NotificationTemplateControllerTest {
 
         when(templateService.createTemplate(any())).thenReturn(output);
 
-        mockMvc.perform(post("/api/v1/templates")
+        mockMvc.perform(post("/templates")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(input)))
                 .andExpect(status().isCreated())
@@ -85,7 +85,7 @@ class NotificationTemplateControllerTest {
 
     @Test
     void test_deleteTemplate() throws Exception {
-        mockMvc.perform(delete("/api/v1/templates/1"))
+        mockMvc.perform(delete("/templates/1"))
                 .andExpect(status().isNoContent());
     }
 }
