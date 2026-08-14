@@ -11,7 +11,6 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import lk.ac.iceu.platformmanagement.common.entity.SyncStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
