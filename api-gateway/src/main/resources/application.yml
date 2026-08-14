@@ -29,12 +29,12 @@ spring:
         locator:
           enabled: false
       routes:
-#        - id: auth-service
-#          uri: lb://auth-service
-#          predicates:
-#            - Path=${api.path}/auth/**
-#          filters:
-#            - StripPrefix=2
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=${api.path}/templates/**
+          filters:
+            - StripPrefix=2
 
 
 management:
