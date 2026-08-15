@@ -31,4 +31,12 @@ public class AuthController {
         authService.completeStaffRegistration(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
+
+    @PostMapping("/partner/pending")
+    public ResponseEntity<Void> createPendingPartner(@Valid @RequestBody ApplyPartnerRegistrationRequest request) {
+        authService.createPendingPartner(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+
 }

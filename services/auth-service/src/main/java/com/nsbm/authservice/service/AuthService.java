@@ -1,7 +1,6 @@
 package com.nsbm.authservice.service;
 
-import com.nsbm.authservice.dto.EmailNotificationMessage;
-import com.nsbm.authservice.dto.StaffInvitationRequest;
+import com.nsbm.authservice.dto.*;
 import com.nsbm.authservice.entity.ManagementStaff;
 import com.nsbm.authservice.exception.InvalidTokenException;
 import com.nsbm.authservice.entity.PendingStaff;
@@ -15,7 +14,6 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.UUID;
@@ -27,6 +25,8 @@ public class AuthService {
 
     private final ManagementStaffRepository staffRepository;
     private final PendingStaffRepository pendingStaffRepository;
+    //private final PendingPartnerRepository pendingPartnerRepository;
+    //private final IndustryPartnerRepository partnerRepository;
     private final RabbitTemplate rabbitTemplate;
     private final PasswordEncoder passwordEncoder;
 
@@ -38,10 +38,14 @@ public class AuthService {
 
     public AuthService(ManagementStaffRepository staffRepository,
                        PendingStaffRepository pendingStaffRepository,
+                       //PendingPartnerRepository pendingPartnerRepository,
+                       //IndustryPartnerRepository partnerRepository,
                        RabbitTemplate rabbitTemplate,
                        PasswordEncoder passwordEncoder) {
         this.staffRepository = staffRepository;
         this.pendingStaffRepository = pendingStaffRepository;
+        //this.pendingPartnerRepository = pendingPartnerRepository;
+        //this.partnerRepository = partnerRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.passwordEncoder = passwordEncoder;
     }
@@ -110,4 +114,8 @@ public class AuthService {
         // 5. Remove record from pending_staff staging table
         pendingStaffRepository.delete(pendingStaff);
     }
+
+
+
+
 }

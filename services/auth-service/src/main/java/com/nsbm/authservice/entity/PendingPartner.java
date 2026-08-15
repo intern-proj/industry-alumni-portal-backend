@@ -21,11 +21,29 @@ public class PendingPartner {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "representative_full_name", length = 150)
+    private String representativeFullName;
+
     @Column(name = "email", nullable = false, unique = true, length = 150)
     private String email;
 
+    @Column(name = "phone", length = 50)
+    private String phone;
+
+    @Column(name = "representative_job_role", length = 100)
+    private String representativeJobRole;
+
     @Column(name = "company_name", nullable = false, length = 150)
     private String companyName;
+
+    @Column(name = "company_industry", length = 100)
+    private String companyIndustry;
+
+    @Column(name = "company_address", columnDefinition = "TEXT")
+    private String companyAddress;
+
+    @Column(name = "company_description", columnDefinition = "TEXT")
+    private String companyDescription;
 
     @Column(name = "registration_token", nullable = false, unique = true)
     private String registrationToken;
