@@ -38,5 +38,10 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+    @PostMapping("/partner/complete-registration")
+    public ResponseEntity<Void> completePartnerRegistration(@Valid @RequestBody CompletePartnerRegistrationRequest request) {
+        authService.completePartnerRegistration(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
 
 }
