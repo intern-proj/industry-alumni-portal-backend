@@ -2,11 +2,13 @@ package com.nsbm.authservice.service;
 
 import com.nsbm.authservice.dto.*;
 import com.nsbm.authservice.entity.ManagementStaff;
+import com.nsbm.authservice.entity.PendingPartner;
 import com.nsbm.authservice.exception.InvalidTokenException;
 import com.nsbm.authservice.entity.PendingStaff;
 import com.nsbm.authservice.exception.StaffAlreadyExistsException;
 import com.nsbm.authservice.exception.UsernameAlreadyExistsException;
 import com.nsbm.authservice.repository.ManagementStaffRepository;
+import com.nsbm.authservice.repository.PendingPartnerRepository;
 import com.nsbm.authservice.repository.PendingStaffRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +27,7 @@ public class AuthService {
 
     private final ManagementStaffRepository staffRepository;
     private final PendingStaffRepository pendingStaffRepository;
-    //private final PendingPartnerRepository pendingPartnerRepository;
+    private final PendingPartnerRepository pendingPartnerRepository;
     //private final IndustryPartnerRepository partnerRepository;
     private final RabbitTemplate rabbitTemplate;
     private final PasswordEncoder passwordEncoder;
@@ -38,13 +40,13 @@ public class AuthService {
 
     public AuthService(ManagementStaffRepository staffRepository,
                        PendingStaffRepository pendingStaffRepository,
-                       //PendingPartnerRepository pendingPartnerRepository,
+                       PendingPartnerRepository pendingPartnerRepository,
                        //IndustryPartnerRepository partnerRepository,
                        RabbitTemplate rabbitTemplate,
                        PasswordEncoder passwordEncoder) {
         this.staffRepository = staffRepository;
         this.pendingStaffRepository = pendingStaffRepository;
-        //this.pendingPartnerRepository = pendingPartnerRepository;
+        this.pendingPartnerRepository = pendingPartnerRepository;
         //this.partnerRepository = partnerRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.passwordEncoder = passwordEncoder;
@@ -114,6 +116,36 @@ public class AuthService {
         // 5. Remove record from pending_staff staging table
         pendingStaffRepository.delete(pendingStaff);
     }
+
+    @Transactional
+    public void createPendingPartner(ApplyPartnerRegistrationRequest request) {
+        // Use injected instance 'partnerRepository' instead of class 'IndustryPartnerRepository'
+        if (IndustryPartnerRepository.existsByEmail(request.email()) || pendingPartnerRepository.existsByEmail(request.email())) {
+            throw new StaffAlreadyExistsException("Partner with email " + request.email() + " is already registered or invited.");
+        }
+        String token = UUID.randomUUID().toString();
+        PendingPartner pendingPartner = PendingPartner.builder()
+                .representativeFullName(request.representativeFullName())
+                .email(request.email())
+                .phone(request.phone())
+                .representativeJobRole(request.representativeJobRole())
+                .companyName(request.companyName())
+                .companyIndustry(request.companyIndustry())
+                .companyAddress(request.companyAddress())
+                .companyDescription(request.companyDescription())
+                .registrationToken(token)
+                .build();
+        pendingPartnerRepository.save(pendingPartner);
+        String invitationUrl = "https://portal.domain.com/complete-partner-registration?token=" + token;
+        EmailNotificationMessage message = new EmailNotificationMessage(
+                request.email(),
+                "Industry Partner Registration Link",
+                "Your registration request has been approved. Please complete your registration here: " + invitationUrl,
+                "PARTNER_REGISTRATION"
+        );
+        sendRabbitNotification(message);
+    }
+
 
 
 
