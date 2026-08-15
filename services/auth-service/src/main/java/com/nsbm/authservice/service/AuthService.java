@@ -1,12 +1,14 @@
 package com.nsbm.authservice.service;
 
 import com.nsbm.authservice.dto.*;
+import com.nsbm.authservice.entity.IndustryPartner;
 import com.nsbm.authservice.entity.ManagementStaff;
 import com.nsbm.authservice.entity.PendingPartner;
 import com.nsbm.authservice.exception.InvalidTokenException;
 import com.nsbm.authservice.entity.PendingStaff;
 import com.nsbm.authservice.exception.StaffAlreadyExistsException;
 import com.nsbm.authservice.exception.UsernameAlreadyExistsException;
+import com.nsbm.authservice.repository.IndustryPartnerRepository;
 import com.nsbm.authservice.repository.ManagementStaffRepository;
 import com.nsbm.authservice.repository.PendingPartnerRepository;
 import com.nsbm.authservice.repository.PendingStaffRepository;
@@ -28,7 +30,7 @@ public class AuthService {
     private final ManagementStaffRepository staffRepository;
     private final PendingStaffRepository pendingStaffRepository;
     private final PendingPartnerRepository pendingPartnerRepository;
-    //private final IndustryPartnerRepository partnerRepository;
+    private final IndustryPartnerRepository partnerRepository;
     private final RabbitTemplate rabbitTemplate;
     private final PasswordEncoder passwordEncoder;
 
@@ -41,13 +43,13 @@ public class AuthService {
     public AuthService(ManagementStaffRepository staffRepository,
                        PendingStaffRepository pendingStaffRepository,
                        PendingPartnerRepository pendingPartnerRepository,
-                       //IndustryPartnerRepository partnerRepository,
+                       IndustryPartnerRepository partnerRepository,
                        RabbitTemplate rabbitTemplate,
                        PasswordEncoder passwordEncoder) {
         this.staffRepository = staffRepository;
         this.pendingStaffRepository = pendingStaffRepository;
         this.pendingPartnerRepository = pendingPartnerRepository;
-        //this.partnerRepository = partnerRepository;
+        this.partnerRepository = partnerRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.passwordEncoder = passwordEncoder;
     }
@@ -146,8 +148,30 @@ public class AuthService {
         sendRabbitNotification(message);
     }
 
-
-
+    @Transactional
+    public void completePartnerRegistration(CompletePartnerRegistrationRequest request) {
+        PendingPartner pendingPartner = pendingPartnerRepository.findByRegistrationToken(request.registrationToken())
+                .orElseThrow(() -> new InvalidTokenException("Invalid or expired registration token."));
+        // Use injected instance 'partnerRepository' instead of class 'IndustryPartnerRepository'
+        if (IndustryPartnerRepository.existsByUsername(request.username())) {
+            throw new UsernameAlreadyExistsException("Username '" + request.username() + "' is already taken.");
+        }
+        IndustryPartner partner = IndustryPartner.builder()
+                .username(request.username())
+                .passwordHash(passwordEncoder.encode(request.password()))
+                .representativeFullName(pendingPartner.getRepresentativeFullName())
+                .email(pendingPartner.getEmail())
+                .phone(pendingPartner.getPhone())
+                .representativeJobRole(pendingPartner.getRepresentativeJobRole())
+                .companyName(pendingPartner.getCompanyName())
+                .companyIndustry(pendingPartner.getCompanyIndustry())
+                .companyAddress(pendingPartner.getCompanyAddress())
+                .companyDescription(pendingPartner.getCompanyDescription())
+                .build();
+        // Use injected instance 'partnerRepository' instead of class 'IndustryPartnerRepository'
+        partnerRepository.save(partner);
+        pendingPartnerRepository.delete(pendingPartner);
+    }
 
 
 }
