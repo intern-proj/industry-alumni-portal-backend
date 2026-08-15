@@ -1,15 +1,13 @@
 package com.nsbm.authservice.service;
 
-import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
-import com.nsbm.authservice.dto.EmailNotificationMessage;
-import com.nsbm.authservice.dto.StaffInvitationRequest;
-import com.nsbm.authservice.entity.ManagementStaff;
-import com.nsbm.authservice.entity.PendingStaff;
-import com.nsbm.authservice.entity.Role;
+import com.nsbm.authservice.dto.*;
+import com.nsbm.authservice.entity.*;
 import com.nsbm.authservice.exception.InvalidTokenException;
 import com.nsbm.authservice.exception.StaffAlreadyExistsException;
 import com.nsbm.authservice.exception.UsernameAlreadyExistsException;
+import com.nsbm.authservice.repository.IndustryPartnerRepository;
 import com.nsbm.authservice.repository.ManagementStaffRepository;
+import com.nsbm.authservice.repository.PendingPartnerRepository;
 import com.nsbm.authservice.repository.PendingStaffRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +38,12 @@ class AuthServiceTest {
 
     @Mock
     private PendingStaffRepository pendingStaffRepository;
+
+    @Mock
+    private PendingPartnerRepository pendingPartnerRepository;
+
+    @Mock
+    private IndustryPartnerRepository partnerRepository;
 
     @Mock
     private RabbitTemplate rabbitTemplate;
@@ -207,6 +211,128 @@ class AuthServiceTest {
 
             verify(staffRepository, never()).save(any());
             verify(pendingStaffRepository, never()).delete(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("createPendingPartner Tests")
+    class CreatePendingPartnerTests {
+
+        @Test
+        @DisplayName("Should successfully create pending partner when email does not exist")
+        void createPendingPartner_Success() {
+            // Arrange
+            ApplyPartnerRegistrationRequest request = new ApplyPartnerRegistrationRequest(
+                    "Jane Smith", "jane@company.com", "+94771234567",
+                    "HR Director", "TechCorp Ltd", "IT Services",
+                    "123 Business Way, Colombo", "Leading software company"
+            );
+            when(pendingPartnerRepository.existsByEmail(request.email())).thenReturn(false);
+
+            // Act
+            authService.createPendingPartner(request);
+
+            // Assert - Verify PendingPartner entity saved
+            ArgumentCaptor<PendingPartner> partnerCaptor = ArgumentCaptor.forClass(PendingPartner.class);
+            verify(pendingPartnerRepository).save(partnerCaptor.capture());
+            PendingPartner savedPartner = partnerCaptor.getValue();
+            assertThat(savedPartner.getRepresentativeFullName()).isEqualTo("Jane Smith");
+            assertThat(savedPartner.getEmail()).isEqualTo("jane@company.com");
+            assertThat(savedPartner.getCompanyName()).isEqualTo("TechCorp Ltd");
+            assertThat(savedPartner.getRegistrationToken()).isNotBlank();
+
+            // Assert - Verify RabbitMQ message published
+            ArgumentCaptor<EmailNotificationMessage> messageCaptor = ArgumentCaptor.forClass(EmailNotificationMessage.class);
+            verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), messageCaptor.capture());
+            EmailNotificationMessage sentMessage = messageCaptor.getValue();
+            assertThat(sentMessage.recipientEmail()).isEqualTo("jane@company.com");
+            assertThat(sentMessage.eventType()).isEqualTo("PARTNER_REGISTRATION");
+        }
+
+        @Test
+        @DisplayName("Should throw StaffAlreadyExistsException when partner email already exists in pending partners")
+        void createPendingPartner_ThrowsException_WhenEmailExists() {
+            // Arrange
+            ApplyPartnerRegistrationRequest request = new ApplyPartnerRegistrationRequest(
+                    "Jane Smith", "existing@company.com", "+94771234567",
+                    "HR Director", "TechCorp Ltd", "IT Services",
+                    "123 Business Way, Colombo", "Leading software company"
+            );
+            when(pendingPartnerRepository.existsByEmail(request.email())).thenReturn(true);
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.createPendingPartner(request))
+                    .isInstanceOf(StaffAlreadyExistsException.class)
+                    .hasMessageContaining("existing@company.com");
+
+            verify(pendingPartnerRepository, never()).save(any());
+            verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("completePartnerRegistration Tests")
+    class CompletePartnerRegistrationTests {
+
+        @Test
+        @DisplayName("Should successfully complete partner registration with valid token")
+        void completePartnerRegistration_Success() {
+            // Arrange
+            String token = "partner-token-789";
+            CompletePartnerRegistrationRequest request = new CompletePartnerRegistrationRequest(
+                    token, "techcorp_admin", "PartnerPassword123"
+            );
+
+            PendingPartner pendingPartner = PendingPartner.builder()
+                    .id(2L)
+                    .representativeFullName("Jane Smith")
+                    .email("jane@company.com")
+                    .phone("+94771234567")
+                    .representativeJobRole("HR Director")
+                    .companyName("TechCorp Ltd")
+                    .companyIndustry("IT Services")
+                    .companyAddress("123 Business Way, Colombo")
+                    .companyDescription("Leading software company")
+                    .registrationToken(token)
+                    .build();
+
+            when(pendingPartnerRepository.findByRegistrationToken(token)).thenReturn(Optional.of(pendingPartner));
+            when(passwordEncoder.encode("PartnerPassword123")).thenReturn("hashedPartnerPassword");
+
+            // Act
+            authService.completePartnerRegistration(request);
+
+            // Assert - Verify IndustryPartner entity created and saved
+            ArgumentCaptor<IndustryPartner> partnerCaptor = ArgumentCaptor.forClass(IndustryPartner.class);
+            verify(partnerRepository).save(partnerCaptor.capture());
+            IndustryPartner savedPartner = partnerCaptor.getValue();
+            assertThat(savedPartner.getUsername()).isEqualTo("techcorp_admin");
+            assertThat(savedPartner.getEmail()).isEqualTo("jane@company.com");
+            assertThat(savedPartner.getCompanyName()).isEqualTo("TechCorp Ltd");
+            assertThat(savedPartner.getPasswordHash()).isEqualTo("hashedPartnerPassword");
+
+            // Assert - Verify PendingPartner record deleted
+            verify(pendingPartnerRepository).delete(pendingPartner);
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidTokenException when partner registration token is invalid")
+        void completePartnerRegistration_ThrowsException_WhenTokenInvalid() {
+            // Arrange
+            String invalidToken = "invalid-token-000";
+            CompletePartnerRegistrationRequest request = new CompletePartnerRegistrationRequest(
+                    invalidToken, "techcorp_admin", "PartnerPassword123"
+            );
+
+            when(pendingPartnerRepository.findByRegistrationToken(invalidToken)).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.completePartnerRegistration(request))
+                    .isInstanceOf(InvalidTokenException.class)
+                    .hasMessageContaining("Invalid or expired registration token.");
+
+            verify(partnerRepository, never()).save(any());
+            verify(pendingPartnerRepository, never()).delete(any());
         }
     }
 }
