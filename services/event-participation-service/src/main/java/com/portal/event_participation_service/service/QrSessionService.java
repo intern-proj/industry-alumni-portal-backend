@@ -24,6 +24,7 @@ public class QrSessionService {
         QrSession session = QrSession.builder()
                 .eventId(eventId)
                 .qrCodeValue(UUID.randomUUID().toString())
+   
                 .generatedAt(now)
                 .expiresAt(now.plus(request.validForMinutes(), ChronoUnit.MINUTES))
                 .active(true)
