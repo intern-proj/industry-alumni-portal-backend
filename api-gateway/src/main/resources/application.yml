@@ -115,8 +115,6 @@ spring:
             - SetPath=/v3/api-docs
 
 springdoc:
-  api-docs:
-    enabled: false
   swagger-ui:
     path: /swagger-ui.html
     urls:
