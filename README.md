@@ -1,12 +1,10 @@
-# Industry Alumni Portal — Backend
+﻿# Industry Alumni Portal — Backend
 
 A Spring Boot microservices backend for the Industry Alumni Collaboration Portal at NSBM.
 
 ---
 
 ## Project Documentation
-
-> **New to this project? Start here.**
 
 | Document | Description |
 |---|---|
@@ -29,7 +27,7 @@ Client
   ▼
 API Gateway (8080)   ──► Eureka Discovery Server (8761)
   │
-  │  ── IMPLEMENTED ──────────────────────────────────────
+  │────── IMPLEMENTED ──────────────────────────────────────
   ├──► Auth Service (8081)                  ──► auth_db
   ├──► Event Management Service (8082)      ──► event_management_db
   ├──► Event Participation Service (8083)   ──► event_participation_db
@@ -37,34 +35,34 @@ API Gateway (8080)   ──► Eureka Discovery Server (8761)
   ├──► Platform Management Service (8086)   ──► platform_management_db
   ├──► Notification Service (8088)          ──► notification
   ├──► Audit & Storage Service (8089)       ──► audit_storage_db
-  │                                         ──► S3 / MinIO (9000)
+  │                                        
   │
-  │  ── PLANNED ──────────────────────────────────────────
+  │────── NOT IMPLEMENTED YET ───────────────────────────────
   ├──► User Service                         ──► user_db
   ├──► Certificate Service                  ──► certificate_db
   ├──► Vacancy Service                      ──► vacancy_db
-  └──► AI Service                           ──► (Vector DB / Storage)
+  └──► AI Service
 ```
 
 ---
 
 ## Service Directory
 
-| Service | Port | Database | Status | Swagger UI |
-|---|---|---|---|---|
-| [API Gateway](./api-gateway/README.md) | **8080** | — | ✅ Live | `http://localhost:8080/swagger-ui.html` |
-| [Auth Service](./services/auth-service/README.md) | **8081** | `auth_db` | ✅ Live | `http://localhost:8081/swagger-ui.html` |
-| [Event Management Service](./services/event-management-service/README.md) | **8082** | `event_management_db` | ✅ Live | `http://localhost:8082/swagger-ui.html` |
-| [Event Participation Service](./services/event-participation-service/README.md) | **8083** | `event_participation_db` | ✅ Live | `http://localhost:8083/swagger-ui.html` |
-| [Application Service](./services/application-service/README.md) | **8084** | `application_service_db` | ✅ Live | `http://localhost:8084/swagger-ui.html` |
-| [Platform Management Service](./services/platform-management-service/README.md) | **8086** | `platform_management_db` | ✅ Live | `http://localhost:8086/swagger-ui.html` |
-| [Notification Service](./services/notification-service/README.md) | **8088** | `notification` | ✅ Live | `http://localhost:8088/swagger-ui.html` |
-| [Audit & Storage Service](./services/audit-storage-service/README.md) | **8089** | `audit_storage_db` | ✅ Live | `http://localhost:8089/swagger-ui.html` |
-| [Discovery Server](./discovery-server/README.md) | **8761** | — | ✅ Live | `http://localhost:8761` |
-| *User Service* | *TBD* | *user_db* | 🔲 Planned | — |
-| *Certificate Service* | *TBD* | *certificate_db* | 🔲 Planned | — |
-| *Vacancy Service* | *TBD* | *vacancy_db* | 🔲 Planned | — |
-| *AI Service* | *TBD* | *(Vector DB)* | 🔲 Planned | — |
+| Service | Port | Database | Status      | Swagger UI |
+|---|---|--|-------------|---|
+| [API Gateway](./api-gateway/README.md) | **8080** | — | ✅ Live     | `http://localhost:8080/swagger-ui.html` |
+| [Auth Service](./services/auth-service/README.md) | **8081** | `auth_db` | ✅ Live     | `http://localhost:8081/swagger-ui.html` |
+| [Event Management Service](./services/event-management-service/README.md) | **8082** | `event_management_db` | ✅ Live     | `http://localhost:8082/swagger-ui.html` |
+| [Event Participation Service](./services/event-participation-service/README.md) | **8083** | `event_participation_db` | ✅ Live     | `http://localhost:8083/swagger-ui.html` |
+| [Application Service](./services/application-service/README.md) | **8084** | `application_service_db` | ✅ Live     | `http://localhost:8084/swagger-ui.html` |
+| [Platform Management Service](./services/platform-management-service/README.md) | **8086** | `platform_management_db` | ✅ Live     | `http://localhost:8086/swagger-ui.html` |
+| [Notification Service](./services/notification-service/README.md) | **8088** | `notification` | ✅ Live     | `http://localhost:8088/swagger-ui.html` |
+| [Audit & Storage Service](./services/audit-storage-service/README.md) | **8089** | `audit_storage_db` | ✅ Live     | `http://localhost:8089/swagger-ui.html` |
+| [Discovery Server](./discovery-server/README.md) | **8761** | — | ✅ Live     | `http://localhost:8761` |
+| *User Service* | *TBD* | *user_db* | ❌ Not Live | — |
+| *Certificate Service* | *TBD* | *certificate_db* | ❌ Not Live  | — |
+| *Vacancy Service* | *TBD* | *vacancy_db* | ❌ Not Live  | — |
+| *AI Service* | *TBD* | | ❌ Not Live  | — |
 
 > The aggregated Swagger UI (all services combined) is available at `http://localhost:8080/swagger-ui.html` when the gateway is running.
 
@@ -78,7 +76,6 @@ API Gateway (8080)   ──► Eureka Discovery Server (8761)
 | Maven Wrapper | included | — |
 | PostgreSQL | 15+ | 5432 |
 | RabbitMQ | 3.x+ | 5672 |
-| MinIO / AWS S3 | any | 9000 (local) |
 
 ### Required Databases (PostgreSQL)
 Create these databases before starting the services:
@@ -97,7 +94,6 @@ CREATE DATABASE audit_storage_db;
 |---|---|---|
 | PostgreSQL | `user` | `root` |
 | RabbitMQ | `guest` | `guest` |
-| MinIO | `minioadmin` | `minioadmin` |
 | Default Admin User | `admin001` | `Admin@123` |
 
 ---
@@ -164,10 +160,10 @@ The gateway routes requests based on path prefixes. All routes are prefixed with
 | `/api/v1/applications/**` | Application Service | ✅ Live |
 | `/api/v1/storage/**`, `/api/v1/audit/**` | Audit & Storage Service | ✅ Live |
 | `/api/v1/partner-verifications/**`, `/api/v1/vacancy-approvals/**`, `/api/v1/partners/**` | Platform Management Service | ✅ Live |
-| `/api/v1/users/**` | User Service | 🔲 Planned |
-| `/api/v1/vacancies/**` | Vacancy Service | 🔲 Planned |
-| `/api/v1/certificates/**` | Certificate Service | 🔲 Planned |
-| `/api/v1/ai/**` | AI Service | 🔲 Planned |
+| `/api/v1/users/**` | User Service | ❌ Not Live |
+| `/api/v1/vacancies/**` | Vacancy Service | ❌ Not Live |
+| `/api/v1/certificates/**` | Certificate Service | ❌ Not Live |
+| `/api/v1/ai/**` | AI Service | ❌ Not Live |
 
 ---
 
@@ -199,7 +195,7 @@ All notification events flow through a single **Topic Exchange** called `notific
 | `notification.status.announcement` | `announcement.status.queue` | Event Management Service | Announcement delivery status callback |
 | `notification.status.update` | `update.status.queue` | Application Service | Update delivery status callback |
 
-### Future Events (Planned)
+### Future Events (Not Live)
 
 | Routing Key | Published By | Consumed By | Description |
 |---|---|---|---|
