@@ -1,8 +1,7 @@
 package com.nsbm.authservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
-import com.nsbm.authservice.dto.StaffInvitationRequest;
+import com.nsbm.authservice.dto.*;
 import com.nsbm.authservice.entity.Role;
 import com.nsbm.authservice.exception.GlobalExceptionHandler;
 import com.nsbm.authservice.exception.InvalidTokenException;
@@ -74,7 +73,7 @@ class AuthControllerTest {
             String invalidJson = """
                     {
                         "email": "not-an-email",
-                        "role": "LECTURER"
+                        "role": "ACADEMIC_STAFF"
                     }
                     """;
 
@@ -175,6 +174,132 @@ class AuthControllerTest {
 
             // Act & Assert
             mockMvc.perform(post("/api/v1/auth/staff/complete-registration")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.title").value("Username Already Exists"))
+                    .andExpect(jsonPath("$.detail").value("Username 'taken_username' is already taken."));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/partner/pending Tests")
+    class CreatePendingPartnerApiTests {
+
+        @Test
+        @DisplayName("Should return 201 Created for valid apply partner registration request")
+        void createPendingPartner_Returns201Created() throws Exception {
+            // Arrange
+            ApplyPartnerRegistrationRequest request = new ApplyPartnerRegistrationRequest(
+                    "Jane Smith", "jane@company.com", "+94771234567",
+                    "HR Director", "TechCorp Ltd", "IT Services",
+                    "123 Business Way, Colombo", "Leading software company"
+            );
+            doNothing().when(authService).createPendingPartner(any(ApplyPartnerRegistrationRequest.class));
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/partner/pending")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated());
+
+            verify(authService, times(1)).createPendingPartner(request);
+        }
+
+        @Test
+        @DisplayName("Should return 400 Bad Request when email is invalid format")
+        void createPendingPartner_Returns400BadRequest_WhenInvalidEmail() throws Exception {
+            // Arrange
+            ApplyPartnerRegistrationRequest request = new ApplyPartnerRegistrationRequest(
+                    "Jane Smith", "invalid-email-format", "+94771234567",
+                    "HR Director", "TechCorp Ltd", "IT Services",
+                    "123 Business Way, Colombo", "Leading software company"
+            );
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/partner/pending")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
+
+            verify(authService, never()).createPendingPartner(any());
+        }
+
+        @Test
+        @DisplayName("Should return 409 Conflict when partner email already exists")
+        void createPendingPartner_Returns409Conflict_WhenEmailExists() throws Exception {
+            // Arrange
+            ApplyPartnerRegistrationRequest request = new ApplyPartnerRegistrationRequest(
+                    "Jane Smith", "existing@company.com", "+94771234567",
+                    "HR Director", "TechCorp Ltd", "IT Services",
+                    "123 Business Way, Colombo", "Leading software company"
+            );
+            doThrow(new StaffAlreadyExistsException("Partner with email existing@company.com is already registered or invited."))
+                    .when(authService).createPendingPartner(any(ApplyPartnerRegistrationRequest.class));
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/partner/pending")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.title").value("Resource Conflict"))
+                    .andExpect(jsonPath("$.detail").value("Partner with email existing@company.com is already registered or invited."));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/partner/complete-registration Tests")
+    class CompletePartnerRegistrationApiTests {
+
+        @Test
+        @DisplayName("Should return 201 Created for valid complete partner registration request")
+        void completePartnerRegistration_Returns201Created() throws Exception {
+            // Arrange
+            CompletePartnerRegistrationRequest request = new CompletePartnerRegistrationRequest(
+                    "partner-token-1234", "techcorp_admin", "PartnerPassword123"
+            );
+            doNothing().when(authService).completePartnerRegistration(any(CompletePartnerRegistrationRequest.class));
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/partner/complete-registration")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated());
+
+            verify(authService, times(1)).completePartnerRegistration(request);
+        }
+
+        @Test
+        @DisplayName("Should return 400 Bad Request when registration token is invalid")
+        void completePartnerRegistration_Returns400BadRequest_WhenTokenInvalid() throws Exception {
+            // Arrange
+            CompletePartnerRegistrationRequest request = new CompletePartnerRegistrationRequest(
+                    "invalid-token", "techcorp_admin", "PartnerPassword123"
+            );
+            doThrow(new InvalidTokenException("Invalid or expired registration token."))
+                    .when(authService).completePartnerRegistration(any(CompletePartnerRegistrationRequest.class));
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/partner/complete-registration")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.title").value("Invalid Token"))
+                    .andExpect(jsonPath("$.detail").value("Invalid or expired registration token."));
+        }
+
+        @Test
+        @DisplayName("Should return 409 Conflict when username already exists")
+        void completePartnerRegistration_Returns409Conflict_WhenUsernameTaken() throws Exception {
+            // Arrange
+            CompletePartnerRegistrationRequest request = new CompletePartnerRegistrationRequest(
+                    "partner-token-1234", "taken_username", "PartnerPassword123"
+            );
+            doThrow(new UsernameAlreadyExistsException("Username 'taken_username' is already taken."))
+                    .when(authService).completePartnerRegistration(any(CompletePartnerRegistrationRequest.class));
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/partner/complete-registration")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isConflict())
