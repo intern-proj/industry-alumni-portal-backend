@@ -57,7 +57,7 @@ public class GuestSpeakerControllerTest {
 
         when(guestSpeakerService.createSpeaker(any(GuestSpeakerRequest.class))).thenReturn(speakerResponse);
 
-        mockMvc.perform(post("/api/guest-speakers")
+        mockMvc.perform(post("/api/v1/guest-speakers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -70,7 +70,7 @@ public class GuestSpeakerControllerTest {
                 .email("nimal.perera@example.com")
                 .build();
 
-        mockMvc.perform(post("/api/guest-speakers")
+        mockMvc.perform(post("/api/v1/guest-speakers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -80,7 +80,7 @@ public class GuestSpeakerControllerTest {
     void getSpeakerById_whenExists_returns200() throws Exception {
         when(guestSpeakerService.getSpeakerById(1L)).thenReturn(speakerResponse);
 
-        mockMvc.perform(get("/api/guest-speakers/{id}", 1L))
+        mockMvc.perform(get("/api/v1/guest-speakers/{id}", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
     }
@@ -89,7 +89,7 @@ public class GuestSpeakerControllerTest {
     void getSpeakerById_whenNotFound_returns404() throws Exception {
         when(guestSpeakerService.getSpeakerById(999L)).thenThrow(new GuestSpeakerNotFoundException(999L));
 
-        mockMvc.perform(get("/api/guest-speakers/{id}", 999L))
+        mockMvc.perform(get("/api/v1/guest-speakers/{id}", 999L))
                 .andExpect(status().isNotFound());
     }
 
@@ -97,7 +97,7 @@ public class GuestSpeakerControllerTest {
     void getAllSpeakers_noFilter_returnsAll() throws Exception {
         when(guestSpeakerService.getAllSpeakers()).thenReturn(List.of(speakerResponse));
 
-        mockMvc.perform(get("/api/guest-speakers"))
+        mockMvc.perform(get("/api/v1/guest-speakers"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
 
@@ -108,7 +108,7 @@ public class GuestSpeakerControllerTest {
     void getAllSpeakers_withOrganizationFilter_returnsFiltered() throws Exception {
         when(guestSpeakerService.getSpeakersByOrganization(5L)).thenReturn(List.of(speakerResponse));
 
-        mockMvc.perform(get("/api/guest-speakers").param("organizationId", "5"))
+        mockMvc.perform(get("/api/v1/guest-speakers").param("organizationId", "5"))
                 .andExpect(status().isOk());
 
         verify(guestSpeakerService).getSpeakersByOrganization(5L);
@@ -123,7 +123,7 @@ public class GuestSpeakerControllerTest {
 
         when(guestSpeakerService.updateSpeaker(eq(1L), any(GuestSpeakerRequest.class))).thenReturn(speakerResponse);
 
-        mockMvc.perform(put("/api/guest-speakers/{id}", 1L)
+        mockMvc.perform(put("/api/v1/guest-speakers/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
@@ -133,7 +133,7 @@ public class GuestSpeakerControllerTest {
     void deleteSpeaker_returns204() throws Exception {
         doNothing().when(guestSpeakerService).deleteSpeaker(1L);
 
-        mockMvc.perform(delete("/api/guest-speakers/{id}", 1L))
+        mockMvc.perform(delete("/api/v1/guest-speakers/{id}", 1L))
                 .andExpect(status().isNoContent());
     }
 }

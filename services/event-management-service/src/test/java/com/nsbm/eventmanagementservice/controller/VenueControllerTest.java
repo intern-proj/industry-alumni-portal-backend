@@ -58,7 +58,7 @@ public class VenueControllerTest {
 
         when(venueService.createVenue(any(VenueRequest.class))).thenReturn(venueResponse);
 
-        mockMvc.perform(post("/api/venues")
+        mockMvc.perform(post("/api/v1/venues")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -72,7 +72,7 @@ public class VenueControllerTest {
                 .venueType(VenueType.PHYSICAL)
                 .build();
 
-        mockMvc.perform(post("/api/venues")
+        mockMvc.perform(post("/api/v1/venues")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -82,7 +82,7 @@ public class VenueControllerTest {
     void getAllVenues_returns200WithList() throws Exception {
         when(venueService.getAllVenues()).thenReturn(List.of(venueResponse));
 
-        mockMvc.perform(get("/api/venues"))
+        mockMvc.perform(get("/api/v1/venues"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
     }
@@ -91,7 +91,7 @@ public class VenueControllerTest {
     void getVenueById_whenNotFound_returns404() throws Exception {
         when(venueService.getVenueById(999L)).thenThrow(new VenueNotFoundException(999L));
 
-        mockMvc.perform(get("/api/venues/{id}", 999L))
+        mockMvc.perform(get("/api/v1/venues/{id}", 999L))
                 .andExpect(status().isNotFound());
     }
 
@@ -105,7 +105,7 @@ public class VenueControllerTest {
 
         when(venueService.updateVenue(eq(1L), any(VenueRequest.class))).thenReturn(venueResponse);
 
-        mockMvc.perform(put("/api/venues/{id}", 1L)
+        mockMvc.perform(put("/api/v1/venues/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
@@ -115,7 +115,7 @@ public class VenueControllerTest {
     void deleteVenue_returns204() throws Exception {
         doNothing().when(venueService).deleteVenue(1L);
 
-        mockMvc.perform(delete("/api/venues/{id}", 1L))
+        mockMvc.perform(delete("/api/v1/venues/{id}", 1L))
                 .andExpect(status().isNoContent());
     }
 }

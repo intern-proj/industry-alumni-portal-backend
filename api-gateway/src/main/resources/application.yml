@@ -38,8 +38,6 @@ spring:
           uri: lb://notification-service
           predicates:
             - Path=${api.path}/templates/**
-          filters:
-            - StripPrefix=2
 
         - id: event-management-service
           uri: lb://event-management-service
@@ -59,7 +57,7 @@ spring:
         - id: audit-storage-service
           uri: lb://audit-storage-service
           predicates:
-            - Path=/api/storage/**,/api/audit/**,${api.path}/storage/**,${api.path}/audit/**
+            - Path=${api.path}/storage/**,${api.path}/audit/**
 
         # Swagger / OpenAPI Documentation Aggregation Routes
         - id: auth-service-docs

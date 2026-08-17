@@ -76,7 +76,7 @@ class AuditControllerTest {
         when(auditService.logActionAsync(any(AuditLogRequest.class)))
                 .thenReturn(CompletableFuture.completedFuture(auditLogResponse));
 
-        mockMvc.perform(post("/api/audit/log")
+        mockMvc.perform(post("/api/v1/audit/log")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(auditLogRequest)))
                 .andExpect(status().isAccepted());
@@ -92,7 +92,7 @@ class AuditControllerTest {
                 .ipAddress("")
                 .build();
 
-        mockMvc.perform(post("/api/audit/log")
+        mockMvc.perform(post("/api/v1/audit/log")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest());
@@ -103,7 +103,7 @@ class AuditControllerTest {
         when(auditService.getLogs(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(auditLogResponse), PageRequest.of(0, 20), 1));
 
-        mockMvc.perform(get("/api/audit/logs"))
+        mockMvc.perform(get("/api/v1/audit/logs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].userId").value("user-123"))
                 .andExpect(jsonPath("$.content[0].action").value("LOGIN"))
@@ -117,7 +117,7 @@ class AuditControllerTest {
         when(auditService.getLogsByUserId(eq("user-123"), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(auditLogResponse)));
 
-        mockMvc.perform(get("/api/audit/logs").param("userId", "user-123"))
+        mockMvc.perform(get("/api/v1/audit/logs").param("userId", "user-123"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].userId").value("user-123"));
 
@@ -129,7 +129,7 @@ class AuditControllerTest {
         when(auditService.getLogsByAction(eq("LOGIN"), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(auditLogResponse)));
 
-        mockMvc.perform(get("/api/audit/logs").param("action", "LOGIN"))
+        mockMvc.perform(get("/api/v1/audit/logs").param("action", "LOGIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].action").value("LOGIN"));
 
@@ -143,7 +143,7 @@ class AuditControllerTest {
         when(auditService.getLogsBetween(eq(from), eq(to), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(auditLogResponse)));
 
-        mockMvc.perform(get("/api/audit/logs")
+        mockMvc.perform(get("/api/v1/audit/logs")
                         .param("from", from.toString())
                         .param("to", to.toString()))
                 .andExpect(status().isOk())

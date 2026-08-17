@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping({"/api/events/{eventId}/eligibility-criteria", "/api/v1/events/{eventId}/eligibility-criteria"})
+@RequestMapping("/api/v1/events/{eventId}/eligibility-criteria")
 @RequiredArgsConstructor
 public class CertificateEligibilityCriteriaController {
     private final CertificateEligibilityCriteriaService criteriaService;

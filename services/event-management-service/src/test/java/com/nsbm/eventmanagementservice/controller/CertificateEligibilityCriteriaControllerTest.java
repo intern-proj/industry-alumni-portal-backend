@@ -56,7 +56,7 @@ public class CertificateEligibilityCriteriaControllerTest {
         when(criteriaService.createOrUpdateCriteria(eq(1L), any(CertificateEligibilityCriteriaRequest.class)))
                 .thenReturn(criteriaResponse);
 
-        mockMvc.perform(put("/api/events/{eventId}/eligibility-criteria", 1L)
+        mockMvc.perform(put("/api/v1/events/{eventId}/eligibility-criteria", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -72,7 +72,7 @@ public class CertificateEligibilityCriteriaControllerTest {
         when(criteriaService.createOrUpdateCriteria(eq(999L), any(CertificateEligibilityCriteriaRequest.class)))
                 .thenThrow(new EventNotFoundException(999L));
 
-        mockMvc.perform(put("/api/events/{eventId}/eligibility-criteria", 999L)
+        mockMvc.perform(put("/api/v1/events/{eventId}/eligibility-criteria", 999L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
@@ -82,7 +82,7 @@ public class CertificateEligibilityCriteriaControllerTest {
     void getCriteria_whenExists_returns200() throws Exception {
         when(criteriaService.getCriteriaByEventId(1L)).thenReturn(criteriaResponse);
 
-        mockMvc.perform(get("/api/events/{eventId}/eligibility-criteria", 1L))
+        mockMvc.perform(get("/api/v1/events/{eventId}/eligibility-criteria", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.eventId").value(1));
     }
@@ -92,7 +92,7 @@ public class CertificateEligibilityCriteriaControllerTest {
         when(criteriaService.getCriteriaByEventId(999L))
                 .thenThrow(new CertificateEligibilityCriteriaNotFoundException(999L));
 
-        mockMvc.perform(get("/api/events/{eventId}/eligibility-criteria", 999L))
+        mockMvc.perform(get("/api/v1/events/{eventId}/eligibility-criteria", 999L))
                 .andExpect(status().isNotFound());
     }
 
@@ -100,7 +100,7 @@ public class CertificateEligibilityCriteriaControllerTest {
     void deleteCriteria_returns204() throws Exception {
         doNothing().when(criteriaService).deleteCriteria(1L);
 
-        mockMvc.perform(delete("/api/events/{eventId}/eligibility-criteria", 1L))
+        mockMvc.perform(delete("/api/v1/events/{eventId}/eligibility-criteria", 1L))
                 .andExpect(status().isNoContent());
     }
 }

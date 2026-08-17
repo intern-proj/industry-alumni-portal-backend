@@ -58,7 +58,7 @@ public class EventControllerTest {
 
         when(eventService.createEvent(any(CreateEventRequest.class))).thenReturn(eventResponse);
 
-        mockMvc.perform(post("/api/events")
+        mockMvc.perform(post("/api/v1/events")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -72,7 +72,7 @@ public class EventControllerTest {
                 .startDateTime(LocalDateTime.now().plusDays(5))
                 .build();
 
-        mockMvc.perform(post("/api/events")
+        mockMvc.perform(post("/api/v1/events")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -85,7 +85,7 @@ public class EventControllerTest {
     void getEventById_whenExists_returns200() throws Exception {
         when(eventService.getEventById(1L)).thenReturn(eventResponse);
 
-        mockMvc.perform(get("/api/events/{id}", 1L))
+        mockMvc.perform(get("/api/v1/events/{id}", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.title").value("Industry Panel"));
@@ -95,7 +95,7 @@ public class EventControllerTest {
     void getEventById_whenNotFound_returns404() throws Exception {
         when(eventService.getEventById(999L)).thenThrow(new EventNotFoundException(999L));
 
-        mockMvc.perform(get("/api/events/{id}", 999L))
+        mockMvc.perform(get("/api/v1/events/{id}", 999L))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Event not found with id: 999"));
     }
@@ -104,7 +104,7 @@ public class EventControllerTest {
     void getAllEvents_noFilters_returnsAllEvents() throws Exception {
         when(eventService.getAllEvents()).thenReturn(List.of(eventResponse));
 
-        mockMvc.perform(get("/api/events"))
+        mockMvc.perform(get("/api/v1/events"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
 
@@ -115,7 +115,7 @@ public class EventControllerTest {
     void getAllEvents_withStatusFilter_callsFilteredMethod() throws Exception {
         when(eventService.getEventsByStatus(EventStatus.SCHEDULED)).thenReturn(List.of(eventResponse));
 
-        mockMvc.perform(get("/api/events").param("status", "SCHEDULED"))
+        mockMvc.perform(get("/api/v1/events").param("status", "SCHEDULED"))
                 .andExpect(status().isOk());
 
         verify(eventService).getEventsByStatus(EventStatus.SCHEDULED);
@@ -130,7 +130,7 @@ public class EventControllerTest {
 
         when(eventService.updateStatus(eq(1L), any(UpdateEventStatusRequest.class))).thenReturn(eventResponse);
 
-        mockMvc.perform(patch("/api/events/{id}/status", 1L)
+        mockMvc.perform(patch("/api/v1/events/{id}/status", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
@@ -145,7 +145,7 @@ public class EventControllerTest {
         when(eventService.updateStatus(eq(1L), any(UpdateEventStatusRequest.class)))
                 .thenThrow(new InvalidEventStatusTransitionException(EventStatus.DRAFT, EventStatus.COMPLETED));
 
-        mockMvc.perform(patch("/api/events/{id}/status", 1L)
+        mockMvc.perform(patch("/api/v1/events/{id}/status", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict());
@@ -168,7 +168,7 @@ public class EventControllerTest {
 
         when(eventService.assignCoordinator(eq(1L), any(AssignCoordinatorRequest.class))).thenReturn(withCoordinator);
 
-        mockMvc.perform(post("/api/events/{id}/coordinator", 1L)
+        mockMvc.perform(post("/api/v1/events/{id}/coordinator", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -179,7 +179,7 @@ public class EventControllerTest {
     void deleteEvent_returns204() throws Exception {
         doNothing().when(eventService).deleteEvent(1L);
 
-        mockMvc.perform(delete("/api/events/{id}", 1L))
+        mockMvc.perform(delete("/api/v1/events/{id}", 1L))
                 .andExpect(status().isNoContent());
 
         verify(eventService).deleteEvent(1L);
