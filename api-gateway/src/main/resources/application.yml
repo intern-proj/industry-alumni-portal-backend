@@ -104,6 +104,18 @@ spring:
           filters:
             - SetPath=/v3/api-docs
 
+        - id: platform-management-service
+          uri: lb://platform-management-service
+          predicates:
+            - Path=${api.path}/partners/**,${api.path}/vacancies/**
+
+        - id: platform-management-service-docs
+          uri: lb://platform-management-service
+          predicates:
+            - Path=/v3/api-docs/platform-management-service
+          filters:
+            - SetPath=/v3/api-docs
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -120,6 +132,8 @@ springdoc:
         url: /v3/api-docs/notification-service
       - name: Audit & Storage Service
         url: /v3/api-docs/audit-storage-service
+      - name: Platform Management Service
+        url: /v3/api-docs/platform-management-service
 
 management:
   endpoint:
