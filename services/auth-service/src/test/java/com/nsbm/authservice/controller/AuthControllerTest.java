@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nsbm.authservice.dto.*;
 import com.nsbm.authservice.entity.Role;
 import com.nsbm.authservice.exception.GlobalExceptionHandler;
+import com.nsbm.authservice.exception.InvalidCredentialsException;
 import com.nsbm.authservice.exception.InvalidTokenException;
 import com.nsbm.authservice.exception.StaffAlreadyExistsException;
 import com.nsbm.authservice.exception.UsernameAlreadyExistsException;
@@ -22,6 +23,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -305,6 +307,113 @@ class AuthControllerTest {
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.title").value("Username Already Exists"))
                     .andExpect(jsonPath("$.detail").value("Username 'taken_username' is already taken."));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/login Tests")
+    class LoginStudentOrPartnerApiTests {
+
+        @Test
+        @DisplayName("Should return 200 OK with AuthResponse for student/partner login")
+        void loginStudentOrPartner_Returns200OK() throws Exception {
+            // Arrange
+            LoginRequest request = new LoginRequest("student_user", "password123");
+            AuthResponse response = new AuthResponse("mock-jwt-token", "student_user", "student@nsbm.ac.lk", "STUDENT", "STUDENT");
+            when(authService.loginStudentOrPartner(any(LoginRequest.class))).thenReturn(response);
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.accessToken").value("mock-jwt-token"))
+                    .andExpect(jsonPath("$.username").value("student_user"))
+                    .andExpect(jsonPath("$.role").value("STUDENT"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/staff/login Tests")
+    class InitiateStaffLoginApiTests {
+
+        @Test
+        @DisplayName("Should return 200 OK with Step1LoginResponse for staff login step 1")
+        void initiateStaffLogin_Returns200OK() throws Exception {
+            // Arrange
+            LoginRequest request = new LoginRequest("admin_staff", "password123");
+            Step1LoginResponse response = new Step1LoginResponse("session-token-123", "admin_staff", "OTP sent", 300L);
+            when(authService.initiateStaffLogin(any(LoginRequest.class))).thenReturn(response);
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/staff/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.sessionToken").value("session-token-123"))
+                    .andExpect(jsonPath("$.username").value("admin_staff"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/staff/verify-otp Tests")
+    class VerifyStaffOtpApiTests {
+
+        @Test
+        @DisplayName("Should return 200 OK with AuthResponse for valid staff OTP verification")
+        void verifyStaffOtp_Returns200OK() throws Exception {
+            // Arrange
+            OtpVerificationRequest request = new OtpVerificationRequest("session-token-123", "123456");
+            AuthResponse response = new AuthResponse("staff-jwt-token", "admin_staff", "admin@nsbm.ac.lk", "ADMIN", "MANAGEMENT_STAFF");
+            when(authService.verifyStaffOtp(any(OtpVerificationRequest.class))).thenReturn(response);
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/staff/verify-otp")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.accessToken").value("staff-jwt-token"))
+                    .andExpect(jsonPath("$.userType").value("MANAGEMENT_STAFF"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/validate Tests")
+    class ValidateTokenApiTests {
+
+        @Test
+        @DisplayName("Should return 200 OK with TokenValidationResponse for token param or header")
+        void validateToken_Returns200OK() throws Exception {
+            // Arrange
+            TokenValidationResponse response = new TokenValidationResponse(true, "john", "john@nsbm.ac.lk", "STUDENT", "STUDENT");
+            when(authService.validateToken("bearer-jwt-token")).thenReturn(response);
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/validate")
+                            .header("Authorization", "Bearer bearer-jwt-token"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.valid").value(true))
+                    .andExpect(jsonPath("$.username").value("john"));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/auth/me Tests")
+    class GetCurrentUserApiTests {
+
+        @Test
+        @DisplayName("Should return 200 OK with current user validation info")
+        void getCurrentUser_Returns200OK() throws Exception {
+            // Arrange
+            TokenValidationResponse response = new TokenValidationResponse(true, "john", "john@nsbm.ac.lk", "STUDENT", "STUDENT");
+            when(authService.validateToken("bearer-jwt-token")).thenReturn(response);
+
+            // Act & Assert
+            mockMvc.perform(get("/api/v1/auth/me")
+                            .header("Authorization", "Bearer bearer-jwt-token"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.valid").value(true))
+                    .andExpect(jsonPath("$.username").value("john"));
         }
     }
 }
