@@ -1,17 +1,16 @@
 package com.nsbm.authservice.service;
 
 import com.nsbm.authservice.dto.*;
-import com.nsbm.authservice.entity.IndustryPartner;
-import com.nsbm.authservice.entity.ManagementStaff;
-import com.nsbm.authservice.entity.PendingPartner;
+import com.nsbm.authservice.entity.*;
+import com.nsbm.authservice.exception.InvalidCredentialsException;
 import com.nsbm.authservice.exception.InvalidTokenException;
-import com.nsbm.authservice.entity.PendingStaff;
 import com.nsbm.authservice.exception.StaffAlreadyExistsException;
 import com.nsbm.authservice.exception.UsernameAlreadyExistsException;
 import com.nsbm.authservice.repository.IndustryPartnerRepository;
 import com.nsbm.authservice.repository.ManagementStaffRepository;
 import com.nsbm.authservice.repository.PendingPartnerRepository;
 import com.nsbm.authservice.repository.PendingStaffRepository;
+import com.nsbm.authservice.security.JwtTokenProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -20,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -33,6 +33,7 @@ public class AuthService {
     private final IndustryPartnerRepository partnerRepository;
     private final RabbitTemplate rabbitTemplate;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Value("${app.rabbitmq.exchange:notification.exchange}")
     private String exchange;
@@ -45,13 +46,15 @@ public class AuthService {
                        PendingPartnerRepository pendingPartnerRepository,
                        IndustryPartnerRepository partnerRepository,
                        RabbitTemplate rabbitTemplate,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       JwtTokenProvider jwtTokenProvider) {
         this.staffRepository = staffRepository;
         this.pendingStaffRepository = pendingStaffRepository;
         this.pendingPartnerRepository = pendingPartnerRepository;
         this.partnerRepository = partnerRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.passwordEncoder = passwordEncoder;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     @Transactional
@@ -173,5 +176,29 @@ public class AuthService {
         pendingPartnerRepository.delete(pendingPartner);
     }
 
+    @Transactional(readOnly = true)
+    public AuthResponse loginStudentOrPartner(LoginRequest request) {
+        // Check Student login
+        Optional<Student> studentOpt = studentRepository.findByUsername(request.username());
+        if (studentOpt.isPresent()) {
+            Student student = studentOpt.get();
+            if (passwordEncoder.matches(request.password(), student.getPasswordHash())) {
+                String token = jwtTokenProvider.generateToken(student.getUsername(), student.getEmail(), Role.STUDENT.name(), "STUDENT");
+                return new AuthResponse(token, student.getUsername(), student.getEmail(), Role.STUDENT.name(), "STUDENT");
+            }
+        }
+
+        // Check Industry Partner login
+        Optional<IndustryPartner> partnerOpt = partnerRepository.findByUsername(request.username());
+        if (partnerOpt.isPresent()) {
+            IndustryPartner partner = partnerOpt.get();
+            if (passwordEncoder.matches(request.password(), partner.getPasswordHash())) {
+                String token = jwtTokenProvider.generateToken(partner.getUsername(), partner.getEmail(), Role.INDUSTRY_PARTNER.name(), "INDUSTRY_PARTNER");
+                return new AuthResponse(token, partner.getUsername(), partner.getEmail(), Role.INDUSTRY_PARTNER.name(), "INDUSTRY_PARTNER");
+            }
+        }
+
+        throw new InvalidCredentialsException("Invalid username or password.");
+    }
 
 }
