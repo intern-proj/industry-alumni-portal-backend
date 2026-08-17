@@ -27,6 +27,9 @@ public class OtpCode {
     @Column(name = "code", nullable = false, length = 6)
     private String code;
 
+    @Column(name = "session_token", length = 100)
+    private String sessionToken;
+
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
@@ -34,3 +37,4 @@ public class OtpCode {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 }
+
