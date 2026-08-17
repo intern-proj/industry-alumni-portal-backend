@@ -26,6 +26,7 @@ public class AuthService {
     private final ManagementStaffRepository staffRepository;
     private final PendingStaffRepository pendingStaffRepository;
     private final PendingPartnerRepository pendingPartnerRepository;
+    private final StudentRepository studentRepository;
     private final IndustryPartnerRepository partnerRepository;
     private final OtpCodeRepository otpCodeRepository;
     private final RabbitTemplate rabbitTemplate;
@@ -44,6 +45,7 @@ public class AuthService {
     public AuthService(ManagementStaffRepository staffRepository,
                        PendingStaffRepository pendingStaffRepository,
                        PendingPartnerRepository pendingPartnerRepository,
+                       StudentRepository studentRepository,
                        IndustryPartnerRepository partnerRepository,
                        OtpCodeRepository otpCodeRepository,
                        RabbitTemplate rabbitTemplate,
@@ -52,6 +54,7 @@ public class AuthService {
         this.staffRepository = staffRepository;
         this.pendingStaffRepository = pendingStaffRepository;
         this.pendingPartnerRepository = pendingPartnerRepository;
+        this.studentRepository = studentRepository;
         this.partnerRepository = partnerRepository;
         this.otpCodeRepository = otpCodeRepository;
         this.rabbitTemplate = rabbitTemplate;
