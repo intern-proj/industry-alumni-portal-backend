@@ -63,42 +63,42 @@ spring:
         - id: auth-service-docs
           uri: lb://auth-service
           predicates:
-            - Path=/v3/api-docs/auth-service
+            - Path=/services-docs/auth-service
           filters:
             - SetPath=/v3/api-docs
 
         - id: event-management-service-docs
           uri: lb://event-management-service
           predicates:
-            - Path=/v3/api-docs/event-management-service
+            - Path=/services-docs/event-management-service
           filters:
             - SetPath=/v3/api-docs
 
         - id: event-participation-service-docs
           uri: lb://event-participation-service
           predicates:
-            - Path=/v3/api-docs/event-participation-service
+            - Path=/services-docs/event-participation-service
           filters:
             - SetPath=/v3/api-docs
 
         - id: application-service-docs
           uri: lb://application-service
           predicates:
-            - Path=/v3/api-docs/application-service
+            - Path=/services-docs/application-service
           filters:
             - SetPath=/v3/api-docs
 
         - id: notification-service-docs
           uri: lb://notification-service
           predicates:
-            - Path=/v3/api-docs/notification-service
+            - Path=/services-docs/notification-service
           filters:
             - SetPath=/v3/api-docs
 
         - id: audit-storage-service-docs
           uri: lb://audit-storage-service
           predicates:
-            - Path=/v3/api-docs/audit-storage-service
+            - Path=/services-docs/audit-storage-service
           filters:
             - SetPath=/v3/api-docs
 
@@ -110,28 +110,30 @@ spring:
         - id: platform-management-service-docs
           uri: lb://platform-management-service
           predicates:
-            - Path=/v3/api-docs/platform-management-service
+            - Path=/services-docs/platform-management-service
           filters:
             - SetPath=/v3/api-docs
 
 springdoc:
+  api-docs:
+    enabled: false
   swagger-ui:
     path: /swagger-ui.html
     urls:
       - name: Auth Service
-        url: /v3/api-docs/auth-service
+        url: /services-docs/auth-service
       - name: Event Management Service
-        url: /v3/api-docs/event-management-service
+        url: /services-docs/event-management-service
       - name: Event Participation Service
-        url: /v3/api-docs/event-participation-service
+        url: /services-docs/event-participation-service
       - name: Application Service
-        url: /v3/api-docs/application-service
+        url: /services-docs/application-service
       - name: Notification Service
-        url: /v3/api-docs/notification-service
+        url: /services-docs/notification-service
       - name: Audit & Storage Service
-        url: /v3/api-docs/audit-storage-service
+        url: /services-docs/audit-storage-service
       - name: Platform Management Service
-        url: /v3/api-docs/platform-management-service
+        url: /services-docs/platform-management-service
 
 management:
   endpoint:
