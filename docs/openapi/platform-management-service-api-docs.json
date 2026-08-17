@@ -1,0 +1,1299 @@
+﻿{
+    "openapi":  "3.1.0",
+    "info":  {
+                 "title":  "Platform Management Service API",
+                 "description":  "Partner verification, vacancy approval workflow \u0026 platform administration API",
+                 "contact":  {
+                                 "name":  "ICU Platform Team",
+                                 "email":  "icu-team@nsbm.ac.lk"
+                             },
+                 "license":  {
+                                 "name":  "Apache 2.0",
+                                 "url":  "https://springdoc.org"
+                             },
+                 "version":  "1.0.0"
+             },
+    "servers":  [
+                    {
+                        "url":  "http://localhost:8086",
+                        "description":  "Generated server url"
+                    }
+                ],
+    "paths":  {
+                  "/api/v1/partner-verifications/{verificationId}/submit-for-review":  {
+                                                                                           "post":  {
+                                                                                                        "tags":  [
+                                                                                                                     "partner-document-controller"
+                                                                                                                 ],
+                                                                                                        "operationId":  "submitForReview",
+                                                                                                        "parameters":  [
+                                                                                                                           {
+                                                                                                                               "name":  "verificationId",
+                                                                                                                               "in":  "path",
+                                                                                                                               "required":  true,
+                                                                                                                               "schema":  {
+                                                                                                                                              "type":  "string",
+                                                                                                                                              "format":  "uuid"
+                                                                                                                                          }
+                                                                                                                           }
+                                                                                                                       ],
+                                                                                                        "responses":  {
+                                                                                                                          "200":  {
+                                                                                                                                      "description":  "OK",
+                                                                                                                                      "content":  {
+                                                                                                                                                      "*/*":  {
+                                                                                                                                                                  "schema":  {
+                                                                                                                                                                                 "$ref":  "#/components/schemas/PartnerVerificationResponse"
+                                                                                                                                                                             }
+                                                                                                                                                              }
+                                                                                                                                                  }
+                                                                                                                                  }
+                                                                                                                      }
+                                                                                                    }
+                                                                                       },
+                  "/api/v1/partner-verifications/{verificationId}/documents":  {
+                                                                                   "get":  {
+                                                                                               "tags":  [
+                                                                                                            "partner-document-controller"
+                                                                                                        ],
+                                                                                               "operationId":  "listDocuments",
+                                                                                               "parameters":  [
+                                                                                                                  {
+                                                                                                                      "name":  "verificationId",
+                                                                                                                      "in":  "path",
+                                                                                                                      "required":  true,
+                                                                                                                      "schema":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "format":  "uuid"
+                                                                                                                                 }
+                                                                                                                  }
+                                                                                                              ],
+                                                                                               "responses":  {
+                                                                                                                 "200":  {
+                                                                                                                             "description":  "OK",
+                                                                                                                             "content":  {
+                                                                                                                                             "*/*":  {
+                                                                                                                                                         "schema":  {
+                                                                                                                                                                        "type":  "array",
+                                                                                                                                                                        "items":  {
+                                                                                                                                                                                      "$ref":  "#/components/schemas/PartnerDocumentResponse"
+                                                                                                                                                                                  }
+                                                                                                                                                                    }
+                                                                                                                                                     }
+                                                                                                                                         }
+                                                                                                                         }
+                                                                                                             }
+                                                                                           },
+                                                                                   "post":  {
+                                                                                                "tags":  [
+                                                                                                             "partner-document-controller"
+                                                                                                         ],
+                                                                                                "operationId":  "addDocument",
+                                                                                                "parameters":  [
+                                                                                                                   {
+                                                                                                                       "name":  "verificationId",
+                                                                                                                       "in":  "path",
+                                                                                                                       "required":  true,
+                                                                                                                       "schema":  {
+                                                                                                                                      "type":  "string",
+                                                                                                                                      "format":  "uuid"
+                                                                                                                                  }
+                                                                                                                   }
+                                                                                                               ],
+                                                                                                "requestBody":  {
+                                                                                                                    "content":  {
+                                                                                                                                    "application/json":  {
+                                                                                                                                                             "schema":  {
+                                                                                                                                                                            "$ref":  "#/components/schemas/PartnerDocumentRegisterRequest"
+                                                                                                                                                                        }
+                                                                                                                                                         }
+                                                                                                                                },
+                                                                                                                    "required":  true
+                                                                                                                },
+                                                                                                "responses":  {
+                                                                                                                  "200":  {
+                                                                                                                              "description":  "OK",
+                                                                                                                              "content":  {
+                                                                                                                                              "*/*":  {
+                                                                                                                                                          "schema":  {
+                                                                                                                                                                         "$ref":  "#/components/schemas/PartnerDocumentResponse"
+                                                                                                                                                                     }
+                                                                                                                                                      }
+                                                                                                                                          }
+                                                                                                                          }
+                                                                                                              }
+                                                                                            }
+                                                                               },
+                  "/api/v1/internal/vacancy-approvals":  {
+                                                             "post":  {
+                                                                          "tags":  [
+                                                                                       "vacancy-approval-internal-controller"
+                                                                                   ],
+                                                                          "operationId":  "submit",
+                                                                          "requestBody":  {
+                                                                                              "content":  {
+                                                                                                              "application/json":  {
+                                                                                                                                       "schema":  {
+                                                                                                                                                      "$ref":  "#/components/schemas/VacancyApprovalSubmitRequest"
+                                                                                                                                                  }
+                                                                                                                                   }
+                                                                                                          },
+                                                                                              "required":  true
+                                                                                          },
+                                                                          "responses":  {
+                                                                                            "200":  {
+                                                                                                        "description":  "OK",
+                                                                                                        "content":  {
+                                                                                                                        "*/*":  {
+                                                                                                                                    "schema":  {
+                                                                                                                                                   "$ref":  "#/components/schemas/VacancyApprovalResponse"
+                                                                                                                                               }
+                                                                                                                                }
+                                                                                                                    }
+                                                                                                    }
+                                                                                        }
+                                                                      }
+                                                         },
+                  "/api/v1/internal/partner-verifications":  {
+                                                                 "post":  {
+                                                                              "tags":  [
+                                                                                           "partner-verification-internal-controller"
+                                                                                       ],
+                                                                              "operationId":  "submit_1",
+                                                                              "requestBody":  {
+                                                                                                  "content":  {
+                                                                                                                  "application/json":  {
+                                                                                                                                           "schema":  {
+                                                                                                                                                          "$ref":  "#/components/schemas/PartnerVerificationSubmitRequest"
+                                                                                                                                                      }
+                                                                                                                                       }
+                                                                                                              },
+                                                                                                  "required":  true
+                                                                                              },
+                                                                              "responses":  {
+                                                                                                "200":  {
+                                                                                                            "description":  "OK",
+                                                                                                            "content":  {
+                                                                                                                            "*/*":  {
+                                                                                                                                        "schema":  {
+                                                                                                                                                       "$ref":  "#/components/schemas/PartnerVerificationResponse"
+                                                                                                                                                   }
+                                                                                                                                    }
+                                                                                                                        }
+                                                                                                        }
+                                                                                            }
+                                                                          }
+                                                             },
+                  "/api/v1/admin/vacancy-approvals/{id}/decision":  {
+                                                                        "post":  {
+                                                                                     "tags":  [
+                                                                                                  "vacancy-approval-admin-controller"
+                                                                                              ],
+                                                                                     "operationId":  "decide",
+                                                                                     "parameters":  [
+                                                                                                        {
+                                                                                                            "name":  "id",
+                                                                                                            "in":  "path",
+                                                                                                            "required":  true,
+                                                                                                            "schema":  {
+                                                                                                                           "type":  "string",
+                                                                                                                           "format":  "uuid"
+                                                                                                                       }
+                                                                                                        }
+                                                                                                    ],
+                                                                                     "requestBody":  {
+                                                                                                         "content":  {
+                                                                                                                         "application/json":  {
+                                                                                                                                                  "schema":  {
+                                                                                                                                                                 "$ref":  "#/components/schemas/VacancyApprovalDecisionRequest"
+                                                                                                                                                             }
+                                                                                                                                              }
+                                                                                                                     },
+                                                                                                         "required":  true
+                                                                                                     },
+                                                                                     "responses":  {
+                                                                                                       "200":  {
+                                                                                                                   "description":  "OK",
+                                                                                                                   "content":  {
+                                                                                                                                   "*/*":  {
+                                                                                                                                               "schema":  {
+                                                                                                                                                              "$ref":  "#/components/schemas/VacancyApprovalResponse"
+                                                                                                                                                          }
+                                                                                                                                           }
+                                                                                                                               }
+                                                                                                               }
+                                                                                                   }
+                                                                                 }
+                                                                    },
+                  "/api/v1/admin/vacancy-approvals/{id}/claim":  {
+                                                                     "post":  {
+                                                                                  "tags":  [
+                                                                                               "vacancy-approval-admin-controller"
+                                                                                           ],
+                                                                                  "operationId":  "claim",
+                                                                                  "parameters":  [
+                                                                                                     {
+                                                                                                         "name":  "id",
+                                                                                                         "in":  "path",
+                                                                                                         "required":  true,
+                                                                                                         "schema":  {
+                                                                                                                        "type":  "string",
+                                                                                                                        "format":  "uuid"
+                                                                                                                    }
+                                                                                                     },
+                                                                                                     {
+                                                                                                         "name":  "reviewerId",
+                                                                                                         "in":  "query",
+                                                                                                         "required":  true,
+                                                                                                         "schema":  {
+                                                                                                                        "type":  "string",
+                                                                                                                        "format":  "uuid"
+                                                                                                                    }
+                                                                                                     }
+                                                                                                 ],
+                                                                                  "responses":  {
+                                                                                                    "200":  {
+                                                                                                                "description":  "OK",
+                                                                                                                "content":  {
+                                                                                                                                "*/*":  {
+                                                                                                                                            "schema":  {
+                                                                                                                                                           "$ref":  "#/components/schemas/VacancyApprovalResponse"
+                                                                                                                                                       }
+                                                                                                                                        }
+                                                                                                                            }
+                                                                                                            }
+                                                                                                }
+                                                                              }
+                                                                 },
+                  "/api/v1/admin/partner-verifications/{id}/decision":  {
+                                                                            "post":  {
+                                                                                         "tags":  [
+                                                                                                      "partner-verification-admin-controller"
+                                                                                                  ],
+                                                                                         "operationId":  "decide_1",
+                                                                                         "parameters":  [
+                                                                                                            {
+                                                                                                                "name":  "id",
+                                                                                                                "in":  "path",
+                                                                                                                "required":  true,
+                                                                                                                "schema":  {
+                                                                                                                               "type":  "string",
+                                                                                                                               "format":  "uuid"
+                                                                                                                           }
+                                                                                                            }
+                                                                                                        ],
+                                                                                         "requestBody":  {
+                                                                                                             "content":  {
+                                                                                                                             "application/json":  {
+                                                                                                                                                      "schema":  {
+                                                                                                                                                                     "$ref":  "#/components/schemas/PartnerVerificationDecisionRequest"
+                                                                                                                                                                 }
+                                                                                                                                                  }
+                                                                                                                         },
+                                                                                                             "required":  true
+                                                                                                         },
+                                                                                         "responses":  {
+                                                                                                           "200":  {
+                                                                                                                       "description":  "OK",
+                                                                                                                       "content":  {
+                                                                                                                                       "*/*":  {
+                                                                                                                                                   "schema":  {
+                                                                                                                                                                  "$ref":  "#/components/schemas/PartnerVerificationResponse"
+                                                                                                                                                              }
+                                                                                                                                               }
+                                                                                                                                   }
+                                                                                                                   }
+                                                                                                       }
+                                                                                     }
+                                                                        },
+                  "/api/v1/admin/partner-verifications/{id}/claim":  {
+                                                                         "post":  {
+                                                                                      "tags":  [
+                                                                                                   "partner-verification-admin-controller"
+                                                                                               ],
+                                                                                      "operationId":  "claim_1",
+                                                                                      "parameters":  [
+                                                                                                         {
+                                                                                                             "name":  "id",
+                                                                                                             "in":  "path",
+                                                                                                             "required":  true,
+                                                                                                             "schema":  {
+                                                                                                                            "type":  "string",
+                                                                                                                            "format":  "uuid"
+                                                                                                                        }
+                                                                                                         },
+                                                                                                         {
+                                                                                                             "name":  "reviewerId",
+                                                                                                             "in":  "query",
+                                                                                                             "required":  true,
+                                                                                                             "schema":  {
+                                                                                                                            "type":  "string",
+                                                                                                                            "format":  "uuid"
+                                                                                                                        }
+                                                                                                         }
+                                                                                                     ],
+                                                                                      "responses":  {
+                                                                                                        "200":  {
+                                                                                                                    "description":  "OK",
+                                                                                                                    "content":  {
+                                                                                                                                    "*/*":  {
+                                                                                                                                                "schema":  {
+                                                                                                                                                               "$ref":  "#/components/schemas/PartnerVerificationResponse"
+                                                                                                                                                           }
+                                                                                                                                            }
+                                                                                                                                }
+                                                                                                                }
+                                                                                                    }
+                                                                                  }
+                                                                     },
+                  "/api/v1/admin/vacancy-approvals/{id}":  {
+                                                               "get":  {
+                                                                           "tags":  [
+                                                                                        "vacancy-approval-admin-controller"
+                                                                                    ],
+                                                                           "operationId":  "getById",
+                                                                           "parameters":  [
+                                                                                              {
+                                                                                                  "name":  "id",
+                                                                                                  "in":  "path",
+                                                                                                  "required":  true,
+                                                                                                  "schema":  {
+                                                                                                                 "type":  "string",
+                                                                                                                 "format":  "uuid"
+                                                                                                             }
+                                                                                              }
+                                                                                          ],
+                                                                           "responses":  {
+                                                                                             "200":  {
+                                                                                                         "description":  "OK",
+                                                                                                         "content":  {
+                                                                                                                         "*/*":  {
+                                                                                                                                     "schema":  {
+                                                                                                                                                    "$ref":  "#/components/schemas/VacancyApprovalResponse"
+                                                                                                                                                }
+                                                                                                                                 }
+                                                                                                                     }
+                                                                                                     }
+                                                                                         }
+                                                                       },
+                                                               "patch":  {
+                                                                             "tags":  [
+                                                                                          "vacancy-approval-admin-controller"
+                                                                                      ],
+                                                                             "operationId":  "adminEdit",
+                                                                             "parameters":  [
+                                                                                                {
+                                                                                                    "name":  "id",
+                                                                                                    "in":  "path",
+                                                                                                    "required":  true,
+                                                                                                    "schema":  {
+                                                                                                                   "type":  "string",
+                                                                                                                   "format":  "uuid"
+                                                                                                               }
+                                                                                                }
+                                                                                            ],
+                                                                             "requestBody":  {
+                                                                                                 "content":  {
+                                                                                                                 "application/json":  {
+                                                                                                                                          "schema":  {
+                                                                                                                                                         "$ref":  "#/components/schemas/VacancyApprovalAdminEditRequest"
+                                                                                                                                                     }
+                                                                                                                                      }
+                                                                                                             },
+                                                                                                 "required":  true
+                                                                                             },
+                                                                             "responses":  {
+                                                                                               "200":  {
+                                                                                                           "description":  "OK",
+                                                                                                           "content":  {
+                                                                                                                           "*/*":  {
+                                                                                                                                       "schema":  {
+                                                                                                                                                      "$ref":  "#/components/schemas/VacancyApprovalResponse"
+                                                                                                                                                  }
+                                                                                                                                   }
+                                                                                                                       }
+                                                                                                       }
+                                                                                           }
+                                                                         }
+                                                           },
+                  "/api/v1/admin/partner-verifications/{id}":  {
+                                                                   "get":  {
+                                                                               "tags":  [
+                                                                                            "partner-verification-admin-controller"
+                                                                                        ],
+                                                                               "operationId":  "getById_1",
+                                                                               "parameters":  [
+                                                                                                  {
+                                                                                                      "name":  "id",
+                                                                                                      "in":  "path",
+                                                                                                      "required":  true,
+                                                                                                      "schema":  {
+                                                                                                                     "type":  "string",
+                                                                                                                     "format":  "uuid"
+                                                                                                                 }
+                                                                                                  }
+                                                                                              ],
+                                                                               "responses":  {
+                                                                                                 "200":  {
+                                                                                                             "description":  "OK",
+                                                                                                             "content":  {
+                                                                                                                             "*/*":  {
+                                                                                                                                         "schema":  {
+                                                                                                                                                        "$ref":  "#/components/schemas/PartnerVerificationResponse"
+                                                                                                                                                    }
+                                                                                                                                     }
+                                                                                                                         }
+                                                                                                         }
+                                                                                             }
+                                                                           },
+                                                                   "patch":  {
+                                                                                 "tags":  [
+                                                                                              "partner-verification-admin-controller"
+                                                                                          ],
+                                                                                 "operationId":  "adminEdit_1",
+                                                                                 "parameters":  [
+                                                                                                    {
+                                                                                                        "name":  "id",
+                                                                                                        "in":  "path",
+                                                                                                        "required":  true,
+                                                                                                        "schema":  {
+                                                                                                                       "type":  "string",
+                                                                                                                       "format":  "uuid"
+                                                                                                                   }
+                                                                                                    }
+                                                                                                ],
+                                                                                 "requestBody":  {
+                                                                                                     "content":  {
+                                                                                                                     "application/json":  {
+                                                                                                                                              "schema":  {
+                                                                                                                                                             "$ref":  "#/components/schemas/PartnerVerificationAdminEditRequest"
+                                                                                                                                                         }
+                                                                                                                                          }
+                                                                                                                 },
+                                                                                                     "required":  true
+                                                                                                 },
+                                                                                 "responses":  {
+                                                                                                   "200":  {
+                                                                                                               "description":  "OK",
+                                                                                                               "content":  {
+                                                                                                                               "*/*":  {
+                                                                                                                                           "schema":  {
+                                                                                                                                                          "$ref":  "#/components/schemas/PartnerVerificationResponse"
+                                                                                                                                                      }
+                                                                                                                                       }
+                                                                                                                           }
+                                                                                                           }
+                                                                                               }
+                                                                             }
+                                                               },
+                  "/api/v1/admin/vacancy-approvals":  {
+                                                          "get":  {
+                                                                      "tags":  [
+                                                                                   "vacancy-approval-admin-controller"
+                                                                               ],
+                                                                      "operationId":  "list",
+                                                                      "parameters":  [
+                                                                                         {
+                                                                                             "name":  "status",
+                                                                                             "in":  "query",
+                                                                                             "required":  true,
+                                                                                             "schema":  {
+                                                                                                            "type":  "string",
+                                                                                                            "enum":  [
+                                                                                                                         "PENDING_REVIEW",
+                                                                                                                         "UNDER_REVIEW",
+                                                                                                                         "APPROVED",
+                                                                                                                         "REJECTED"
+                                                                                                                     ]
+                                                                                                        }
+                                                                                         },
+                                                                                         {
+                                                                                             "name":  "pageable",
+                                                                                             "in":  "query",
+                                                                                             "required":  true,
+                                                                                             "schema":  {
+                                                                                                            "$ref":  "#/components/schemas/Pageable"
+                                                                                                        }
+                                                                                         }
+                                                                                     ],
+                                                                      "responses":  {
+                                                                                        "200":  {
+                                                                                                    "description":  "OK",
+                                                                                                    "content":  {
+                                                                                                                    "*/*":  {
+                                                                                                                                "schema":  {
+                                                                                                                                               "$ref":  "#/components/schemas/PageVacancyApprovalSummaryResponse"
+                                                                                                                                           }
+                                                                                                                            }
+                                                                                                                }
+                                                                                                }
+                                                                                    }
+                                                                  }
+                                                      },
+                  "/api/v1/admin/vacancy-approvals/{id}/history":  {
+                                                                       "get":  {
+                                                                                   "tags":  [
+                                                                                                "vacancy-approval-admin-controller"
+                                                                                            ],
+                                                                                   "operationId":  "getHistory",
+                                                                                   "parameters":  [
+                                                                                                      {
+                                                                                                          "name":  "id",
+                                                                                                          "in":  "path",
+                                                                                                          "required":  true,
+                                                                                                          "schema":  {
+                                                                                                                         "type":  "string",
+                                                                                                                         "format":  "uuid"
+                                                                                                                     }
+                                                                                                      }
+                                                                                                  ],
+                                                                                   "responses":  {
+                                                                                                     "200":  {
+                                                                                                                 "description":  "OK",
+                                                                                                                 "content":  {
+                                                                                                                                 "*/*":  {
+                                                                                                                                             "schema":  {
+                                                                                                                                                            "type":  "array",
+                                                                                                                                                            "items":  {
+                                                                                                                                                                          "$ref":  "#/components/schemas/ApprovalHistoryResponse"
+                                                                                                                                                                      }
+                                                                                                                                                        }
+                                                                                                                                         }
+                                                                                                                             }
+                                                                                                             }
+                                                                                                 }
+                                                                               }
+                                                                   },
+                  "/api/v1/admin/partner-verifications":  {
+                                                              "get":  {
+                                                                          "tags":  [
+                                                                                       "partner-verification-admin-controller"
+                                                                                   ],
+                                                                          "operationId":  "list_1",
+                                                                          "parameters":  [
+                                                                                             {
+                                                                                                 "name":  "status",
+                                                                                                 "in":  "query",
+                                                                                                 "required":  true,
+                                                                                                 "schema":  {
+                                                                                                                "type":  "string",
+                                                                                                                "enum":  [
+                                                                                                                             "PENDING_DOCUMENTS",
+                                                                                                                             "PENDING_REVIEW",
+                                                                                                                             "UNDER_REVIEW",
+                                                                                                                             "MORE_INFO_REQUIRED",
+                                                                                                                             "APPROVED",
+                                                                                                                             "REJECTED"
+                                                                                                                         ]
+                                                                                                            }
+                                                                                             },
+                                                                                             {
+                                                                                                 "name":  "pageable",
+                                                                                                 "in":  "query",
+                                                                                                 "required":  true,
+                                                                                                 "schema":  {
+                                                                                                                "$ref":  "#/components/schemas/Pageable"
+                                                                                                            }
+                                                                                             }
+                                                                                         ],
+                                                                          "responses":  {
+                                                                                            "200":  {
+                                                                                                        "description":  "OK",
+                                                                                                        "content":  {
+                                                                                                                        "*/*":  {
+                                                                                                                                    "schema":  {
+                                                                                                                                                   "$ref":  "#/components/schemas/PagePartnerVerificationSummaryResponse"
+                                                                                                                                               }
+                                                                                                                                }
+                                                                                                                    }
+                                                                                                    }
+                                                                                        }
+                                                                      }
+                                                          },
+                  "/api/v1/admin/partner-verifications/{id}/history":  {
+                                                                           "get":  {
+                                                                                       "tags":  [
+                                                                                                    "partner-verification-admin-controller"
+                                                                                                ],
+                                                                                       "operationId":  "getHistory_1",
+                                                                                       "parameters":  [
+                                                                                                          {
+                                                                                                              "name":  "id",
+                                                                                                              "in":  "path",
+                                                                                                              "required":  true,
+                                                                                                              "schema":  {
+                                                                                                                             "type":  "string",
+                                                                                                                             "format":  "uuid"
+                                                                                                                         }
+                                                                                                          }
+                                                                                                      ],
+                                                                                       "responses":  {
+                                                                                                         "200":  {
+                                                                                                                     "description":  "OK",
+                                                                                                                     "content":  {
+                                                                                                                                     "*/*":  {
+                                                                                                                                                 "schema":  {
+                                                                                                                                                                "type":  "array",
+                                                                                                                                                                "items":  {
+                                                                                                                                                                              "$ref":  "#/components/schemas/ApprovalHistoryResponse"
+                                                                                                                                                                          }
+                                                                                                                                                            }
+                                                                                                                                             }
+                                                                                                                                 }
+                                                                                                                 }
+                                                                                                     }
+                                                                                   }
+                                                                       },
+                  "/api/v1/partner-verifications/{verificationId}/documents/{documentId}":  {
+                                                                                                "delete":  {
+                                                                                                               "tags":  [
+                                                                                                                            "partner-document-controller"
+                                                                                                                        ],
+                                                                                                               "operationId":  "deleteDocument",
+                                                                                                               "parameters":  [
+                                                                                                                                  {
+                                                                                                                                      "name":  "verificationId",
+                                                                                                                                      "in":  "path",
+                                                                                                                                      "required":  true,
+                                                                                                                                      "schema":  {
+                                                                                                                                                     "type":  "string",
+                                                                                                                                                     "format":  "uuid"
+                                                                                                                                                 }
+                                                                                                                                  },
+                                                                                                                                  {
+                                                                                                                                      "name":  "documentId",
+                                                                                                                                      "in":  "path",
+                                                                                                                                      "required":  true,
+                                                                                                                                      "schema":  {
+                                                                                                                                                     "type":  "string",
+                                                                                                                                                     "format":  "uuid"
+                                                                                                                                                 }
+                                                                                                                                  }
+                                                                                                                              ],
+                                                                                                               "responses":  {
+                                                                                                                                 "200":  {
+                                                                                                                                             "description":  "OK"
+                                                                                                                                         }
+                                                                                                                             }
+                                                                                                           }
+                                                                                            }
+              },
+    "components":  {
+                       "schemas":  {
+                                       "PartnerDocumentResponse":  {
+                                                                       "type":  "object",
+                                                                       "properties":  {
+                                                                                          "id":  {
+                                                                                                     "type":  "string",
+                                                                                                     "format":  "uuid"
+                                                                                                 },
+                                                                                          "documentType":  {
+                                                                                                               "type":  "string",
+                                                                                                               "enum":  [
+                                                                                                                            "BUSINESS_REGISTRATION",
+                                                                                                                            "TAX_CERTIFICATE",
+                                                                                                                            "AUTHORIZATION_LETTER"
+                                                                                                                        ]
+                                                                                                           },
+                                                                                          "storageFileId":  {
+                                                                                                                "type":  "string",
+                                                                                                                "format":  "uuid"
+                                                                                                            },
+                                                                                          "originalFilename":  {
+                                                                                                                   "type":  "string"
+                                                                                                               },
+                                                                                          "contentType":  {
+                                                                                                              "type":  "string"
+                                                                                                          },
+                                                                                          "sizeBytes":  {
+                                                                                                            "type":  "integer",
+                                                                                                            "format":  "int64"
+                                                                                                        },
+                                                                                          "uploadedAt":  {
+                                                                                                             "type":  "string",
+                                                                                                             "format":  "date-time"
+                                                                                                         },
+                                                                                          "verified":  {
+                                                                                                           "type":  "boolean"
+                                                                                                       }
+                                                                                      }
+                                                                   },
+                                       "PartnerVerificationResponse":  {
+                                                                           "type":  "object",
+                                                                           "properties":  {
+                                                                                              "id":  {
+                                                                                                         "type":  "string",
+                                                                                                         "format":  "uuid"
+                                                                                                     },
+                                                                                              "userId":  {
+                                                                                                             "type":  "string",
+                                                                                                             "format":  "uuid"
+                                                                                                         },
+                                                                                              "organizationNameSnapshot":  {
+                                                                                                                               "type":  "string"
+                                                                                                                           },
+                                                                                              "contactEmailSnapshot":  {
+                                                                                                                           "type":  "string"
+                                                                                                                       },
+                                                                                              "status":  {
+                                                                                                             "type":  "string",
+                                                                                                             "enum":  [
+                                                                                                                          "PENDING_DOCUMENTS",
+                                                                                                                          "PENDING_REVIEW",
+                                                                                                                          "UNDER_REVIEW",
+                                                                                                                          "MORE_INFO_REQUIRED",
+                                                                                                                          "APPROVED",
+                                                                                                                          "REJECTED"
+                                                                                                                      ]
+                                                                                                         },
+                                                                                              "submittedAt":  {
+                                                                                                                  "type":  "string",
+                                                                                                                  "format":  "date-time"
+                                                                                                              },
+                                                                                              "reviewedAt":  {
+                                                                                                                 "type":  "string",
+                                                                                                                 "format":  "date-time"
+                                                                                                             },
+                                                                                              "reviewedByUserId":  {
+                                                                                                                       "type":  "string",
+                                                                                                                       "format":  "uuid"
+                                                                                                                   },
+                                                                                              "decisionNotes":  {
+                                                                                                                    "type":  "string"
+                                                                                                                },
+                                                                                              "rejectionReason":  {
+                                                                                                                      "type":  "string"
+                                                                                                                  },
+                                                                                              "syncStatus":  {
+                                                                                                                 "type":  "string",
+                                                                                                                 "enum":  [
+                                                                                                                              "SYNCED",
+                                                                                                                              "PENDING_CALLBACK",
+                                                                                                                              "FAILED"
+                                                                                                                          ]
+                                                                                                             },
+                                                                                              "version":  {
+                                                                                                              "type":  "integer",
+                                                                                                              "format":  "int64"
+                                                                                                          },
+                                                                                              "documents":  {
+                                                                                                                "type":  "array",
+                                                                                                                "items":  {
+                                                                                                                              "$ref":  "#/components/schemas/PartnerDocumentResponse"
+                                                                                                                          }
+                                                                                                            }
+                                                                                          }
+                                                                       },
+                                       "PartnerDocumentRegisterRequest":  {
+                                                                              "type":  "object",
+                                                                              "properties":  {
+                                                                                                 "documentType":  {
+                                                                                                                      "type":  "string",
+                                                                                                                      "enum":  [
+                                                                                                                                   "BUSINESS_REGISTRATION",
+                                                                                                                                   "TAX_CERTIFICATE",
+                                                                                                                                   "AUTHORIZATION_LETTER"
+                                                                                                                               ]
+                                                                                                                  },
+                                                                                                 "storageFileId":  {
+                                                                                                                       "type":  "string",
+                                                                                                                       "format":  "uuid"
+                                                                                                                   },
+                                                                                                 "originalFilename":  {
+                                                                                                                          "type":  "string"
+                                                                                                                      },
+                                                                                                 "contentType":  {
+                                                                                                                     "type":  "string"
+                                                                                                                 },
+                                                                                                 "sizeBytes":  {
+                                                                                                                   "type":  "integer",
+                                                                                                                   "format":  "int64"
+                                                                                                               }
+                                                                                             },
+                                                                              "required":  [
+                                                                                               "documentType",
+                                                                                               "storageFileId"
+                                                                                           ]
+                                                                          },
+                                       "VacancyApprovalSubmitRequest":  {
+                                                                            "type":  "object",
+                                                                            "properties":  {
+                                                                                               "vacancyId":  {
+                                                                                                                 "type":  "string",
+                                                                                                                 "format":  "uuid"
+                                                                                                             },
+                                                                                               "companyUserId":  {
+                                                                                                                     "type":  "string",
+                                                                                                                     "format":  "uuid"
+                                                                                                                 },
+                                                                                               "submittedByUserId":  {
+                                                                                                                         "type":  "string",
+                                                                                                                         "format":  "uuid"
+                                                                                                                     },
+                                                                                               "vacancyTitleSnapshot":  {
+                                                                                                                            "type":  "string",
+                                                                                                                            "minLength":  1
+                                                                                                                        },
+                                                                                               "companyNameSnapshot":  {
+                                                                                                                           "type":  "string",
+                                                                                                                           "minLength":  1
+                                                                                                                       }
+                                                                                           },
+                                                                            "required":  [
+                                                                                             "companyNameSnapshot",
+                                                                                             "companyUserId",
+                                                                                             "vacancyId",
+                                                                                             "vacancyTitleSnapshot"
+                                                                                         ]
+                                                                        },
+                                       "VacancyApprovalResponse":  {
+                                                                       "type":  "object",
+                                                                       "properties":  {
+                                                                                          "id":  {
+                                                                                                     "type":  "string",
+                                                                                                     "format":  "uuid"
+                                                                                                 },
+                                                                                          "vacancyId":  {
+                                                                                                            "type":  "string",
+                                                                                                            "format":  "uuid"
+                                                                                                        },
+                                                                                          "companyUserId":  {
+                                                                                                                "type":  "string",
+                                                                                                                "format":  "uuid"
+                                                                                                            },
+                                                                                          "submittedByUserId":  {
+                                                                                                                    "type":  "string",
+                                                                                                                    "format":  "uuid"
+                                                                                                                },
+                                                                                          "vacancyTitleSnapshot":  {
+                                                                                                                       "type":  "string"
+                                                                                                                   },
+                                                                                          "companyNameSnapshot":  {
+                                                                                                                      "type":  "string"
+                                                                                                                  },
+                                                                                          "status":  {
+                                                                                                         "type":  "string",
+                                                                                                         "enum":  [
+                                                                                                                      "PENDING_REVIEW",
+                                                                                                                      "UNDER_REVIEW",
+                                                                                                                      "APPROVED",
+                                                                                                                      "REJECTED"
+                                                                                                                  ]
+                                                                                                     },
+                                                                                          "submittedAt":  {
+                                                                                                              "type":  "string",
+                                                                                                              "format":  "date-time"
+                                                                                                          },
+                                                                                          "assignedReviewerId":  {
+                                                                                                                     "type":  "string",
+                                                                                                                     "format":  "uuid"
+                                                                                                                 },
+                                                                                          "reviewedAt":  {
+                                                                                                             "type":  "string",
+                                                                                                             "format":  "date-time"
+                                                                                                         },
+                                                                                          "reviewedByUserId":  {
+                                                                                                                   "type":  "string",
+                                                                                                                   "format":  "uuid"
+                                                                                                               },
+                                                                                          "decisionNotes":  {
+                                                                                                                "type":  "string"
+                                                                                                            },
+                                                                                          "rejectionReason":  {
+                                                                                                                  "type":  "string"
+                                                                                                              },
+                                                                                          "syncStatus":  {
+                                                                                                             "type":  "string",
+                                                                                                             "enum":  [
+                                                                                                                          "SYNCED",
+                                                                                                                          "PENDING_CALLBACK",
+                                                                                                                          "FAILED"
+                                                                                                                      ]
+                                                                                                         },
+                                                                                          "version":  {
+                                                                                                          "type":  "integer",
+                                                                                                          "format":  "int64"
+                                                                                                      }
+                                                                                      }
+                                                                   },
+                                       "PartnerVerificationSubmitRequest":  {
+                                                                                "type":  "object",
+                                                                                "properties":  {
+                                                                                                   "userId":  {
+                                                                                                                  "type":  "string",
+                                                                                                                  "format":  "uuid"
+                                                                                                              },
+                                                                                                   "organizationNameSnapshot":  {
+                                                                                                                                    "type":  "string",
+                                                                                                                                    "minLength":  1
+                                                                                                                                },
+                                                                                                   "contactEmailSnapshot":  {
+                                                                                                                                "type":  "string",
+                                                                                                                                "format":  "email",
+                                                                                                                                "minLength":  1
+                                                                                                                            }
+                                                                                               },
+                                                                                "required":  [
+                                                                                                 "contactEmailSnapshot",
+                                                                                                 "organizationNameSnapshot",
+                                                                                                 "userId"
+                                                                                             ]
+                                                                            },
+                                       "VacancyApprovalDecisionRequest":  {
+                                                                              "type":  "object",
+                                                                              "properties":  {
+                                                                                                 "decision":  {
+                                                                                                                  "type":  "string",
+                                                                                                                  "enum":  [
+                                                                                                                               "APPROVE",
+                                                                                                                               "REJECT"
+                                                                                                                           ]
+                                                                                                              },
+                                                                                                 "decisionNotes":  {
+                                                                                                                       "type":  "string"
+                                                                                                                   },
+                                                                                                 "rejectionReason":  {
+                                                                                                                         "type":  "string"
+                                                                                                                     },
+                                                                                                 "actingUserId":  {
+                                                                                                                      "type":  "string",
+                                                                                                                      "format":  "uuid"
+                                                                                                                  }
+                                                                                             },
+                                                                              "required":  [
+                                                                                               "actingUserId",
+                                                                                               "decision"
+                                                                                           ]
+                                                                          },
+                                       "PartnerVerificationDecisionRequest":  {
+                                                                                  "type":  "object",
+                                                                                  "properties":  {
+                                                                                                     "decision":  {
+                                                                                                                      "type":  "string",
+                                                                                                                      "enum":  [
+                                                                                                                                   "APPROVE",
+                                                                                                                                   "REJECT",
+                                                                                                                                   "REQUEST_MORE_INFO"
+                                                                                                                               ]
+                                                                                                                  },
+                                                                                                     "decisionNotes":  {
+                                                                                                                           "type":  "string"
+                                                                                                                       },
+                                                                                                     "rejectionReason":  {
+                                                                                                                             "type":  "string"
+                                                                                                                         },
+                                                                                                     "actingUserId":  {
+                                                                                                                          "type":  "string",
+                                                                                                                          "format":  "uuid"
+                                                                                                                      }
+                                                                                                 },
+                                                                                  "required":  [
+                                                                                                   "actingUserId",
+                                                                                                   "decision"
+                                                                                               ]
+                                                                              },
+                                       "VacancyApprovalAdminEditRequest":  {
+                                                                               "type":  "object",
+                                                                               "properties":  {
+                                                                                                  "vacancyTitleSnapshot":  {
+                                                                                                                               "type":  "string"
+                                                                                                                           },
+                                                                                                  "companyNameSnapshot":  {
+                                                                                                                              "type":  "string"
+                                                                                                                          },
+                                                                                                  "decisionNotes":  {
+                                                                                                                        "type":  "string"
+                                                                                                                    },
+                                                                                                  "rejectionReason":  {
+                                                                                                                          "type":  "string"
+                                                                                                                      },
+                                                                                                  "assignedReviewerId":  {
+                                                                                                                             "type":  "string",
+                                                                                                                             "format":  "uuid"
+                                                                                                                         },
+                                                                                                  "actingUserId":  {
+                                                                                                                       "type":  "string",
+                                                                                                                       "format":  "uuid"
+                                                                                                                   }
+                                                                                              },
+                                                                               "required":  [
+                                                                                                "actingUserId"
+                                                                                            ]
+                                                                           },
+                                       "PartnerVerificationAdminEditRequest":  {
+                                                                                   "type":  "object",
+                                                                                   "properties":  {
+                                                                                                      "organizationNameSnapshot":  {
+                                                                                                                                       "type":  "string"
+                                                                                                                                   },
+                                                                                                      "contactEmailSnapshot":  {
+                                                                                                                                   "type":  "string",
+                                                                                                                                   "format":  "email"
+                                                                                                                               },
+                                                                                                      "decisionNotes":  {
+                                                                                                                            "type":  "string"
+                                                                                                                        },
+                                                                                                      "rejectionReason":  {
+                                                                                                                              "type":  "string"
+                                                                                                                          },
+                                                                                                      "reviewedByUserId":  {
+                                                                                                                               "type":  "string",
+                                                                                                                               "format":  "uuid"
+                                                                                                                           },
+                                                                                                      "actingUserId":  {
+                                                                                                                           "type":  "string",
+                                                                                                                           "format":  "uuid"
+                                                                                                                       }
+                                                                                                  },
+                                                                                   "required":  [
+                                                                                                    "actingUserId"
+                                                                                                ]
+                                                                               },
+                                       "Pageable":  {
+                                                        "type":  "object",
+                                                        "properties":  {
+                                                                           "page":  {
+                                                                                        "type":  "integer",
+                                                                                        "format":  "int32",
+                                                                                        "minimum":  0
+                                                                                    },
+                                                                           "size":  {
+                                                                                        "type":  "integer",
+                                                                                        "format":  "int32",
+                                                                                        "minimum":  1
+                                                                                    },
+                                                                           "sort":  {
+                                                                                        "type":  "array",
+                                                                                        "items":  {
+                                                                                                      "type":  "string"
+                                                                                                  }
+                                                                                    }
+                                                                       }
+                                                    },
+                                       "PageVacancyApprovalSummaryResponse":  {
+                                                                                  "type":  "object",
+                                                                                  "properties":  {
+                                                                                                     "totalPages":  {
+                                                                                                                        "type":  "integer",
+                                                                                                                        "format":  "int32"
+                                                                                                                    },
+                                                                                                     "totalElements":  {
+                                                                                                                           "type":  "integer",
+                                                                                                                           "format":  "int64"
+                                                                                                                       },
+                                                                                                     "size":  {
+                                                                                                                  "type":  "integer",
+                                                                                                                  "format":  "int32"
+                                                                                                              },
+                                                                                                     "content":  {
+                                                                                                                     "type":  "array",
+                                                                                                                     "items":  {
+                                                                                                                                   "$ref":  "#/components/schemas/VacancyApprovalSummaryResponse"
+                                                                                                                               }
+                                                                                                                 },
+                                                                                                     "number":  {
+                                                                                                                    "type":  "integer",
+                                                                                                                    "format":  "int32"
+                                                                                                                },
+                                                                                                     "sort":  {
+                                                                                                                  "$ref":  "#/components/schemas/SortObject"
+                                                                                                              },
+                                                                                                     "pageable":  {
+                                                                                                                      "$ref":  "#/components/schemas/PageableObject"
+                                                                                                                  },
+                                                                                                     "numberOfElements":  {
+                                                                                                                              "type":  "integer",
+                                                                                                                              "format":  "int32"
+                                                                                                                          },
+                                                                                                     "first":  {
+                                                                                                                   "type":  "boolean"
+                                                                                                               },
+                                                                                                     "last":  {
+                                                                                                                  "type":  "boolean"
+                                                                                                              },
+                                                                                                     "empty":  {
+                                                                                                                   "type":  "boolean"
+                                                                                                               }
+                                                                                                 }
+                                                                              },
+                                       "PageableObject":  {
+                                                              "type":  "object",
+                                                              "properties":  {
+                                                                                 "offset":  {
+                                                                                                "type":  "integer",
+                                                                                                "format":  "int64"
+                                                                                            },
+                                                                                 "sort":  {
+                                                                                              "$ref":  "#/components/schemas/SortObject"
+                                                                                          },
+                                                                                 "paged":  {
+                                                                                               "type":  "boolean"
+                                                                                           },
+                                                                                 "pageNumber":  {
+                                                                                                    "type":  "integer",
+                                                                                                    "format":  "int32"
+                                                                                                },
+                                                                                 "pageSize":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "format":  "int32"
+                                                                                              },
+                                                                                 "unpaged":  {
+                                                                                                 "type":  "boolean"
+                                                                                             }
+                                                                             }
+                                                          },
+                                       "SortObject":  {
+                                                          "type":  "object",
+                                                          "properties":  {
+                                                                             "empty":  {
+                                                                                           "type":  "boolean"
+                                                                                       },
+                                                                             "sorted":  {
+                                                                                            "type":  "boolean"
+                                                                                        },
+                                                                             "unsorted":  {
+                                                                                              "type":  "boolean"
+                                                                                          }
+                                                                         }
+                                                      },
+                                       "VacancyApprovalSummaryResponse":  {
+                                                                              "type":  "object",
+                                                                              "properties":  {
+                                                                                                 "id":  {
+                                                                                                            "type":  "string",
+                                                                                                            "format":  "uuid"
+                                                                                                        },
+                                                                                                 "vacancyId":  {
+                                                                                                                   "type":  "string",
+                                                                                                                   "format":  "uuid"
+                                                                                                               },
+                                                                                                 "companyUserId":  {
+                                                                                                                       "type":  "string",
+                                                                                                                       "format":  "uuid"
+                                                                                                                   },
+                                                                                                 "vacancyTitleSnapshot":  {
+                                                                                                                              "type":  "string"
+                                                                                                                          },
+                                                                                                 "companyNameSnapshot":  {
+                                                                                                                             "type":  "string"
+                                                                                                                         },
+                                                                                                 "status":  {
+                                                                                                                "type":  "string",
+                                                                                                                "enum":  [
+                                                                                                                             "PENDING_REVIEW",
+                                                                                                                             "UNDER_REVIEW",
+                                                                                                                             "APPROVED",
+                                                                                                                             "REJECTED"
+                                                                                                                         ]
+                                                                                                            },
+                                                                                                 "submittedAt":  {
+                                                                                                                     "type":  "string",
+                                                                                                                     "format":  "date-time"
+                                                                                                                 }
+                                                                                             }
+                                                                          },
+                                       "ApprovalHistoryResponse":  {
+                                                                       "type":  "object",
+                                                                       "properties":  {
+                                                                                          "fromStatus":  {
+                                                                                                             "type":  "string"
+                                                                                                         },
+                                                                                          "toStatus":  {
+                                                                                                           "type":  "string"
+                                                                                                       },
+                                                                                          "changedByUserId":  {
+                                                                                                                  "type":  "string",
+                                                                                                                  "format":  "uuid"
+                                                                                                              },
+                                                                                          "changedAt":  {
+                                                                                                            "type":  "string",
+                                                                                                            "format":  "date-time"
+                                                                                                        },
+                                                                                          "remarks":  {
+                                                                                                          "type":  "string"
+                                                                                                      }
+                                                                                      }
+                                                                   },
+                                       "PagePartnerVerificationSummaryResponse":  {
+                                                                                      "type":  "object",
+                                                                                      "properties":  {
+                                                                                                         "totalPages":  {
+                                                                                                                            "type":  "integer",
+                                                                                                                            "format":  "int32"
+                                                                                                                        },
+                                                                                                         "totalElements":  {
+                                                                                                                               "type":  "integer",
+                                                                                                                               "format":  "int64"
+                                                                                                                           },
+                                                                                                         "size":  {
+                                                                                                                      "type":  "integer",
+                                                                                                                      "format":  "int32"
+                                                                                                                  },
+                                                                                                         "content":  {
+                                                                                                                         "type":  "array",
+                                                                                                                         "items":  {
+                                                                                                                                       "$ref":  "#/components/schemas/PartnerVerificationSummaryResponse"
+                                                                                                                                   }
+                                                                                                                     },
+                                                                                                         "number":  {
+                                                                                                                        "type":  "integer",
+                                                                                                                        "format":  "int32"
+                                                                                                                    },
+                                                                                                         "sort":  {
+                                                                                                                      "$ref":  "#/components/schemas/SortObject"
+                                                                                                                  },
+                                                                                                         "pageable":  {
+                                                                                                                          "$ref":  "#/components/schemas/PageableObject"
+                                                                                                                      },
+                                                                                                         "numberOfElements":  {
+                                                                                                                                  "type":  "integer",
+                                                                                                                                  "format":  "int32"
+                                                                                                                              },
+                                                                                                         "first":  {
+                                                                                                                       "type":  "boolean"
+                                                                                                                   },
+                                                                                                         "last":  {
+                                                                                                                      "type":  "boolean"
+                                                                                                                  },
+                                                                                                         "empty":  {
+                                                                                                                       "type":  "boolean"
+                                                                                                                   }
+                                                                                                     }
+                                                                                  },
+                                       "PartnerVerificationSummaryResponse":  {
+                                                                                  "type":  "object",
+                                                                                  "properties":  {
+                                                                                                     "id":  {
+                                                                                                                "type":  "string",
+                                                                                                                "format":  "uuid"
+                                                                                                            },
+                                                                                                     "userId":  {
+                                                                                                                    "type":  "string",
+                                                                                                                    "format":  "uuid"
+                                                                                                                },
+                                                                                                     "organizationNameSnapshot":  {
+                                                                                                                                      "type":  "string"
+                                                                                                                                  },
+                                                                                                     "contactEmailSnapshot":  {
+                                                                                                                                  "type":  "string"
+                                                                                                                              },
+                                                                                                     "status":  {
+                                                                                                                    "type":  "string",
+                                                                                                                    "enum":  [
+                                                                                                                                 "PENDING_DOCUMENTS",
+                                                                                                                                 "PENDING_REVIEW",
+                                                                                                                                 "UNDER_REVIEW",
+                                                                                                                                 "MORE_INFO_REQUIRED",
+                                                                                                                                 "APPROVED",
+                                                                                                                                 "REJECTED"
+                                                                                                                             ]
+                                                                                                                },
+                                                                                                     "submittedAt":  {
+                                                                                                                         "type":  "string",
+                                                                                                                         "format":  "date-time"
+                                                                                                                     }
+                                                                                                 }
+                                                                              }
+                                   }
+                   }
+}

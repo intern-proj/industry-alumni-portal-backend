@@ -9,137 +9,139 @@ spring:
     name: api-gateway
   cloud:
     gateway:
-      globalcors:
-        add-to-simple-url-handler-mapping: true
-        cors-configurations:
-          '[/**]':
-            allowedOriginPatterns: "*"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - OPTIONS
-              - PATCH
-            allowedHeaders: "*"
-            allowCredentials: true
-      default-filters:
-        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
-      discovery:
-        locator:
-          enabled: false
-      routes:
-        - id: auth-service
-          uri: lb://auth-service
-          predicates:
-            - Path=${api.path}/auth/**
+      server:
+        webflux:
+          globalcors:
+            add-to-simple-url-handler-mapping: true
+            cors-configurations:
+              '[/**]':
+                allowedOriginPatterns: "*"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+                  - OPTIONS
+                  - PATCH
+                allowedHeaders: "*"
+                allowCredentials: true
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+          discovery:
+            locator:
+              enabled: false
+          routes:
+            - id: auth-service
+              uri: lb://auth-service
+              predicates:
+                - Path=${api.path}/auth/**
 
-        - id: notification-service
-          uri: lb://notification-service
-          predicates:
-            - Path=${api.path}/templates/**
+            - id: notification-service
+              uri: lb://notification-service
+              predicates:
+                - Path=${api.path}/templates/**
 
-        - id: event-participation-service
-          uri: lb://event-participation-service
-          predicates:
-            - name: Path
-              args:
-                patterns:
-                  - ${api.path}/events/*/qr-sessions/**
-                  - ${api.path}/events/*/qr-sessions
-                  - ${api.path}/registrations/**
-                  - ${api.path}/qr-sessions/**
+            - id: event-participation-service
+              uri: lb://event-participation-service
+              predicates:
+                - name: Path
+                  args:
+                    patterns:
+                      - ${api.path}/events/*/qr-sessions/**
+                      - ${api.path}/events/*/qr-sessions
+                      - ${api.path}/registrations/**
+                      - ${api.path}/qr-sessions/**
 
-        - id: event-management-service
-          uri: lb://event-management-service
-          predicates:
-            - name: Path
-              args:
-                patterns:
-                  - ${api.path}/events/**
-                  - ${api.path}/venues/**
-                  - ${api.path}/speakers/**
-                  - ${api.path}/guest-speakers/**
-                  - ${api.path}/agendas/**
+            - id: event-management-service
+              uri: lb://event-management-service
+              predicates:
+                - name: Path
+                  args:
+                    patterns:
+                      - ${api.path}/events/**
+                      - ${api.path}/venues/**
+                      - ${api.path}/speakers/**
+                      - ${api.path}/guest-speakers/**
+                      - ${api.path}/agendas/**
 
-        - id: application-service
-          uri: lb://application-service
-          predicates:
-            - Path=${api.path}/applications/**
+            - id: application-service
+              uri: lb://application-service
+              predicates:
+                - Path=${api.path}/applications/**
 
-        - id: audit-storage-service
-          uri: lb://audit-storage-service
-          predicates:
-            - name: Path
-              args:
-                patterns:
-                  - ${api.path}/storage/**
-                  - ${api.path}/audit/**
+            - id: audit-storage-service
+              uri: lb://audit-storage-service
+              predicates:
+                - name: Path
+                  args:
+                    patterns:
+                      - ${api.path}/storage/**
+                      - ${api.path}/audit/**
 
-        - id: platform-management-service
-          uri: lb://platform-management-service
-          predicates:
-            - name: Path
-              args:
-                patterns:
-                  - ${api.path}/partner-verifications/**
-                  - ${api.path}/vacancy-approvals/**
-                  - ${api.path}/admin/partner-verifications/**
-                  - ${api.path}/admin/vacancy-approvals/**
-                  - ${api.path}/internal/partner-verifications/**
-                  - ${api.path}/internal/vacancy-approvals/**
-                  - ${api.path}/partners/**
-                  - ${api.path}/vacancies/**
+            - id: platform-management-service
+              uri: lb://platform-management-service
+              predicates:
+                - name: Path
+                  args:
+                    patterns:
+                      - ${api.path}/partner-verifications/**
+                      - ${api.path}/vacancy-approvals/**
+                      - ${api.path}/admin/partner-verifications/**
+                      - ${api.path}/admin/vacancy-approvals/**
+                      - ${api.path}/internal/partner-verifications/**
+                      - ${api.path}/internal/vacancy-approvals/**
+                      - ${api.path}/partners/**
+                      - ${api.path}/vacancies/**
 
-        # Swagger / OpenAPI Documentation Aggregation Routes
-        - id: auth-service-docs
-          uri: lb://auth-service
-          predicates:
-            - Path=/services-docs/auth-service
-          filters:
-            - SetPath=/v3/api-docs
+            # Swagger / OpenAPI Documentation Aggregation Routes
+            - id: auth-service-docs
+              uri: lb://auth-service
+              predicates:
+                - Path=/services-docs/auth-service/**
+              filters:
+                - SetPath=/v3/api-docs
 
-        - id: event-management-service-docs
-          uri: lb://event-management-service
-          predicates:
-            - Path=/services-docs/event-management-service
-          filters:
-            - SetPath=/v3/api-docs
+            - id: event-management-service-docs
+              uri: lb://event-management-service
+              predicates:
+                - Path=/services-docs/event-management-service/**
+              filters:
+                - SetPath=/v3/api-docs
 
-        - id: event-participation-service-docs
-          uri: lb://event-participation-service
-          predicates:
-            - Path=/services-docs/event-participation-service
-          filters:
-            - SetPath=/v3/api-docs
+            - id: event-participation-service-docs
+              uri: lb://event-participation-service
+              predicates:
+                - Path=/services-docs/event-participation-service/**
+              filters:
+                - SetPath=/v3/api-docs
 
-        - id: application-service-docs
-          uri: lb://application-service
-          predicates:
-            - Path=/services-docs/application-service
-          filters:
-            - SetPath=/v3/api-docs
+            - id: application-service-docs
+              uri: lb://application-service
+              predicates:
+                - Path=/services-docs/application-service/**
+              filters:
+                - SetPath=/v3/api-docs
 
-        - id: notification-service-docs
-          uri: lb://notification-service
-          predicates:
-            - Path=/services-docs/notification-service
-          filters:
-            - SetPath=/v3/api-docs
+            - id: notification-service-docs
+              uri: lb://notification-service
+              predicates:
+                - Path=/services-docs/notification-service/**
+              filters:
+                - SetPath=/v3/api-docs
 
-        - id: audit-storage-service-docs
-          uri: lb://audit-storage-service
-          predicates:
-            - Path=/services-docs/audit-storage-service
-          filters:
-            - SetPath=/v3/api-docs
+            - id: audit-storage-service-docs
+              uri: lb://audit-storage-service
+              predicates:
+                - Path=/services-docs/audit-storage-service/**
+              filters:
+                - SetPath=/v3/api-docs
 
-        - id: platform-management-service-docs
-          uri: lb://platform-management-service
-          predicates:
-            - Path=/services-docs/platform-management-service
-          filters:
-            - SetPath=/v3/api-docs
+            - id: platform-management-service-docs
+              uri: lb://platform-management-service
+              predicates:
+                - Path=/services-docs/platform-management-service/**
+              filters:
+                - SetPath=/v3/api-docs
 
 springdoc:
   swagger-ui:
@@ -181,3 +183,4 @@ eureka:
   client:
     service-url:
       defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+

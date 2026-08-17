@@ -9,8 +9,8 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <artifactId>auth-service</artifactId>
-    <name/>
-    <description/>
+    <name>auth-service</name>
+    <description>Authentication and Authorization Service</description>
     <url/>
     <licenses>
         <license/>
