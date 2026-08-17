@@ -59,58 +59,59 @@ spring:
           predicates:
             - Path=${api.path}/storage/**,${api.path}/audit/**
 
+        - id: platform-management-service
+          uri: lb://platform-management-service
+          predicates:
+            - Path=${api.path}/partner-verifications/**,${api.path}/vacancy-approvals/**,${api.path}/admin/partner-verifications/**,${api.path}/admin/vacancy-approvals/**,${api.path}/internal/partner-verifications/**,${api.path}/internal/vacancy-approvals/**,${api.path}/partners/**,${api.path}/vacancies/**
+
+
         # Swagger / OpenAPI Documentation Aggregation Routes
         - id: auth-service-docs
           uri: lb://auth-service
           predicates:
-            - Path=/services-docs/auth-service
+            - Path=/services-docs/auth-service/**,/services-docs/auth-service
           filters:
             - SetPath=/v3/api-docs
 
         - id: event-management-service-docs
           uri: lb://event-management-service
           predicates:
-            - Path=/services-docs/event-management-service
+            - Path=/services-docs/event-management-service/**,/services-docs/event-management-service
           filters:
             - SetPath=/v3/api-docs
 
         - id: event-participation-service-docs
           uri: lb://event-participation-service
           predicates:
-            - Path=/services-docs/event-participation-service
+            - Path=/services-docs/event-participation-service/**,/services-docs/event-participation-service
           filters:
             - SetPath=/v3/api-docs
 
         - id: application-service-docs
           uri: lb://application-service
           predicates:
-            - Path=/services-docs/application-service
+            - Path=/services-docs/application-service/**,/services-docs/application-service
           filters:
             - SetPath=/v3/api-docs
 
         - id: notification-service-docs
           uri: lb://notification-service
           predicates:
-            - Path=/services-docs/notification-service
+            - Path=/services-docs/notification-service/**,/services-docs/notification-service
           filters:
             - SetPath=/v3/api-docs
 
         - id: audit-storage-service-docs
           uri: lb://audit-storage-service
           predicates:
-            - Path=/services-docs/audit-storage-service
+            - Path=/services-docs/audit-storage-service/**,/services-docs/audit-storage-service
           filters:
             - SetPath=/v3/api-docs
-
-        - id: platform-management-service
-          uri: lb://platform-management-service
-          predicates:
-            - Path=${api.path}/partner-verifications/**,${api.path}/vacancy-approvals/**,${api.path}/admin/partner-verifications/**,${api.path}/admin/vacancy-approvals/**,${api.path}/internal/partner-verifications/**,${api.path}/internal/vacancy-approvals/**,${api.path}/partners/**,${api.path}/vacancies/**
 
         - id: platform-management-service-docs
           uri: lb://platform-management-service
           predicates:
-            - Path=/services-docs/platform-management-service
+            - Path=/services-docs/platform-management-service/**,/services-docs/platform-management-service
           filters:
             - SetPath=/v3/api-docs
 
