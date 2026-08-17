@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Instant;
 
 @RestController
-@RequestMapping("/api/audit")
+@RequestMapping({"/api/audit", "/api/v1/audit"})
 @RequiredArgsConstructor
 public class AuditController {
 
