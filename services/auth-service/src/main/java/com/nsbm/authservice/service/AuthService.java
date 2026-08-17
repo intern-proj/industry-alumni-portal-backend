@@ -1,17 +1,10 @@
 package com.nsbm.authservice.service;
 
 import com.nsbm.authservice.dto.*;
-import com.nsbm.authservice.entity.IndustryPartner;
-import com.nsbm.authservice.entity.ManagementStaff;
-import com.nsbm.authservice.entity.PendingPartner;
-import com.nsbm.authservice.exception.InvalidTokenException;
-import com.nsbm.authservice.entity.PendingStaff;
-import com.nsbm.authservice.exception.StaffAlreadyExistsException;
-import com.nsbm.authservice.exception.UsernameAlreadyExistsException;
-import com.nsbm.authservice.repository.IndustryPartnerRepository;
-import com.nsbm.authservice.repository.ManagementStaffRepository;
-import com.nsbm.authservice.repository.PendingPartnerRepository;
-import com.nsbm.authservice.repository.PendingStaffRepository;
+import com.nsbm.authservice.entity.*;
+import com.nsbm.authservice.exception.*;
+import com.nsbm.authservice.repository.*;
+import com.nsbm.authservice.security.JwtTokenProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -20,6 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -30,9 +26,12 @@ public class AuthService {
     private final ManagementStaffRepository staffRepository;
     private final PendingStaffRepository pendingStaffRepository;
     private final PendingPartnerRepository pendingPartnerRepository;
+    private final StudentRepository studentRepository;
     private final IndustryPartnerRepository partnerRepository;
+    private final OtpCodeRepository otpCodeRepository;
     private final RabbitTemplate rabbitTemplate;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Value("${app.rabbitmq.exchange:notification.exchange}")
     private String exchange;
@@ -40,18 +39,27 @@ public class AuthService {
     @Value("${app.rabbitmq.routing-key:notification.routingkey}")
     private String routingKey;
 
+    @Value("${app.otp.expiration-minutes:5}")
+    private long otpExpirationMinutes;
+
     public AuthService(ManagementStaffRepository staffRepository,
                        PendingStaffRepository pendingStaffRepository,
                        PendingPartnerRepository pendingPartnerRepository,
+                       StudentRepository studentRepository,
                        IndustryPartnerRepository partnerRepository,
+                       OtpCodeRepository otpCodeRepository,
                        RabbitTemplate rabbitTemplate,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       JwtTokenProvider jwtTokenProvider) {
         this.staffRepository = staffRepository;
         this.pendingStaffRepository = pendingStaffRepository;
         this.pendingPartnerRepository = pendingPartnerRepository;
+        this.studentRepository = studentRepository;
         this.partnerRepository = partnerRepository;
+        this.otpCodeRepository = otpCodeRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.passwordEncoder = passwordEncoder;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     @Transactional
@@ -173,5 +181,103 @@ public class AuthService {
         pendingPartnerRepository.delete(pendingPartner);
     }
 
+    @Transactional(readOnly = true)
+    public AuthResponse loginStudentOrPartner(LoginRequest request) {
+        // Check Student login
+        Optional<Student> studentOpt = studentRepository.findByUsername(request.username());
+        if (studentOpt.isPresent()) {
+            Student student = studentOpt.get();
+            if (passwordEncoder.matches(request.password(), student.getPasswordHash())) {
+                String token = jwtTokenProvider.generateToken(student.getUsername(), student.getEmail(), Role.STUDENT.name(), "STUDENT");
+                return new AuthResponse(token, student.getUsername(), student.getEmail(), Role.STUDENT.name(), "STUDENT");
+            }
+        }
+
+        // Check Industry Partner login
+        Optional<IndustryPartner> partnerOpt = partnerRepository.findByUsername(request.username());
+        if (partnerOpt.isPresent()) {
+            IndustryPartner partner = partnerOpt.get();
+            if (passwordEncoder.matches(request.password(), partner.getPasswordHash())) {
+                String token = jwtTokenProvider.generateToken(partner.getUsername(), partner.getEmail(), Role.INDUSTRY_PARTNER.name(), "INDUSTRY_PARTNER");
+                return new AuthResponse(token, partner.getUsername(), partner.getEmail(), Role.INDUSTRY_PARTNER.name(), "INDUSTRY_PARTNER");
+            }
+        }
+
+        throw new InvalidCredentialsException("Invalid username or password.");
+    }
+
+    @Transactional
+    public Step1LoginResponse initiateStaffLogin(LoginRequest request) {
+        ManagementStaff staff = staffRepository.findByUsername(request.username())
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password."));
+
+        if (!passwordEncoder.matches(request.password(), staff.getPasswordHash())) {
+            throw new InvalidCredentialsException("Invalid username or password.");
+        }
+
+        String otpCode = String.format("%06d", new SecureRandom().nextInt(1000000));
+        String sessionToken = UUID.randomUUID().toString();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(otpExpirationMinutes);
+
+        OtpCode otpEntity = OtpCode.builder()
+                .username(staff.getUsername())
+                .code(otpCode)
+                .sessionToken(sessionToken)
+                .expiresAt(expiresAt)
+                .build();
+        otpCodeRepository.save(otpEntity);
+
+        EmailNotificationMessage message = new EmailNotificationMessage(
+                staff.getEmail(),
+                "Your Management Portal Verification Code",
+                "Your OTP code is " + otpCode + ". It will expire in " + otpExpirationMinutes + " minutes.",
+                "STAFF_OTP"
+        );
+        sendRabbitNotification(message);
+
+        return new Step1LoginResponse(
+                sessionToken,
+                staff.getUsername(),
+                "OTP verification code sent to registered email.",
+                otpExpirationMinutes * 60
+        );
+    }
+
+    @Transactional
+    public AuthResponse verifyStaffOtp(OtpVerificationRequest request) {
+        Optional<OtpCode> otpOpt = otpCodeRepository.findTopBySessionTokenAndCodeOrderByCreatedAtDesc(
+                request.sessionToken(), request.otpCode());
+
+        if (otpOpt.isEmpty()) {
+            otpOpt = otpCodeRepository.findTopByUsernameAndCodeOrderByCreatedAtDesc(
+                    request.sessionToken(), request.otpCode());
+        }
+
+        OtpCode otpEntity = otpOpt.orElseThrow(() -> new OtpInvalidException("Invalid or expired OTP code."));
+
+        if (otpEntity.getExpiresAt().isBefore(LocalDateTime.now())) {
+            otpCodeRepository.delete(otpEntity);
+            throw new OtpInvalidException("OTP code has expired. Please log in again.");
+        }
+
+        ManagementStaff staff = staffRepository.findByUsername(otpEntity.getUsername())
+                .orElseThrow(() -> new InvalidCredentialsException("Associated staff member not found."));
+
+        otpCodeRepository.delete(otpEntity);
+
+        String token = jwtTokenProvider.generateToken(staff.getUsername(), staff.getEmail(), staff.getRole().name(), "MANAGEMENT_STAFF");
+        return new AuthResponse(token, staff.getUsername(), staff.getEmail(), staff.getRole().name(), "MANAGEMENT_STAFF");
+    }
+
+    public TokenValidationResponse validateToken(String token) {
+        if (jwtTokenProvider.validateToken(token)) {
+            String username = jwtTokenProvider.getUsernameFromToken(token);
+            String email = jwtTokenProvider.getEmailFromToken(token);
+            String role = jwtTokenProvider.getRoleFromToken(token);
+            String userType = jwtTokenProvider.getUserTypeFromToken(token);
+            return new TokenValidationResponse(true, username, email, role, userType);
+        }
+        return new TokenValidationResponse(false, null, null, null, null);
+    }
 
 }
