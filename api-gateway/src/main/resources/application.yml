@@ -44,7 +44,7 @@ spring:
         - id: event-management-service
           uri: lb://event-management-service
           predicates:
-            - Path=${api.path}/events/**,${api.path}/venues/**,${api.path}/speakers/**
+            - Path=${api.path}/events/**,${api.path}/venues/**,${api.path}/speakers/**,${api.path}/guest-speakers/**,${api.path}/agendas/**
 
         - id: event-participation-service
           uri: lb://event-participation-service
@@ -107,7 +107,7 @@ spring:
         - id: platform-management-service
           uri: lb://platform-management-service
           predicates:
-            - Path=${api.path}/partners/**,${api.path}/vacancies/**
+            - Path=${api.path}/partner-verifications/**,${api.path}/vacancy-approvals/**,${api.path}/admin/partner-verifications/**,${api.path}/admin/vacancy-approvals/**,${api.path}/internal/partner-verifications/**,${api.path}/internal/vacancy-approvals/**,${api.path}/partners/**,${api.path}/vacancies/**
 
         - id: platform-management-service-docs
           uri: lb://platform-management-service
