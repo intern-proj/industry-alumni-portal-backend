@@ -39,15 +39,15 @@ spring:
           predicates:
             - Path=${api.path}/templates/**
 
+        - id: event-participation-service
+          uri: lb://event-participation-service
+          predicates:
+            - Path=${api.path}/events/*/qr-sessions/**,${api.path}/events/*/qr-sessions,${api.path}/registrations/**,${api.path}/qr-sessions/**
+
         - id: event-management-service
           uri: lb://event-management-service
           predicates:
             - Path=${api.path}/events/**,${api.path}/venues/**,${api.path}/speakers/**,${api.path}/guest-speakers/**,${api.path}/agendas/**
-
-        - id: event-participation-service
-          uri: lb://event-participation-service
-          predicates:
-            - Path=${api.path}/registrations/**,${api.path}/qr-sessions/**
 
         - id: application-service
           uri: lb://application-service
