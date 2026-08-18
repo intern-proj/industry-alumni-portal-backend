@@ -1,8 +1,6 @@
 package com.portal.certificateservice;
 
-import com.portal.certificateservice.dto.CertificateResponseDto;
-import com.portal.certificateservice.dto.CertificateVerificationResponseDto;
-import com.portal.certificateservice.dto.GenerateCertificateRequestDto;
+import com.portal.certificateservice.dto.*;
 import com.portal.certificateservice.entity.Certificate;
 import com.portal.certificateservice.entity.CertificateTemplate;
 import com.portal.certificateservice.entity.CertificateVerificationLog;
@@ -97,6 +95,39 @@ class CertificateServiceTest {
     }
 
     @Test
+    void testGenerateCertificate_InactiveTemplate_ThrowsException() {
+        template.setIsActive(false);
+        GenerateCertificateRequestDto request = new GenerateCertificateRequestDto(
+                studentId, eventId, templateId, "John Doe", "Java Workshop"
+        );
+
+        when(certificateRepository.existsByStudentIdAndEventId(studentId, eventId)).thenReturn(false);
+        when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
+
+        assertThrows(CertificateException.class, () -> certificateService.generateCertificate(request));
+    }
+
+    @Test
+    void testBulkGenerateCertificates_Success() {
+        BulkGenerateCertificateRequestDto request = new BulkGenerateCertificateRequestDto(
+                eventId, templateId, List.of(studentId), "Java Workshop"
+        );
+
+        when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
+        when(certificateRepository.existsByStudentIdAndEventId(studentId, eventId)).thenReturn(false);
+        when(pdfGeneratorService.generatePdfCertificate(any(), anyString(), anyString(), anyString(), any(), any())).thenReturn("/storage/cert.pdf");
+
+        Certificate savedCert = new Certificate(studentId, eventId, templateId, "CERT-88776655", "/storage/cert.pdf", "ISSUED", LocalDateTime.now());
+        savedCert.setId(UUID.randomUUID());
+        when(certificateRepository.save(any(Certificate.class))).thenReturn(savedCert);
+
+        List<CertificateResponseDto> result = certificateService.bulkGenerateCertificates(request);
+
+        assertEquals(1, result.size());
+        assertEquals(studentId, result.get(0).getStudentId());
+    }
+
+    @Test
     void testVerifyCertificate_ValidCode() {
         String code = "CERT-99887766";
         UUID certId = UUID.randomUUID();
@@ -118,5 +149,32 @@ class CertificateServiceTest {
         when(certificateRepository.findByVerificationCode("INVALID-CODE")).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> certificateService.verifyCertificate("INVALID-CODE", "127.0.0.1"));
+    }
+
+    @Test
+    void testUpdateCertificateStatus_Success() {
+        UUID certId = UUID.randomUUID();
+        Certificate cert = new Certificate(studentId, eventId, templateId, "CERT-11223344", "/pdf", "ISSUED", LocalDateTime.now());
+        cert.setId(certId);
+
+        when(certificateRepository.findById(certId)).thenReturn(Optional.of(cert));
+        when(certificateRepository.save(any(Certificate.class))).thenReturn(cert);
+
+        CertificateResponseDto response = certificateService.updateCertificateStatus(certId, "REVOKED");
+
+        assertEquals("REVOKED", response.getStatus());
+    }
+
+    @Test
+    void testGetStats_Success() {
+        when(certificateRepository.count()).thenReturn(50L);
+        when(templateRepository.findByIsActiveTrue()).thenReturn(List.of(template));
+        when(verificationLogRepository.count()).thenReturn(120L);
+
+        CertificateStatsDto stats = certificateService.getStats();
+
+        assertEquals(50L, stats.getTotalCertificatesIssued());
+        assertEquals(1L, stats.getTotalActiveTemplates());
+        assertEquals(120L, stats.getTotalVerificationsCount());
     }
 }
