@@ -5,7 +5,6 @@ import com.nsbm.eventmanagementservice.dto.VenueResponse;
 
 import java.util.List;
 
-
 public interface VenueService {
     VenueResponse createVenue(VenueRequest request);
 

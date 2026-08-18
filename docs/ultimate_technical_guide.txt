@@ -1,0 +1,135 @@
+================================================================================
+           INDUSTRY ALUMNI PORTAL - ULTIMATE TECHNICAL GUIDE
+================================================================================
+
+This document serves as the "North Star" for the development team. It outlines 
+the full technical scope required to consider the Industry Alumni Portal 100% 
+complete. It maps all 11 microservices directly to the Business Modules defined 
+in the R&D Document, detailing required endpoints, user roles, and RabbitMQ events.
+
+--------------------------------------------------------------------------------
+1. ARCHITECTURE OVERVIEW
+--------------------------------------------------------------------------------
+- API Gateway (Port 8080): Single entry point for all frontend requests.
+- Eureka Discovery Server (Port 8761): Service registry for dynamic routing.
+- RabbitMQ (Port 5672): Asynchronous event bus using Topic Exchanges.
+- Centralized Auth: Stateless JWT authentication with Role-Based Access Control (RBAC).
+- Multi-Database: Each service owns its respective PostgreSQL database to ensure loose coupling.
+
+--------------------------------------------------------------------------------
+2. SHARED PLATFORM GOVERNANCE
+--------------------------------------------------------------------------------
+Provides system health, access control, centralized storage, and notifications.
+
+A. Auth Service (Port 8081) - COMPLETED
+   Purpose: User Management and RBAC for System Admins and all users.
+   - POST /api/v1/auth/login (Student/Partner login)
+   - POST /api/v1/auth/staff/login (Initiates 2FA)
+   - POST /api/v1/auth/staff/verify-otp (Completes 2FA)
+   - POST /api/v1/auth/staff/invite (System Admin invites staff)
+   - POST /api/v1/auth/validate (Validates JWT)
+
+B. Platform Management Service (Port 8086) - COMPLETED
+   Purpose: Faculty configuration, settings, and Faculty Management approvals.
+   - POST /api/v1/partner-verifications/{id}/documents (Partner uploads docs)
+   - GET/PATCH /api/v1/admin/partner-verifications (Faculty Management review/approval)
+   - GET/PATCH /api/v1/admin/vacancy-approvals (Faculty Management vacancy review)
+
+C. Notification Service (Port 8088) - COMPLETED
+   Purpose: Email templates and automated email delivery.
+   - GET/POST/PUT/DELETE /api/v1/templates
+   - Consumes `notification.exchange` RabbitMQ queues entirely for email sending.
+
+D. Audit & Storage Service (Port 8089) - COMPLETED
+   Purpose: Immutable audit trails and central file storage (S3/MinIO).
+   - POST /api/v1/storage/upload (Upload resumes/presentations)
+   - GET  /api/v1/storage/download/{id}
+   - POST /api/v1/audit/log (Logs User ID, Action, Timestamp, IP)
+
+--------------------------------------------------------------------------------
+3. MODULE 1: EVENT MANAGEMENT SYSTEM
+--------------------------------------------------------------------------------
+Handles guest lectures, workshops, registrations, check-ins, and certifications.
+
+E. Event Management Service (Port 8082) - COMPLETED
+   Purpose: Event lifecycle and resource management for Faculty Coordinators & Admin Staff.
+   - GET/POST/PUT/DELETE /api/v1/events (Faculty Coordinator schedules events)
+   - GET/POST/PUT/DELETE /api/v1/guest-speakers (Guest Speaker profiles)
+   - PATCH /api/v1/events/{id}/status (Update status: DRAFT -> SCHEDULED)
+
+F. Event Participation Service (Port 8083) - COMPLETED
+   Purpose: Student engagement, manual/QR check-ins, and monitoring.
+   - GET/POST/PATCH/DELETE /api/v1/registrations (Students register for events)
+   - GET/POST/DELETE /api/v1/events/{eventId}/qr-sessions (Generate live QR)
+   - GET /api/v1/qr-sessions/{qrCodeValue}/verify (Live Student QR check-in)
+
+G. Certificate Service (Missing)
+   Purpose: Manage uploaded templates and generate PDF certificates.
+   - POST /api/v1/certificates/templates (Upload PDF template)
+   - POST /api/v1/certificates/generate (Triggered automatically post-event)
+   - GET /api/v1/certificates/student/{studentId} (Students download certificates)
+   - GET /api/v1/certificates/verify/{qrHash} (Public QR verification for QA)
+   *Inter-service*: Event Participation Service publishes `event.completed` to trigger this.
+
+--------------------------------------------------------------------------------
+4. MODULE 2: VACANCY & RECRUITMENT PORTAL
+--------------------------------------------------------------------------------
+Connects students with corporate partners and verified alumni for careers.
+
+H. Application Service (Port 8084) - COMPLETED
+   Purpose: Manage job application submissions and tracking.
+   - POST /api/v1/applications (Student one-click job application)
+   - PUT  /api/v1/applications/{id}/status (Partner updates applicant pipeline)
+   - GET  /api/v1/applications/vacancy/{vacancyId} (Partner views applicants)
+
+I. Vacancy Service (Missing)
+   Purpose: Company job postings and multi-criteria job search.
+   - POST /api/v1/vacancies (Partner submits vacancy -> triggers Platform Management approval)
+   - GET /api/v1/vacancies (Student searches by role, tech stack, work model)
+   - PUT /api/v1/vacancies/{id} (Update job posting)
+   *Inter-service*: Sends approval request to Platform Management.
+
+J. User Service (Missing)
+   Purpose: Centralized management of all user data not related to authentication (Students, Staff, Partners).
+   - GET/PUT /api/v1/users/{id}/profile (Users manage basic info, academic data/GPA, or company details)
+   - POST /api/v1/users/{id}/resumes (Students upload multiple resumes via Storage Service)
+   - PATCH /api/v1/users/{id}/job-status (Toggle "Actively Looking" / "Not Available")
+   *Inter-service*: Application Service fetches this data upon application submission.
+
+K. AI Service (Missing)
+   Purpose: Natural language search, automated recommendations, and AI matching tools.
+   - POST /api/v1/ai/generate-jd (Partner: Auto-generate JD from bullet points)
+   - GET /api/v1/ai/talent-search?q=find+talents+with+frontend (Partner: Natural language search)
+   - POST /api/v1/ai/match-resume (Student: Visual feedback on match rate against vacancy)
+   - POST /api/v1/ai/cover-letter (Student: Auto-generate cover letter based on selected resume)
+   *Inter-service*: Integrates heavily with Storage, Vacancy, and Profile services.
+
+--------------------------------------------------------------------------------
+5. RABBITMQ EVENT-DRIVEN COMMUNICATION
+--------------------------------------------------------------------------------
+Exchange: `notification.exchange` (Type: Topic)
+
+1. Implemented Events (Consumed by Notification Service)
+   - `notification.otp` (2FA emails)
+   - `notification.invitation` (Guest Speaker / Staff invitations)
+   - `notification.update` (Application status changes)
+   - `notification.announcement` (Mass event reminders/broadcasts)
+
+2. Future Events to Implement
+   - `event.completed`: Published by Event Management. Consumed by Certificate Service.
+   - `partner.approved`: Published by Platform Management. Consumed by Auth & Notification.
+   - `vacancy.created`: Published by Vacancy Service. Consumed by Platform Management.
+   - `vacancy.approved`: Published by Platform Management. Consumed by Vacancy & Notification.
+   - `ai.sourcing`: Published by AI Service. Consumed by Notification Service to alert matching candidates.
+
+--------------------------------------------------------------------------------
+6. THE ULTIMATE GOAL (COMPLETION CRITERIA)
+--------------------------------------------------------------------------------
+The project is complete when:
+1. All 11 microservices are implemented, registered in Eureka, and exposed via Gateway.
+2. Admins can manage RBAC, audit logs, and approve Partner onboarding.
+3. Partners can generate AI JDs, post vacancies, and perform natural-language talent searches.
+4. Students can register for events, check-in via QR, and auto-receive PDF certificates.
+5. Students can upload resumes, get AI match feedback, auto-generate cover letters, and apply.
+6. The entire system is event-driven via RabbitMQ, ensuring zero blocked synchronous flows.
+================================================================================

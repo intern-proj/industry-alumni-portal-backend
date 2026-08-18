@@ -20,10 +20,10 @@ spring:
         format_sql: true
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: otakuslimesgeneration@gmail.com
-    password: gzes urwv wnpy tixo
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:otakuslimesgeneration@gmail.com}
+    password: ${SPRING_MAIL_PASSWORD:gzes urwv wnpy tixo}
     properties:
       mail:
         smtp:
@@ -32,15 +32,23 @@ spring:
             enable: true
 
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
-
-#    template:
-#      reply-timeout: 10000ms  --- test 6
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true

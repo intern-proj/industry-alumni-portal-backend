@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/storage")
+@RequestMapping("/api/v1/storage")
 @RequiredArgsConstructor
 public class StorageController {
 

@@ -45,13 +45,11 @@ public class SecurityConfig {
                                 "/api/v1/auth/validate",
                                 "/actuator/**",
                                 "/v3/api-docs/**",
-                                "/swagger-ui/**"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
+                                "/swagger-ui/**")
+                        .permitAll()
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 }
-

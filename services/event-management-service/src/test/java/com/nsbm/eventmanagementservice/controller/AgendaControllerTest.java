@@ -61,7 +61,7 @@ public class AgendaControllerTest {
 
         when(agendaService.createAgendaItem(any(AgendaRequest.class))).thenReturn(agendaResponse);
 
-        mockMvc.perform(post("/api/agendas")
+        mockMvc.perform(post("/api/v1/agendas")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -79,7 +79,7 @@ public class AgendaControllerTest {
         when(agendaService.createAgendaItem(any(AgendaRequest.class)))
                 .thenThrow(new EventNotFoundException(999L));
 
-        mockMvc.perform(post("/api/agendas")
+        mockMvc.perform(post("/api/v1/agendas")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
@@ -89,7 +89,7 @@ public class AgendaControllerTest {
     void getAgendaItemById_whenNotFound_returns404() throws Exception {
         when(agendaService.getAgendaItemById(999L)).thenThrow(new AgendaNotFoundException(999L));
 
-        mockMvc.perform(get("/api/agendas/{id}", 999L))
+        mockMvc.perform(get("/api/v1/agendas/{id}", 999L))
                 .andExpect(status().isNotFound());
     }
 
@@ -97,7 +97,7 @@ public class AgendaControllerTest {
     void getAgenda_withEventId_returnsOrderedList() throws Exception {
         when(agendaService.getAgendaByEventId(1L)).thenReturn(List.of(agendaResponse));
 
-        mockMvc.perform(get("/api/agendas").param("eventId", "1"))
+        mockMvc.perform(get("/api/v1/agendas").param("eventId", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
 
@@ -108,7 +108,7 @@ public class AgendaControllerTest {
     void getAgenda_withSpeakerId_returnsFilteredList() throws Exception {
         when(agendaService.getAgendaBySpeakerId(2L)).thenReturn(List.of(agendaResponse));
 
-        mockMvc.perform(get("/api/agendas").param("speakerId", "2"))
+        mockMvc.perform(get("/api/v1/agendas").param("speakerId", "2"))
                 .andExpect(status().isOk());
 
         verify(agendaService).getAgendaBySpeakerId(2L);
@@ -116,7 +116,7 @@ public class AgendaControllerTest {
 
     @Test
     void getAgenda_withNoParams_returns400() throws Exception {
-        mockMvc.perform(get("/api/agendas"))
+        mockMvc.perform(get("/api/v1/agendas"))
                 .andExpect(status().isBadRequest());
 
         verify(agendaService, never()).getAgendaByEventId(any());
@@ -133,7 +133,7 @@ public class AgendaControllerTest {
 
         when(agendaService.updateAgendaItem(eq(1L), any(AgendaRequest.class))).thenReturn(agendaResponse);
 
-        mockMvc.perform(put("/api/agendas/{id}", 1L)
+        mockMvc.perform(put("/api/v1/agendas/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
@@ -143,7 +143,7 @@ public class AgendaControllerTest {
     void deleteAgendaItem_returns204() throws Exception {
         doNothing().when(agendaService).deleteAgendaItem(1L);
 
-        mockMvc.perform(delete("/api/agendas/{id}", 1L))
+        mockMvc.perform(delete("/api/v1/agendas/{id}", 1L))
                 .andExpect(status().isNoContent());
     }
 }

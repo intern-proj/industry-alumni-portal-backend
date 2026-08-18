@@ -1,0 +1,587 @@
+﻿{
+    "openapi":  "3.1.0",
+    "info":  {
+                 "title":  "Application Service API",
+                 "description":  "Job application submission, tracking \u0026 status management API",
+                 "contact":  {
+                                 "name":  "ICU Platform Team",
+                                 "email":  "icu-team@nsbm.ac.lk"
+                             },
+                 "license":  {
+                                 "name":  "Apache 2.0",
+                                 "url":  "https://springdoc.org"
+                             },
+                 "version":  "1.0.0"
+             },
+    "servers":  [
+                    {
+                        "url":  "http://localhost:8084",
+                        "description":  "Generated server url"
+                    }
+                ],
+    "paths":  {
+                  "/api/v1/applications/{id}/status":  {
+                                                           "put":  {
+                                                                       "tags":  [
+                                                                                    "job-application-controller"
+                                                                                ],
+                                                                       "operationId":  "updateApplicationStatus",
+                                                                       "parameters":  [
+                                                                                          {
+                                                                                              "name":  "id",
+                                                                                              "in":  "path",
+                                                                                              "required":  true,
+                                                                                              "schema":  {
+                                                                                                             "type":  "string",
+                                                                                                             "format":  "uuid"
+                                                                                                         }
+                                                                                          }
+                                                                                      ],
+                                                                       "requestBody":  {
+                                                                                           "content":  {
+                                                                                                           "application/json":  {
+                                                                                                                                    "schema":  {
+                                                                                                                                                   "$ref":  "#/components/schemas/StatusChangeRequest"
+                                                                                                                                               }
+                                                                                                                                }
+                                                                                                       },
+                                                                                           "required":  true
+                                                                                       },
+                                                                       "responses":  {
+                                                                                         "200":  {
+                                                                                                     "description":  "OK",
+                                                                                                     "content":  {
+                                                                                                                     "*/*":  {
+                                                                                                                                 "schema":  {
+                                                                                                                                                "$ref":  "#/components/schemas/JobApplicationResponse"
+                                                                                                                                            }
+                                                                                                                             }
+                                                                                                                 }
+                                                                                                 }
+                                                                                     }
+                                                                   }
+                                                       },
+                  "/api/v1/applications/{id}/stages/{stageId}":  {
+                                                                     "put":  {
+                                                                                 "tags":  [
+                                                                                              "job-application-controller"
+                                                                                          ],
+                                                                                 "operationId":  "updateStage",
+                                                                                 "parameters":  [
+                                                                                                    {
+                                                                                                        "name":  "id",
+                                                                                                        "in":  "path",
+                                                                                                        "required":  true,
+                                                                                                        "schema":  {
+                                                                                                                       "type":  "string",
+                                                                                                                       "format":  "uuid"
+                                                                                                                   }
+                                                                                                    },
+                                                                                                    {
+                                                                                                        "name":  "stageId",
+                                                                                                        "in":  "path",
+                                                                                                        "required":  true,
+                                                                                                        "schema":  {
+                                                                                                                       "type":  "string",
+                                                                                                                       "format":  "uuid"
+                                                                                                                   }
+                                                                                                    }
+                                                                                                ],
+                                                                                 "requestBody":  {
+                                                                                                     "content":  {
+                                                                                                                     "application/json":  {
+                                                                                                                                              "schema":  {
+                                                                                                                                                             "$ref":  "#/components/schemas/StageUpdateRequest"
+                                                                                                                                                         }
+                                                                                                                                          }
+                                                                                                                 },
+                                                                                                     "required":  true
+                                                                                                 },
+                                                                                 "responses":  {
+                                                                                                   "200":  {
+                                                                                                               "description":  "OK",
+                                                                                                               "content":  {
+                                                                                                                               "*/*":  {
+                                                                                                                                           "schema":  {
+                                                                                                                                                          "$ref":  "#/components/schemas/RecruitmentStageResponse"
+                                                                                                                                                      }
+                                                                                                                                       }
+                                                                                                                           }
+                                                                                                           }
+                                                                                               }
+                                                                             }
+                                                                 },
+                  "/api/v1/applications":  {
+                                               "post":  {
+                                                            "tags":  [
+                                                                         "job-application-controller"
+                                                                     ],
+                                                            "operationId":  "createApplication",
+                                                            "requestBody":  {
+                                                                                "content":  {
+                                                                                                "application/json":  {
+                                                                                                                         "schema":  {
+                                                                                                                                        "$ref":  "#/components/schemas/JobApplicationRequest"
+                                                                                                                                    }
+                                                                                                                     }
+                                                                                            },
+                                                                                "required":  true
+                                                                            },
+                                                            "responses":  {
+                                                                              "200":  {
+                                                                                          "description":  "OK",
+                                                                                          "content":  {
+                                                                                                          "*/*":  {
+                                                                                                                      "schema":  {
+                                                                                                                                     "$ref":  "#/components/schemas/JobApplicationResponse"
+                                                                                                                                 }
+                                                                                                                  }
+                                                                                                      }
+                                                                                      }
+                                                                          }
+                                                        }
+                                           },
+                  "/api/v1/applications/{id}/stages":  {
+                                                           "get":  {
+                                                                       "tags":  [
+                                                                                    "job-application-controller"
+                                                                                ],
+                                                                       "operationId":  "getStages",
+                                                                       "parameters":  [
+                                                                                          {
+                                                                                              "name":  "id",
+                                                                                              "in":  "path",
+                                                                                              "required":  true,
+                                                                                              "schema":  {
+                                                                                                             "type":  "string",
+                                                                                                             "format":  "uuid"
+                                                                                                         }
+                                                                                          }
+                                                                                      ],
+                                                                       "responses":  {
+                                                                                         "200":  {
+                                                                                                     "description":  "OK",
+                                                                                                     "content":  {
+                                                                                                                     "*/*":  {
+                                                                                                                                 "schema":  {
+                                                                                                                                                "type":  "array",
+                                                                                                                                                "items":  {
+                                                                                                                                                              "$ref":  "#/components/schemas/RecruitmentStageResponse"
+                                                                                                                                                          }
+                                                                                                                                            }
+                                                                                                                             }
+                                                                                                                 }
+                                                                                                 }
+                                                                                     }
+                                                                   },
+                                                           "post":  {
+                                                                        "tags":  [
+                                                                                     "job-application-controller"
+                                                                                 ],
+                                                                        "operationId":  "scheduleStage",
+                                                                        "parameters":  [
+                                                                                           {
+                                                                                               "name":  "id",
+                                                                                               "in":  "path",
+                                                                                               "required":  true,
+                                                                                               "schema":  {
+                                                                                                              "type":  "string",
+                                                                                                              "format":  "uuid"
+                                                                                                          }
+                                                                                           }
+                                                                                       ],
+                                                                        "requestBody":  {
+                                                                                            "content":  {
+                                                                                                            "application/json":  {
+                                                                                                                                     "schema":  {
+                                                                                                                                                    "$ref":  "#/components/schemas/RecruitmentStageRequest"
+                                                                                                                                                }
+                                                                                                                                 }
+                                                                                                        },
+                                                                                            "required":  true
+                                                                                        },
+                                                                        "responses":  {
+                                                                                          "200":  {
+                                                                                                      "description":  "OK",
+                                                                                                      "content":  {
+                                                                                                                      "*/*":  {
+                                                                                                                                  "schema":  {
+                                                                                                                                                 "$ref":  "#/components/schemas/RecruitmentStageResponse"
+                                                                                                                                             }
+                                                                                                                              }
+                                                                                                                  }
+                                                                                                  }
+                                                                                      }
+                                                                    }
+                                                       },
+                  "/api/v1/applications/{id}":  {
+                                                    "get":  {
+                                                                "tags":  [
+                                                                             "job-application-controller"
+                                                                         ],
+                                                                "operationId":  "getApplicationById",
+                                                                "parameters":  [
+                                                                                   {
+                                                                                       "name":  "id",
+                                                                                       "in":  "path",
+                                                                                       "required":  true,
+                                                                                       "schema":  {
+                                                                                                      "type":  "string",
+                                                                                                      "format":  "uuid"
+                                                                                                  }
+                                                                                   }
+                                                                               ],
+                                                                "responses":  {
+                                                                                  "200":  {
+                                                                                              "description":  "OK",
+                                                                                              "content":  {
+                                                                                                              "*/*":  {
+                                                                                                                          "schema":  {
+                                                                                                                                         "$ref":  "#/components/schemas/JobApplicationResponse"
+                                                                                                                                     }
+                                                                                                                      }
+                                                                                                          }
+                                                                                          }
+                                                                              }
+                                                            }
+                                                },
+                  "/api/v1/applications/{id}/audits":  {
+                                                           "get":  {
+                                                                       "tags":  [
+                                                                                    "job-application-controller"
+                                                                                ],
+                                                                       "operationId":  "getStatusAudits",
+                                                                       "parameters":  [
+                                                                                          {
+                                                                                              "name":  "id",
+                                                                                              "in":  "path",
+                                                                                              "required":  true,
+                                                                                              "schema":  {
+                                                                                                             "type":  "string",
+                                                                                                             "format":  "uuid"
+                                                                                                         }
+                                                                                          }
+                                                                                      ],
+                                                                       "responses":  {
+                                                                                         "200":  {
+                                                                                                     "description":  "OK",
+                                                                                                     "content":  {
+                                                                                                                     "*/*":  {
+                                                                                                                                 "schema":  {
+                                                                                                                                                "type":  "array",
+                                                                                                                                                "items":  {
+                                                                                                                                                              "$ref":  "#/components/schemas/StatusAuditResponse"
+                                                                                                                                                          }
+                                                                                                                                            }
+                                                                                                                             }
+                                                                                                                 }
+                                                                                                 }
+                                                                                     }
+                                                                   }
+                                                       },
+                  "/api/v1/applications/vacancy/{vacancyId}":  {
+                                                                   "get":  {
+                                                                               "tags":  [
+                                                                                            "job-application-controller"
+                                                                                        ],
+                                                                               "operationId":  "getApplicationsByVacancyId",
+                                                                               "parameters":  [
+                                                                                                  {
+                                                                                                      "name":  "vacancyId",
+                                                                                                      "in":  "path",
+                                                                                                      "required":  true,
+                                                                                                      "schema":  {
+                                                                                                                     "type":  "string",
+                                                                                                                     "format":  "uuid"
+                                                                                                                 }
+                                                                                                  }
+                                                                                              ],
+                                                                               "responses":  {
+                                                                                                 "200":  {
+                                                                                                             "description":  "OK",
+                                                                                                             "content":  {
+                                                                                                                             "*/*":  {
+                                                                                                                                         "schema":  {
+                                                                                                                                                        "type":  "array",
+                                                                                                                                                        "items":  {
+                                                                                                                                                                      "$ref":  "#/components/schemas/JobApplicationResponse"
+                                                                                                                                                                  }
+                                                                                                                                                    }
+                                                                                                                                     }
+                                                                                                                         }
+                                                                                                         }
+                                                                                             }
+                                                                           }
+                                                               },
+                  "/api/v1/applications/alumni/{alumniId}":  {
+                                                                 "get":  {
+                                                                             "tags":  [
+                                                                                          "job-application-controller"
+                                                                                      ],
+                                                                             "operationId":  "getApplicationsByAlumniId",
+                                                                             "parameters":  [
+                                                                                                {
+                                                                                                    "name":  "alumniId",
+                                                                                                    "in":  "path",
+                                                                                                    "required":  true,
+                                                                                                    "schema":  {
+                                                                                                                   "type":  "string",
+                                                                                                                   "format":  "uuid"
+                                                                                                               }
+                                                                                                }
+                                                                                            ],
+                                                                             "responses":  {
+                                                                                               "200":  {
+                                                                                                           "description":  "OK",
+                                                                                                           "content":  {
+                                                                                                                           "*/*":  {
+                                                                                                                                       "schema":  {
+                                                                                                                                                      "type":  "array",
+                                                                                                                                                      "items":  {
+                                                                                                                                                                    "$ref":  "#/components/schemas/JobApplicationResponse"
+                                                                                                                                                                }
+                                                                                                                                                  }
+                                                                                                                                   }
+                                                                                                                       }
+                                                                                                       }
+                                                                                           }
+                                                                         }
+                                                             }
+              },
+    "components":  {
+                       "schemas":  {
+                                       "StatusChangeRequest":  {
+                                                                   "type":  "object",
+                                                                   "properties":  {
+                                                                                      "newStatus":  {
+                                                                                                        "type":  "string",
+                                                                                                        "enum":  [
+                                                                                                                     "PENDING",
+                                                                                                                     "SHORTLISTED",
+                                                                                                                     "REJECTED",
+                                                                                                                     "INTERVIEWING",
+                                                                                                                     "OFFERED",
+                                                                                                                     "HIRED"
+                                                                                                                 ]
+                                                                                                    },
+                                                                                      "changedBy":  {
+                                                                                                        "type":  "string",
+                                                                                                        "minLength":  1
+                                                                                                    },
+                                                                                      "changeReason":  {
+                                                                                                           "type":  "string"
+                                                                                                       }
+                                                                                  },
+                                                                   "required":  [
+                                                                                    "changedBy",
+                                                                                    "newStatus"
+                                                                                ]
+                                                               },
+                                       "JobApplicationResponse":  {
+                                                                      "type":  "object",
+                                                                      "properties":  {
+                                                                                         "id":  {
+                                                                                                    "type":  "string",
+                                                                                                    "format":  "uuid"
+                                                                                                },
+                                                                                         "vacancyId":  {
+                                                                                                           "type":  "string",
+                                                                                                           "format":  "uuid"
+                                                                                                       },
+                                                                                         "alumniId":  {
+                                                                                                          "type":  "string",
+                                                                                                          "format":  "uuid"
+                                                                                                      },
+                                                                                         "resumeUrl":  {
+                                                                                                           "type":  "string"
+                                                                                                       },
+                                                                                         "coverLetter":  {
+                                                                                                             "type":  "string"
+                                                                                                         },
+                                                                                         "status":  {
+                                                                                                        "type":  "string",
+                                                                                                        "enum":  [
+                                                                                                                     "PENDING",
+                                                                                                                     "SHORTLISTED",
+                                                                                                                     "REJECTED",
+                                                                                                                     "INTERVIEWING",
+                                                                                                                     "OFFERED",
+                                                                                                                     "HIRED"
+                                                                                                                 ]
+                                                                                                    },
+                                                                                         "createdAt":  {
+                                                                                                           "type":  "string",
+                                                                                                           "format":  "date-time"
+                                                                                                       },
+                                                                                         "updatedAt":  {
+                                                                                                           "type":  "string",
+                                                                                                           "format":  "date-time"
+                                                                                                       }
+                                                                                     }
+                                                                  },
+                                       "StageUpdateRequest":  {
+                                                                  "type":  "object",
+                                                                  "properties":  {
+                                                                                     "stageStatus":  {
+                                                                                                         "type":  "string",
+                                                                                                         "enum":  [
+                                                                                                                      "SCHEDULED",
+                                                                                                                      "COMPLETED",
+                                                                                                                      "CANCELLED",
+                                                                                                                      "PASSED",
+                                                                                                                      "FAILED"
+                                                                                                                  ]
+                                                                                                     },
+                                                                                     "score":  {
+                                                                                                   "type":  "number",
+                                                                                                   "format":  "double"
+                                                                                               },
+                                                                                     "feedback":  {
+                                                                                                      "type":  "string"
+                                                                                                  }
+                                                                                 },
+                                                                  "required":  [
+                                                                                   "stageStatus"
+                                                                               ]
+                                                              },
+                                       "RecruitmentStageResponse":  {
+                                                                        "type":  "object",
+                                                                        "properties":  {
+                                                                                           "id":  {
+                                                                                                      "type":  "string",
+                                                                                                      "format":  "uuid"
+                                                                                                  },
+                                                                                           "applicationId":  {
+                                                                                                                 "type":  "string",
+                                                                                                                 "format":  "uuid"
+                                                                                                             },
+                                                                                           "stageName":  {
+                                                                                                             "type":  "string"
+                                                                                                         },
+                                                                                           "stageStatus":  {
+                                                                                                               "type":  "string",
+                                                                                                               "enum":  [
+                                                                                                                            "SCHEDULED",
+                                                                                                                            "COMPLETED",
+                                                                                                                            "CANCELLED",
+                                                                                                                            "PASSED",
+                                                                                                                            "FAILED"
+                                                                                                                        ]
+                                                                                                           },
+                                                                                           "scheduledAt":  {
+                                                                                                               "type":  "string",
+                                                                                                               "format":  "date-time"
+                                                                                                           },
+                                                                                           "score":  {
+                                                                                                         "type":  "number",
+                                                                                                         "format":  "double"
+                                                                                                     },
+                                                                                           "feedback":  {
+                                                                                                            "type":  "string"
+                                                                                                        },
+                                                                                           "interviewerName":  {
+                                                                                                                   "type":  "string"
+                                                                                                               },
+                                                                                           "createdAt":  {
+                                                                                                             "type":  "string",
+                                                                                                             "format":  "date-time"
+                                                                                                         },
+                                                                                           "updatedAt":  {
+                                                                                                             "type":  "string",
+                                                                                                             "format":  "date-time"
+                                                                                                         }
+                                                                                       }
+                                                                    },
+                                       "JobApplicationRequest":  {
+                                                                     "type":  "object",
+                                                                     "properties":  {
+                                                                                        "vacancyId":  {
+                                                                                                          "type":  "string",
+                                                                                                          "format":  "uuid"
+                                                                                                      },
+                                                                                        "alumniId":  {
+                                                                                                         "type":  "string",
+                                                                                                         "format":  "uuid"
+                                                                                                     },
+                                                                                        "resumeUrl":  {
+                                                                                                          "type":  "string",
+                                                                                                          "maxLength":  500,
+                                                                                                          "minLength":  0
+                                                                                                      },
+                                                                                        "coverLetter":  {
+                                                                                                            "type":  "string"
+                                                                                                        }
+                                                                                    },
+                                                                     "required":  [
+                                                                                      "alumniId",
+                                                                                      "resumeUrl",
+                                                                                      "vacancyId"
+                                                                                  ]
+                                                                 },
+                                       "RecruitmentStageRequest":  {
+                                                                       "type":  "object",
+                                                                       "properties":  {
+                                                                                          "stageName":  {
+                                                                                                            "type":  "string",
+                                                                                                            "minLength":  1
+                                                                                                        },
+                                                                                          "scheduledAt":  {
+                                                                                                              "type":  "string",
+                                                                                                              "format":  "date-time"
+                                                                                                          },
+                                                                                          "interviewerName":  {
+                                                                                                                  "type":  "string"
+                                                                                                              }
+                                                                                      },
+                                                                       "required":  [
+                                                                                        "stageName"
+                                                                                    ]
+                                                                   },
+                                       "StatusAuditResponse":  {
+                                                                   "type":  "object",
+                                                                   "properties":  {
+                                                                                      "id":  {
+                                                                                                 "type":  "string",
+                                                                                                 "format":  "uuid"
+                                                                                             },
+                                                                                      "applicationId":  {
+                                                                                                            "type":  "string",
+                                                                                                            "format":  "uuid"
+                                                                                                        },
+                                                                                      "previousStatus":  {
+                                                                                                             "type":  "string",
+                                                                                                             "enum":  [
+                                                                                                                          "PENDING",
+                                                                                                                          "SHORTLISTED",
+                                                                                                                          "REJECTED",
+                                                                                                                          "INTERVIEWING",
+                                                                                                                          "OFFERED",
+                                                                                                                          "HIRED"
+                                                                                                                      ]
+                                                                                                         },
+                                                                                      "newStatus":  {
+                                                                                                        "type":  "string",
+                                                                                                        "enum":  [
+                                                                                                                     "PENDING",
+                                                                                                                     "SHORTLISTED",
+                                                                                                                     "REJECTED",
+                                                                                                                     "INTERVIEWING",
+                                                                                                                     "OFFERED",
+                                                                                                                     "HIRED"
+                                                                                                                 ]
+                                                                                                    },
+                                                                                      "changedBy":  {
+                                                                                                        "type":  "string"
+                                                                                                    },
+                                                                                      "changeReason":  {
+                                                                                                           "type":  "string"
+                                                                                                       },
+                                                                                      "changedAt":  {
+                                                                                                        "type":  "string",
+                                                                                                        "format":  "date-time"
+                                                                                                    }
+                                                                                  }
+                                                               }
+                                   }
+                   }
+}

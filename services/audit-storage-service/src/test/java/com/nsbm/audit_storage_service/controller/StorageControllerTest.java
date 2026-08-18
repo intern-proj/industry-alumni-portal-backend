@@ -76,7 +76,7 @@ class StorageControllerTest {
         when(storageService.upload(any(MultipartFile.class), eq("user-1"), eq(FileType.SLIDE)))
                 .thenReturn(storedFileResponse);
 
-        mockMvc.perform(multipart("/api/storage/upload")
+        mockMvc.perform(multipart("/api/v1/storage/upload")
                         .file(file)
                         .param("uploaderId", "user-1")
                         .param("fileType", "SLIDE"))
@@ -95,7 +95,7 @@ class StorageControllerTest {
         when(storageService.download(fileId))
                 .thenReturn(new ByteArrayResource("pdf-content".getBytes()));
 
-        mockMvc.perform(get("/api/storage/download/{id}", fileId))
+        mockMvc.perform(get("/api/v1/storage/download/{id}", fileId))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", "attachment; filename=\"slides.pdf\""))
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
@@ -109,7 +109,7 @@ class StorageControllerTest {
     void getMetadata_returnsOk() throws Exception {
         when(storageService.getMetadata(fileId)).thenReturn(storedFileResponse);
 
-        mockMvc.perform(get("/api/storage/{id}", fileId))
+        mockMvc.perform(get("/api/v1/storage/{id}", fileId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fileId").value(fileId.toString()))
                 .andExpect(jsonPath("$.uploaderId").value("user-1"));
@@ -120,7 +120,7 @@ class StorageControllerTest {
         when(storageService.getMetadata(fileId))
                 .thenThrow(new ResourceNotFoundException("Stored file not found: " + fileId));
 
-        mockMvc.perform(get("/api/storage/{id}", fileId))
+        mockMvc.perform(get("/api/v1/storage/{id}", fileId))
                 .andExpect(status().isNotFound());
     }
 
@@ -128,7 +128,7 @@ class StorageControllerTest {
     void listByUploader_returnsFiles() throws Exception {
         when(storageService.listByUploader("user-1")).thenReturn(List.of(storedFileResponse));
 
-        mockMvc.perform(get("/api/storage").param("uploaderId", "user-1"))
+        mockMvc.perform(get("/api/v1/storage").param("uploaderId", "user-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].fileId").value(fileId.toString()))
                 .andExpect(jsonPath("$[0].fileType").value("SLIDE"));
@@ -138,7 +138,7 @@ class StorageControllerTest {
     void delete_returnsNoContent() throws Exception {
         doNothing().when(storageService).delete(fileId);
 
-        mockMvc.perform(delete("/api/storage/{id}", fileId))
+        mockMvc.perform(delete("/api/v1/storage/{id}", fileId))
                 .andExpect(status().isNoContent());
 
         verify(storageService, times(1)).delete(fileId);
@@ -149,7 +149,7 @@ class StorageControllerTest {
         doThrow(new ResourceNotFoundException("Stored file not found: " + fileId))
                 .when(storageService).delete(fileId);
 
-        mockMvc.perform(delete("/api/storage/{id}", fileId))
+        mockMvc.perform(delete("/api/v1/storage/{id}", fileId))
                 .andExpect(status().isNotFound());
     }
 }

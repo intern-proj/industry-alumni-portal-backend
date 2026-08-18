@@ -1,0 +1,85 @@
+name: Production Branch Pipeline
+
+on:
+  pull_request:
+    branches: ["production"]
+
+jobs:
+  build-and-test:
+    name: Build & Test — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: auth-service
+            path: services/auth-service
+            artifact: auth-service-jar
+
+          - service: event-management-service
+            path: services/event-management-service
+            artifact: event-management-service-jar
+
+          - service: event-participation-service
+            path: services/event-participation-service
+            artifact: event-participation-service-jar
+
+          - service: application-service
+            path: services/application-service
+            artifact: application-service-jar
+
+          - service: platform-management-service
+            path: services/platform-management-service
+            artifact: platform-management-service-jar
+
+          - service: notification-service
+            path: services/notification-service
+            artifact: notification-service-jar
+
+          - service: audit-storage-service
+            path: services/audit-storage-service
+            artifact: audit-storage-service-jar
+
+          - service: user-service
+            path: services/user-service
+            artifact: user-service-jar
+
+          - service: vacancy-service
+            path: services/vacancy-service
+            artifact: vacancy-service-jar
+
+          - service: certificate-service
+            path: services/certificate-service
+            artifact: certificate-service-jar
+
+          - service: ai-service
+            path: services/ai-service
+            artifact: ai-service-jar
+
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v7
+
+      - name: Install JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Give Permissions to Maven Wrapper
+        run: chmod +x mvnw
+
+      - name: Build & Test ${{ matrix.service }}
+        run: ./mvnw clean test -pl ${{ matrix.path }} -am
+
+      - name: Package ${{ matrix.service }}
+        run: ./mvnw package -DskipTests -pl ${{ matrix.path }} -am
+
+      - name: Upload ${{ matrix.service }} Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}/target/*.jar
+          retention-days: 7
