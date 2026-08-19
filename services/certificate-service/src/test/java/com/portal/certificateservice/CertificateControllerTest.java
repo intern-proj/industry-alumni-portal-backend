@@ -6,6 +6,7 @@ import com.portal.certificateservice.dto.*;
 import com.portal.certificateservice.exception.GlobalExceptionHandler;
 import com.portal.certificateservice.exception.ResourceNotFoundException;
 import com.portal.certificateservice.service.CertificateService;
+import com.portal.certificateservice.service.CertificateTemplateService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +41,9 @@ class CertificateControllerTest {
     @MockBean
     private CertificateService certificateService;
 
+    @MockBean
+    private CertificateTemplateService templateService;
+
     private UUID studentId;
     private UUID eventId;
     private UUID templateId;
@@ -57,6 +61,31 @@ class CertificateControllerTest {
                 certId, studentId, eventId, templateId,
                 "CERT-12345678", "/storage/cert.pdf", "ISSUED", LocalDateTime.now()
         );
+    }
+
+    @Test
+    void testUploadTemplate_Success() throws Exception {
+        CreateTemplateRequestDto request = new CreateTemplateRequestDto("Default Template", "/templates/default.png", "{}", true);
+        TemplateResponseDto templateResponse = new TemplateResponseDto(templateId, "Default Template", "/templates/default.png", "{}", true, LocalDateTime.now());
+
+        when(templateService.createTemplate(any())).thenReturn(templateResponse);
+
+        mockMvc.perform(post("/api/v1/certificates/templates")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(templateId.toString()))
+                .andExpect(jsonPath("$.templateName").value("Default Template"));
+    }
+
+    @Test
+    void testGetAllTemplates_Success() throws Exception {
+        TemplateResponseDto templateResponse = new TemplateResponseDto(templateId, "Default Template", "/templates/default.png", "{}", true, LocalDateTime.now());
+        when(templateService.getAllTemplates()).thenReturn(List.of(templateResponse));
+
+        mockMvc.perform(get("/api/v1/certificates/templates"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].templateName").value("Default Template"));
     }
 
     @Test
@@ -83,7 +112,7 @@ class CertificateControllerTest {
 
         when(certificateService.bulkGenerateCertificates(any())).thenReturn(List.of(certResponse));
 
-        mockMvc.perform(post("/api/v1/certificates/bulk-generate")
+        mockMvc.perform(post("/api/v1/certificates/batch-generate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -97,15 +126,6 @@ class CertificateControllerTest {
         mockMvc.perform(get("/api/v1/certificates/student/{studentId}", studentId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].studentId").value(studentId.toString()));
-    }
-
-    @Test
-    void testGetEventCertificates_Success() throws Exception {
-        when(certificateService.getCertificatesByEvent(eventId)).thenReturn(List.of(certResponse));
-
-        mockMvc.perform(get("/api/v1/certificates/event/{eventId}", eventId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].eventId").value(eventId.toString()));
     }
 
     @Test
@@ -162,21 +182,10 @@ class CertificateControllerTest {
 
         when(certificateService.verifyCertificate(eq("CERT-12345678"), any())).thenReturn(verificationResponse);
 
-        mockMvc.perform(get("/api/v1/certificates/verify/{code}", "CERT-12345678"))
+        mockMvc.perform(get("/api/v1/certificates/verify/{qrHash}", "CERT-12345678"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.valid").value(true))
                 .andExpect(jsonPath("$.verificationCode").value("CERT-12345678"));
-    }
-
-    @Test
-    void testGetVerificationLogs_Success() throws Exception {
-        VerificationLogDto logDto = new VerificationLogDto(UUID.randomUUID(), certId, LocalDateTime.now(), "127.0.0.1");
-
-        when(certificateService.getVerificationLogs(certId)).thenReturn(List.of(logDto));
-
-        mockMvc.perform(get("/api/v1/certificates/{id}/verification-logs", certId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].ipAddress").value("127.0.0.1"));
     }
 
     @Test

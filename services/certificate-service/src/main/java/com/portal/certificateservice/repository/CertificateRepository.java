@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Repository
 public interface CertificateRepository extends JpaRepository<Certificate, UUID> {
-    
+
     Optional<Certificate> findByVerificationCode(String verificationCode);
 
     List<Certificate> findByStudentId(UUID studentId);
@@ -20,6 +20,6 @@ public interface CertificateRepository extends JpaRepository<Certificate, UUID> 
     boolean existsByStudentIdAndEventId(UUID studentId, UUID eventId);
 
     Optional<Certificate> findByStudentIdAndEventId(UUID studentId, UUID eventId);
-    
+
     long countByStatus(String status);
 }

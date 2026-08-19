@@ -12,7 +12,7 @@ public class CertificateTemplate {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "template_name", nullable = false)
+    @Column(name = "template_name", nullable = false, unique = true)
     private String templateName;
 
     @Column(name = "template_file_path")
@@ -40,6 +40,9 @@ public class CertificateTemplate {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        if (this.isActive == null) {
+            this.isActive = true;
+        }
     }
 
     public UUID getId() {

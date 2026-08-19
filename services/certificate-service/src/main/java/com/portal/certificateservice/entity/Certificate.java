@@ -21,11 +21,11 @@ public class Certificate {
     @Column(name = "template_id", nullable = false)
     private UUID templateId;
 
-    @Column(name = "pdf_file_path")
-    private String pdfFilePath;
-
     @Column(name = "verification_code", nullable = false, unique = true)
     private String verificationCode;
+
+    @Column(name = "pdf_file_path")
+    private String pdfFilePath;
 
     @Column(name = "status", nullable = false)
     private String status = "ISSUED";
@@ -50,6 +50,9 @@ public class Certificate {
     protected void onCreate() {
         if (this.issuedAt == null) {
             this.issuedAt = LocalDateTime.now();
+        }
+        if (this.status == null) {
+            this.status = "ISSUED";
         }
     }
 
@@ -85,20 +88,20 @@ public class Certificate {
         this.templateId = templateId;
     }
 
-    public String getPdfFilePath() {
-        return pdfFilePath;
-    }
-
-    public void setPdfFilePath(String pdfFilePath) {
-        this.pdfFilePath = pdfFilePath;
-    }
-
     public String getVerificationCode() {
         return verificationCode;
     }
 
     public void setVerificationCode(String verificationCode) {
         this.verificationCode = verificationCode;
+    }
+
+    public String getPdfFilePath() {
+        return pdfFilePath;
+    }
+
+    public void setPdfFilePath(String pdfFilePath) {
+        this.pdfFilePath = pdfFilePath;
     }
 
     public String getStatus() {

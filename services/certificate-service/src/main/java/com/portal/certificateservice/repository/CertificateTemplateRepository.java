@@ -9,8 +9,8 @@ import java.util.UUID;
 
 @Repository
 public interface CertificateTemplateRepository extends JpaRepository<CertificateTemplate, UUID> {
-    
+
     List<CertificateTemplate> findByIsActiveTrue();
-    
+
     boolean existsByTemplateName(String templateName);
 }

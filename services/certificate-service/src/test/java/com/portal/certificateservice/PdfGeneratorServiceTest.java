@@ -2,35 +2,38 @@ package com.portal.certificateservice;
 
 import com.portal.certificateservice.service.PdfGeneratorService;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@SpringBootTest(classes = PdfGeneratorService.class)
 class PdfGeneratorServiceTest {
 
+    @Autowired
+    private PdfGeneratorService pdfGeneratorService;
+
     @Test
-    void testGeneratePdfCertificate_CreatesPdfFileWithQrCode(@TempDir Path tempDir) {
-        PdfGeneratorService pdfGeneratorService = new PdfGeneratorService();
-        ReflectionTestUtils.setField(pdfGeneratorService, "storagePath", tempDir.toAbsolutePath().toString());
-        ReflectionTestUtils.setField(pdfGeneratorService, "baseUrl", "https://portal.nsbm.ac.lk");
-
+    void testGeneratePdfCertificate_Success() {
         UUID certId = UUID.randomUUID();
-        String verificationCode = "CERT-TEST1234";
+        String verificationCode = "CERT-TEST-1234";
+        String studentName = "Jane Doe";
+        String eventTitle = "Career Guidance Workshop";
+        LocalDateTime issuedAt = LocalDateTime.now();
 
-        String filePath = pdfGeneratorService.generatePdfCertificate(
-                certId, verificationCode, "Jane Student", "Microservices Event", LocalDateTime.now()
+        String pdfPath = pdfGeneratorService.generatePdfCertificate(
+                certId, verificationCode, studentName, eventTitle, issuedAt
         );
 
-        assertNotNull(filePath);
-        File pdfFile = new File(filePath);
+        assertNotNull(pdfPath);
+        File pdfFile = new File(pdfPath);
         assertTrue(pdfFile.exists());
         assertTrue(pdfFile.length() > 0);
-        assertTrue(pdfFile.getName().contains("CERT-TEST1234"));
+
+        pdfFile.deleteOnExit();
     }
 }

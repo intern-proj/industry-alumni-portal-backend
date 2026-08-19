@@ -9,6 +9,7 @@ import com.portal.certificateservice.exception.ResourceNotFoundException;
 import com.portal.certificateservice.repository.CertificateRepository;
 import com.portal.certificateservice.repository.CertificateTemplateRepository;
 import com.portal.certificateservice.repository.CertificateVerificationLogRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,15 +28,21 @@ public class CertificateService {
     private final CertificateTemplateRepository templateRepository;
     private final CertificateVerificationLogRepository verificationLogRepository;
     private final PdfGeneratorService pdfGeneratorService;
+    private final NotificationEventPublisher notificationEventPublisher;
+
+    @Value("${certificate.baseUrl:https://portal.nsbm.ac.lk}")
+    private String baseUrl;
 
     public CertificateService(CertificateRepository certificateRepository,
                               CertificateTemplateRepository templateRepository,
                               CertificateVerificationLogRepository verificationLogRepository,
-                              PdfGeneratorService pdfGeneratorService) {
+                              PdfGeneratorService pdfGeneratorService,
+                              NotificationEventPublisher notificationEventPublisher) {
         this.certificateRepository = certificateRepository;
         this.templateRepository = templateRepository;
         this.verificationLogRepository = verificationLogRepository;
         this.pdfGeneratorService = pdfGeneratorService;
+        this.notificationEventPublisher = notificationEventPublisher;
     }
 
     @Transactional
@@ -76,6 +83,14 @@ public class CertificateService {
         certificate.setId(certificateId);
 
         Certificate saved = certificateRepository.save(certificate);
+
+        // Publish RabbitMQ event to notification.exchange (routing key: notification.certificate)
+        String downloadUrl = baseUrl + "/api/v1/certificates/" + saved.getId() + "/download";
+        CertificateNotificationEventDto notificationEvent = new CertificateNotificationEventDto(
+                saved.getId(), saved.getStudentId(), saved.getEventId(), saved.getVerificationCode(), downloadUrl, saved.getIssuedAt()
+        );
+        notificationEventPublisher.publishCertificateNotification(notificationEvent);
+
         return mapToResponseDto(saved);
     }
 
@@ -122,6 +137,14 @@ public class CertificateService {
             certificate.setId(certificateId);
 
             Certificate saved = certificateRepository.save(certificate);
+
+            // Publish RabbitMQ notification event
+            String downloadUrl = baseUrl + "/api/v1/certificates/" + saved.getId() + "/download";
+            CertificateNotificationEventDto notificationEvent = new CertificateNotificationEventDto(
+                    saved.getId(), saved.getStudentId(), saved.getEventId(), saved.getVerificationCode(), downloadUrl, saved.getIssuedAt()
+            );
+            notificationEventPublisher.publishCertificateNotification(notificationEvent);
+
             issuedCertificates.add(mapToResponseDto(saved));
         }
 
@@ -160,7 +183,6 @@ public class CertificateService {
         Certificate cert = certificateRepository.findByVerificationCode(verificationCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Certificate not found with verification code: " + verificationCode));
 
-        // Record verification audit log
         CertificateVerificationLog log = new CertificateVerificationLog(cert.getId(), ipAddress != null ? ipAddress : "UNKNOWN");
         verificationLogRepository.save(log);
 
@@ -199,14 +221,13 @@ public class CertificateService {
     public File getCertificatePdfFile(UUID id) {
         Certificate cert = certificateRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Certificate not found with ID: " + id));
-        
+
         if (cert.getPdfFilePath() == null || cert.getPdfFilePath().isBlank()) {
             throw new ResourceNotFoundException("PDF file path is not set for certificate ID: " + id);
         }
 
         File file = new File(cert.getPdfFilePath());
         if (!file.exists()) {
-            // Regenerate if file missing
             String newPdfPath = pdfGeneratorService.generatePdfCertificate(
                     cert.getId(),
                     cert.getVerificationCode(),

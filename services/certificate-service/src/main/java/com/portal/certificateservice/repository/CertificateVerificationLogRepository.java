@@ -11,6 +11,6 @@ import java.util.UUID;
 public interface CertificateVerificationLogRepository extends JpaRepository<CertificateVerificationLog, UUID> {
 
     List<CertificateVerificationLog> findByCertificateIdOrderByVerifiedAtDesc(UUID certificateId);
-    
+
     long countByCertificateId(UUID certificateId);
 }

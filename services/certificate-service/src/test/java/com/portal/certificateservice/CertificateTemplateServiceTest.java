@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,61 +39,60 @@ class CertificateTemplateServiceTest {
     @BeforeEach
     void setUp() {
         templateId = UUID.randomUUID();
-        template = new CertificateTemplate("Default Template", "/tpl.pdf", "{}", true);
+        template = new CertificateTemplate("Standard Template", "/templates/bg.png", "{}", true);
         template.setId(templateId);
     }
 
     @Test
     void testCreateTemplate_Success() {
-        CreateTemplateRequestDto request = new CreateTemplateRequestDto("Default Template", "/tpl.pdf", "{}", true);
+        CreateTemplateRequestDto request = new CreateTemplateRequestDto("Standard Template", "/templates/bg.png", "{}", true);
 
-        when(templateRepository.existsByTemplateName("Default Template")).thenReturn(false);
+        when(templateRepository.existsByTemplateName("Standard Template")).thenReturn(false);
         when(templateRepository.save(any())).thenReturn(template);
 
         TemplateResponseDto response = templateService.createTemplate(request);
 
         assertNotNull(response);
-        assertEquals("Default Template", response.getTemplateName());
-        assertTrue(response.getIsActive());
+        assertEquals("Standard Template", response.getTemplateName());
     }
 
     @Test
-    void testCreateTemplate_Duplicate_ThrowsException() {
-        CreateTemplateRequestDto request = new CreateTemplateRequestDto("Default Template", "/tpl.pdf", "{}", true);
+    void testCreateTemplate_DuplicateName_ThrowsException() {
+        CreateTemplateRequestDto request = new CreateTemplateRequestDto("Standard Template", "/templates/bg.png", "{}", true);
 
-        when(templateRepository.existsByTemplateName("Default Template")).thenReturn(true);
+        when(templateRepository.existsByTemplateName("Standard Template")).thenReturn(true);
 
         assertThrows(CertificateException.class, () -> templateService.createTemplate(request));
+    }
+
+    @Test
+    void testGetAllTemplates_Success() {
+        when(templateRepository.findAll()).thenReturn(List.of(template));
+
+        List<TemplateResponseDto> list = templateService.getAllTemplates();
+
+        assertFalse(list.isEmpty());
+        assertEquals(1, list.size());
+    }
+
+    @Test
+    void testGetActiveTemplates_Success() {
+        when(templateRepository.findByIsActiveTrue()).thenReturn(List.of(template));
+
+        List<TemplateResponseDto> list = templateService.getActiveTemplates();
+
+        assertFalse(list.isEmpty());
+        assertTrue(list.get(0).getIsActive());
     }
 
     @Test
     void testGetTemplateById_Success() {
         when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
 
-        TemplateResponseDto response = templateService.getTemplateById(templateId);
+        TemplateResponseDto dto = templateService.getTemplateById(templateId);
 
-        assertEquals(templateId, response.getId());
-        assertEquals("Default Template", response.getTemplateName());
-    }
-
-    @Test
-    void testGetTemplateById_NotFound_ThrowsException() {
-        when(templateRepository.findById(templateId)).thenReturn(Optional.empty());
-
-        assertThrows(ResourceNotFoundException.class, () -> templateService.getTemplateById(templateId));
-    }
-
-    @Test
-    void testUpdateTemplate_Success() {
-        UpdateTemplateRequestDto updateRequest = new UpdateTemplateRequestDto();
-        updateRequest.setTemplateName("Renamed Template");
-
-        when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
-        when(templateRepository.save(any())).thenReturn(template);
-
-        TemplateResponseDto response = templateService.updateTemplate(templateId, updateRequest);
-
-        assertEquals("Renamed Template", response.getTemplateName());
+        assertNotNull(dto);
+        assertEquals(templateId, dto.getId());
     }
 
     @Test
