@@ -7,7 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.UUID;
 
-@Repository
 public interface CertificateVerificationLogRepository extends JpaRepository<CertificateVerificationLog, UUID> {
 
     List<CertificateVerificationLog> findByCertificateIdOrderByVerifiedAtDesc(UUID certificateId);

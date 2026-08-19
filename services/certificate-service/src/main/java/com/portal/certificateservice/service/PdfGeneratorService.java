@@ -44,7 +44,7 @@ public class PdfGeneratorService {
             Path filePath = uploadDir.resolve(filename);
 
             Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 36);
-            PdfWriter writer = PdfWriter.getInstance(document, new FileOutputStream(filePath.toFile()));
+            PdfWriter.getInstance(document, new FileOutputStream(filePath.toFile()));
 
             document.open();
 
