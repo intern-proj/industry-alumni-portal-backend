@@ -1,0 +1,11 @@
+package com.nsbm.authservice.entity;
+
+public enum Role {
+    ADMIN,
+    FACULTY_COORDINATOR,
+    INTERNSHIP_COORDINATOR,
+    ACADEMIC_STAFF,
+    FACULTY_MANAGEMENT,
+    STUDENT,
+    INDUSTRY_PARTNER
+}

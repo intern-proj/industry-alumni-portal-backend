@@ -1,0 +1,456 @@
+﻿{
+    "openapi":  "3.1.0",
+    "info":  {
+                 "title":  "Event Participation Service API",
+                 "description":  "Student event registration, QR code check-in \u0026 attendance verification API",
+                 "contact":  {
+                                 "name":  "ICU Platform Team",
+                                 "email":  "icu-team@nsbm.ac.lk"
+                             },
+                 "license":  {
+                                 "name":  "Apache 2.0",
+                                 "url":  "https://springdoc.org"
+                             },
+                 "version":  "1.0.0"
+             },
+    "servers":  [
+                    {
+                        "url":  "http://localhost:8083",
+                        "description":  "Generated server url"
+                    }
+                ],
+    "paths":  {
+                  "/api/v1/registrations":  {
+                                                "get":  {
+                                                            "tags":  [
+                                                                         "registration-controller"
+                                                                     ],
+                                                            "operationId":  "getAll",
+                                                            "parameters":  [
+                                                                               {
+                                                                                   "name":  "eventId",
+                                                                                   "in":  "query",
+                                                                                   "required":  false,
+                                                                                   "schema":  {
+                                                                                                  "type":  "string",
+                                                                                                  "format":  "uuid"
+                                                                                              }
+                                                                               }
+                                                                           ],
+                                                            "responses":  {
+                                                                              "200":  {
+                                                                                          "description":  "OK",
+                                                                                          "content":  {
+                                                                                                          "*/*":  {
+                                                                                                                      "schema":  {
+                                                                                                                                     "type":  "array",
+                                                                                                                                     "items":  {
+                                                                                                                                                   "$ref":  "#/components/schemas/RegistrationResponse"
+                                                                                                                                               }
+                                                                                                                                 }
+                                                                                                                  }
+                                                                                                      }
+                                                                                      }
+                                                                          }
+                                                        },
+                                                "post":  {
+                                                             "tags":  [
+                                                                          "registration-controller"
+                                                                      ],
+                                                             "operationId":  "create",
+                                                             "requestBody":  {
+                                                                                 "content":  {
+                                                                                                 "application/json":  {
+                                                                                                                          "schema":  {
+                                                                                                                                         "$ref":  "#/components/schemas/RegistrationRequest"
+                                                                                                                                     }
+                                                                                                                      }
+                                                                                             },
+                                                                                 "required":  true
+                                                                             },
+                                                             "responses":  {
+                                                                               "200":  {
+                                                                                           "description":  "OK",
+                                                                                           "content":  {
+                                                                                                           "*/*":  {
+                                                                                                                       "schema":  {
+                                                                                                                                      "$ref":  "#/components/schemas/RegistrationResponse"
+                                                                                                                                  }
+                                                                                                                   }
+                                                                                                       }
+                                                                                       }
+                                                                           }
+                                                         }
+                                            },
+                  "/api/v1/events/{eventId}/qr-sessions":  {
+                                                               "get":  {
+                                                                           "tags":  [
+                                                                                        "qr-session-controller"
+                                                                                    ],
+                                                                           "operationId":  "getByEvent",
+                                                                           "parameters":  [
+                                                                                              {
+                                                                                                  "name":  "eventId",
+                                                                                                  "in":  "path",
+                                                                                                  "required":  true,
+                                                                                                  "schema":  {
+                                                                                                                 "type":  "string",
+                                                                                                                 "format":  "uuid"
+                                                                                                             }
+                                                                                              }
+                                                                                          ],
+                                                                           "responses":  {
+                                                                                             "200":  {
+                                                                                                         "description":  "OK",
+                                                                                                         "content":  {
+                                                                                                                         "*/*":  {
+                                                                                                                                     "schema":  {
+                                                                                                                                                    "type":  "array",
+                                                                                                                                                    "items":  {
+                                                                                                                                                                  "$ref":  "#/components/schemas/QrSessionResponse"
+                                                                                                                                                              }
+                                                                                                                                                }
+                                                                                                                                 }
+                                                                                                                     }
+                                                                                                     }
+                                                                                         }
+                                                                       },
+                                                               "post":  {
+                                                                            "tags":  [
+                                                                                         "qr-session-controller"
+                                                                                     ],
+                                                                            "operationId":  "generate",
+                                                                            "parameters":  [
+                                                                                               {
+                                                                                                   "name":  "eventId",
+                                                                                                   "in":  "path",
+                                                                                                   "required":  true,
+                                                                                                   "schema":  {
+                                                                                                                  "type":  "string",
+                                                                                                                  "format":  "uuid"
+                                                                                                              }
+                                                                                               }
+                                                                                           ],
+                                                                            "requestBody":  {
+                                                                                                "content":  {
+                                                                                                                "application/json":  {
+                                                                                                                                         "schema":  {
+                                                                                                                                                        "$ref":  "#/components/schemas/QrSessionRequest"
+                                                                                                                                                    }
+                                                                                                                                     }
+                                                                                                            },
+                                                                                                "required":  true
+                                                                                            },
+                                                                            "responses":  {
+                                                                                              "200":  {
+                                                                                                          "description":  "OK",
+                                                                                                          "content":  {
+                                                                                                                          "*/*":  {
+                                                                                                                                      "schema":  {
+                                                                                                                                                     "$ref":  "#/components/schemas/QrSessionResponse"
+                                                                                                                                                 }
+                                                                                                                                  }
+                                                                                                                      }
+                                                                                                      }
+                                                                                          }
+                                                                        }
+                                                           },
+                  "/api/v1/registrations/{registrationId}/status":  {
+                                                                        "patch":  {
+                                                                                      "tags":  [
+                                                                                                   "registration-controller"
+                                                                                               ],
+                                                                                      "operationId":  "updateStatus",
+                                                                                      "parameters":  [
+                                                                                                         {
+                                                                                                             "name":  "registrationId",
+                                                                                                             "in":  "path",
+                                                                                                             "required":  true,
+                                                                                                             "schema":  {
+                                                                                                                            "type":  "string",
+                                                                                                                            "format":  "uuid"
+                                                                                                                        }
+                                                                                                         }
+                                                                                                     ],
+                                                                                      "requestBody":  {
+                                                                                                          "content":  {
+                                                                                                                          "application/json":  {
+                                                                                                                                                   "schema":  {
+                                                                                                                                                                  "$ref":  "#/components/schemas/RegistrationStatusUpdateRequest"
+                                                                                                                                                              }
+                                                                                                                                               }
+                                                                                                                      },
+                                                                                                          "required":  true
+                                                                                                      },
+                                                                                      "responses":  {
+                                                                                                        "200":  {
+                                                                                                                    "description":  "OK",
+                                                                                                                    "content":  {
+                                                                                                                                    "*/*":  {
+                                                                                                                                                "schema":  {
+                                                                                                                                                               "$ref":  "#/components/schemas/RegistrationResponse"
+                                                                                                                                                           }
+                                                                                                                                            }
+                                                                                                                                }
+                                                                                                                }
+                                                                                                    }
+                                                                                  }
+                                                                    },
+                  "/api/v1/registrations/{registrationId}":  {
+                                                                 "get":  {
+                                                                             "tags":  [
+                                                                                          "registration-controller"
+                                                                                      ],
+                                                                             "operationId":  "getById",
+                                                                             "parameters":  [
+                                                                                                {
+                                                                                                    "name":  "registrationId",
+                                                                                                    "in":  "path",
+                                                                                                    "required":  true,
+                                                                                                    "schema":  {
+                                                                                                                   "type":  "string",
+                                                                                                                   "format":  "uuid"
+                                                                                                               }
+                                                                                                }
+                                                                                            ],
+                                                                             "responses":  {
+                                                                                               "200":  {
+                                                                                                           "description":  "OK",
+                                                                                                           "content":  {
+                                                                                                                           "*/*":  {
+                                                                                                                                       "schema":  {
+                                                                                                                                                      "$ref":  "#/components/schemas/RegistrationResponse"
+                                                                                                                                                  }
+                                                                                                                                   }
+                                                                                                                       }
+                                                                                                       }
+                                                                                           }
+                                                                         },
+                                                                 "delete":  {
+                                                                                "tags":  [
+                                                                                             "registration-controller"
+                                                                                         ],
+                                                                                "operationId":  "delete",
+                                                                                "parameters":  [
+                                                                                                   {
+                                                                                                       "name":  "registrationId",
+                                                                                                       "in":  "path",
+                                                                                                       "required":  true,
+                                                                                                       "schema":  {
+                                                                                                                      "type":  "string",
+                                                                                                                      "format":  "uuid"
+                                                                                                                  }
+                                                                                                   }
+                                                                                               ],
+                                                                                "responses":  {
+                                                                                                  "200":  {
+                                                                                                              "description":  "OK"
+                                                                                                          }
+                                                                                              }
+                                                                            }
+                                                             },
+                  "/api/v1/qr-sessions/{qrId}":  {
+                                                     "get":  {
+                                                                 "tags":  [
+                                                                              "qr-session-controller"
+                                                                          ],
+                                                                 "operationId":  "getById_1",
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "qrId",
+                                                                                        "in":  "path",
+                                                                                        "required":  true,
+                                                                                        "schema":  {
+                                                                                                       "type":  "string",
+                                                                                                       "format":  "uuid"
+                                                                                                   }
+                                                                                    }
+                                                                                ],
+                                                                 "responses":  {
+                                                                                   "200":  {
+                                                                                               "description":  "OK",
+                                                                                               "content":  {
+                                                                                                               "*/*":  {
+                                                                                                                           "schema":  {
+                                                                                                                                          "$ref":  "#/components/schemas/QrSessionResponse"
+                                                                                                                                      }
+                                                                                                                       }
+                                                                                                           }
+                                                                                           }
+                                                                               }
+                                                             },
+                                                     "delete":  {
+                                                                    "tags":  [
+                                                                                 "qr-session-controller"
+                                                                             ],
+                                                                    "operationId":  "deactivate",
+                                                                    "parameters":  [
+                                                                                       {
+                                                                                           "name":  "qrId",
+                                                                                           "in":  "path",
+                                                                                           "required":  true,
+                                                                                           "schema":  {
+                                                                                                          "type":  "string",
+                                                                                                          "format":  "uuid"
+                                                                                                      }
+                                                                                       }
+                                                                                   ],
+                                                                    "responses":  {
+                                                                                      "200":  {
+                                                                                                  "description":  "OK"
+                                                                                              }
+                                                                                  }
+                                                                }
+                                                 },
+                  "/api/v1/qr-sessions/{qrCodeValue}/verify":  {
+                                                                   "get":  {
+                                                                               "tags":  [
+                                                                                            "qr-session-controller"
+                                                                                        ],
+                                                                               "operationId":  "verify",
+                                                                               "parameters":  [
+                                                                                                  {
+                                                                                                      "name":  "qrCodeValue",
+                                                                                                      "in":  "path",
+                                                                                                      "required":  true,
+                                                                                                      "schema":  {
+                                                                                                                     "type":  "string"
+                                                                                                                 }
+                                                                                                  }
+                                                                                              ],
+                                                                               "responses":  {
+                                                                                                 "200":  {
+                                                                                                             "description":  "OK",
+                                                                                                             "content":  {
+                                                                                                                             "*/*":  {
+                                                                                                                                         "schema":  {
+                                                                                                                                                        "$ref":  "#/components/schemas/QrVerifyResponse"
+                                                                                                                                                    }
+                                                                                                                                     }
+                                                                                                                         }
+                                                                                                         }
+                                                                                             }
+                                                                           }
+                                                               }
+              },
+    "components":  {
+                       "schemas":  {
+                                       "RegistrationRequest":  {
+                                                                   "type":  "object",
+                                                                   "properties":  {
+                                                                                      "eventId":  {
+                                                                                                      "type":  "string",
+                                                                                                      "format":  "uuid"
+                                                                                                  },
+                                                                                      "studentId":  {
+                                                                                                        "type":  "string",
+                                                                                                        "format":  "uuid"
+                                                                                                    }
+                                                                                  },
+                                                                   "required":  [
+                                                                                    "eventId",
+                                                                                    "studentId"
+                                                                                ]
+                                                               },
+                                       "RegistrationResponse":  {
+                                                                    "type":  "object",
+                                                                    "properties":  {
+                                                                                       "registrationId":  {
+                                                                                                              "type":  "string",
+                                                                                                              "format":  "uuid"
+                                                                                                          },
+                                                                                       "eventId":  {
+                                                                                                       "type":  "string",
+                                                                                                       "format":  "uuid"
+                                                                                                   },
+                                                                                       "studentId":  {
+                                                                                                         "type":  "string",
+                                                                                                         "format":  "uuid"
+                                                                                                     },
+                                                                                       "status":  {
+                                                                                                      "type":  "string"
+                                                                                                  },
+                                                                                       "registeredAt":  {
+                                                                                                            "type":  "string",
+                                                                                                            "format":  "date-time"
+                                                                                                        }
+                                                                                   }
+                                                                },
+                                       "QrSessionRequest":  {
+                                                                "type":  "object",
+                                                                "properties":  {
+                                                                                   "validForMinutes":  {
+                                                                                                           "type":  "integer",
+                                                                                                           "format":  "int32",
+                                                                                                           "minimum":  1
+                                                                                                       }
+                                                                               },
+                                                                "required":  [
+                                                                                 "validForMinutes"
+                                                                             ]
+                                                            },
+                                       "QrSessionResponse":  {
+                                                                 "type":  "object",
+                                                                 "properties":  {
+                                                                                    "qrId":  {
+                                                                                                 "type":  "string",
+                                                                                                 "format":  "uuid"
+                                                                                             },
+                                                                                    "eventId":  {
+                                                                                                    "type":  "string",
+                                                                                                    "format":  "uuid"
+                                                                                                },
+                                                                                    "qrCodeValue":  {
+                                                                                                        "type":  "string"
+                                                                                                    },
+                                                                                    "qrLink":  {
+                                                                                                   "type":  "string"
+                                                                                               },
+                                                                                    "generatedAt":  {
+                                                                                                        "type":  "string",
+                                                                                                        "format":  "date-time"
+                                                                                                    },
+                                                                                    "expiresAt":  {
+                                                                                                      "type":  "string",
+                                                                                                      "format":  "date-time"
+                                                                                                  },
+                                                                                    "active":  {
+                                                                                                   "type":  "boolean"
+                                                                                               }
+                                                                                }
+                                                             },
+                                       "RegistrationStatusUpdateRequest":  {
+                                                                               "type":  "object",
+                                                                               "properties":  {
+                                                                                                  "status":  {
+                                                                                                                 "type":  "string",
+                                                                                                                 "enum":  [
+                                                                                                                              "PENDING",
+                                                                                                                              "APPROVED",
+                                                                                                                              "REJECTED"
+                                                                                                                          ]
+                                                                                                             }
+                                                                                              },
+                                                                               "required":  [
+                                                                                                "status"
+                                                                                            ]
+                                                                           },
+                                       "QrVerifyResponse":  {
+                                                                "type":  "object",
+                                                                "properties":  {
+                                                                                   "eventId":  {
+                                                                                                   "type":  "string",
+                                                                                                   "format":  "uuid"
+                                                                                               },
+                                                                                   "active":  {
+                                                                                                  "type":  "boolean"
+                                                                                              },
+                                                                                   "expiresAt":  {
+                                                                                                     "type":  "string",
+                                                                                                     "format":  "date-time"
+                                                                                                 }
+                                                                               }
+                                                            }
+                                   }
+                   }
+}
