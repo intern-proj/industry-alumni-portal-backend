@@ -1,0 +1,514 @@
+﻿{
+    "openapi":  "3.1.0",
+    "info":  {
+                 "title":  "Audit \u0026 Storage Service API",
+                 "description":  "Centralized file storage (S3/MinIO) and immutable audit logging API",
+                 "contact":  {
+                                 "name":  "ICU Platform Team",
+                                 "email":  "icu-team@nsbm.ac.lk"
+                             },
+                 "license":  {
+                                 "name":  "Apache 2.0",
+                                 "url":  "https://springdoc.org"
+                             },
+                 "version":  "1.0.0"
+             },
+    "servers":  [
+                    {
+                        "url":  "http://localhost:8089",
+                        "description":  "Generated server url"
+                    }
+                ],
+    "paths":  {
+                  "/api/v1/storage/upload":  {
+                                                 "post":  {
+                                                              "tags":  [
+                                                                           "storage-controller"
+                                                                       ],
+                                                              "operationId":  "upload",
+                                                              "parameters":  [
+                                                                                 {
+                                                                                     "name":  "uploaderId",
+                                                                                     "in":  "query",
+                                                                                     "required":  true,
+                                                                                     "schema":  {
+                                                                                                    "type":  "string"
+                                                                                                }
+                                                                                 },
+                                                                                 {
+                                                                                     "name":  "fileType",
+                                                                                     "in":  "query",
+                                                                                     "required":  false,
+                                                                                     "schema":  {
+                                                                                                    "type":  "string",
+                                                                                                    "default":  "OTHER",
+                                                                                                    "enum":  [
+                                                                                                                 "RESUME",
+                                                                                                                 "SLIDE",
+                                                                                                                 "CERTIFICATE",
+                                                                                                                 "OTHER"
+                                                                                                             ]
+                                                                                                }
+                                                                                 }
+                                                                             ],
+                                                              "requestBody":  {
+                                                                                  "content":  {
+                                                                                                  "multipart/form-data":  {
+                                                                                                                              "schema":  {
+                                                                                                                                             "type":  "object",
+                                                                                                                                             "properties":  {
+                                                                                                                                                                "file":  {
+                                                                                                                                                                             "type":  "string",
+                                                                                                                                                                             "format":  "binary"
+                                                                                                                                                                         }
+                                                                                                                                                            },
+                                                                                                                                             "required":  [
+                                                                                                                                                              "file"
+                                                                                                                                                          ]
+                                                                                                                                         }
+                                                                                                                          }
+                                                                                              }
+                                                                              },
+                                                              "responses":  {
+                                                                                "200":  {
+                                                                                            "description":  "OK",
+                                                                                            "content":  {
+                                                                                                            "*/*":  {
+                                                                                                                        "schema":  {
+                                                                                                                                       "$ref":  "#/components/schemas/StoredFileResponse"
+                                                                                                                                   }
+                                                                                                                    }
+                                                                                                        }
+                                                                                        }
+                                                                            }
+                                                          }
+                                             },
+                  "/api/v1/audit/log":  {
+                                            "post":  {
+                                                         "tags":  [
+                                                                      "audit-controller"
+                                                                  ],
+                                                         "operationId":  "logAction",
+                                                         "requestBody":  {
+                                                                             "content":  {
+                                                                                             "application/json":  {
+                                                                                                                      "schema":  {
+                                                                                                                                     "$ref":  "#/components/schemas/AuditLogRequest"
+                                                                                                                                 }
+                                                                                                                  }
+                                                                                         },
+                                                                             "required":  true
+                                                                         },
+                                                         "responses":  {
+                                                                           "200":  {
+                                                                                       "description":  "OK"
+                                                                                   }
+                                                                       }
+                                                     }
+                                        },
+                  "/api/v1/storage":  {
+                                          "get":  {
+                                                      "tags":  [
+                                                                   "storage-controller"
+                                                               ],
+                                                      "operationId":  "listByUploader",
+                                                      "parameters":  [
+                                                                         {
+                                                                             "name":  "uploaderId",
+                                                                             "in":  "query",
+                                                                             "required":  true,
+                                                                             "schema":  {
+                                                                                            "type":  "string"
+                                                                                        }
+                                                                         }
+                                                                     ],
+                                                      "responses":  {
+                                                                        "200":  {
+                                                                                    "description":  "OK",
+                                                                                    "content":  {
+                                                                                                    "*/*":  {
+                                                                                                                "schema":  {
+                                                                                                                               "type":  "array",
+                                                                                                                               "items":  {
+                                                                                                                                             "$ref":  "#/components/schemas/StoredFileResponse"
+                                                                                                                                         }
+                                                                                                                           }
+                                                                                                            }
+                                                                                                }
+                                                                                }
+                                                                    }
+                                                  }
+                                      },
+                  "/api/v1/storage/{id}":  {
+                                               "get":  {
+                                                           "tags":  [
+                                                                        "storage-controller"
+                                                                    ],
+                                                           "operationId":  "getMetadata",
+                                                           "parameters":  [
+                                                                              {
+                                                                                  "name":  "id",
+                                                                                  "in":  "path",
+                                                                                  "required":  true,
+                                                                                  "schema":  {
+                                                                                                 "type":  "string",
+                                                                                                 "format":  "uuid"
+                                                                                             }
+                                                                              }
+                                                                          ],
+                                                           "responses":  {
+                                                                             "200":  {
+                                                                                         "description":  "OK",
+                                                                                         "content":  {
+                                                                                                         "*/*":  {
+                                                                                                                     "schema":  {
+                                                                                                                                    "$ref":  "#/components/schemas/StoredFileResponse"
+                                                                                                                                }
+                                                                                                                 }
+                                                                                                     }
+                                                                                     }
+                                                                         }
+                                                       },
+                                               "delete":  {
+                                                              "tags":  [
+                                                                           "storage-controller"
+                                                                       ],
+                                                              "operationId":  "delete",
+                                                              "parameters":  [
+                                                                                 {
+                                                                                     "name":  "id",
+                                                                                     "in":  "path",
+                                                                                     "required":  true,
+                                                                                     "schema":  {
+                                                                                                    "type":  "string",
+                                                                                                    "format":  "uuid"
+                                                                                                }
+                                                                                 }
+                                                                             ],
+                                                              "responses":  {
+                                                                                "200":  {
+                                                                                            "description":  "OK"
+                                                                                        }
+                                                                            }
+                                                          }
+                                           },
+                  "/api/v1/storage/download/{id}":  {
+                                                        "get":  {
+                                                                    "tags":  [
+                                                                                 "storage-controller"
+                                                                             ],
+                                                                    "operationId":  "download",
+                                                                    "parameters":  [
+                                                                                       {
+                                                                                           "name":  "id",
+                                                                                           "in":  "path",
+                                                                                           "required":  true,
+                                                                                           "schema":  {
+                                                                                                          "type":  "string",
+                                                                                                          "format":  "uuid"
+                                                                                                      }
+                                                                                       }
+                                                                                   ],
+                                                                    "responses":  {
+                                                                                      "200":  {
+                                                                                                  "description":  "OK",
+                                                                                                  "content":  {
+                                                                                                                  "*/*":  {
+                                                                                                                              "schema":  {
+                                                                                                                                             "type":  "string",
+                                                                                                                                             "format":  "binary"
+                                                                                                                                         }
+                                                                                                                          }
+                                                                                                              }
+                                                                                              }
+                                                                                  }
+                                                                }
+                                                    },
+                  "/api/v1/audit/logs":  {
+                                             "get":  {
+                                                         "tags":  [
+                                                                      "audit-controller"
+                                                                  ],
+                                                         "operationId":  "getLogs",
+                                                         "parameters":  [
+                                                                            {
+                                                                                "name":  "userId",
+                                                                                "in":  "query",
+                                                                                "required":  false,
+                                                                                "schema":  {
+                                                                                               "type":  "string"
+                                                                                           }
+                                                                            },
+                                                                            {
+                                                                                "name":  "action",
+                                                                                "in":  "query",
+                                                                                "required":  false,
+                                                                                "schema":  {
+                                                                                               "type":  "string"
+                                                                                           }
+                                                                            },
+                                                                            {
+                                                                                "name":  "from",
+                                                                                "in":  "query",
+                                                                                "required":  false,
+                                                                                "schema":  {
+                                                                                               "type":  "string",
+                                                                                               "format":  "date-time"
+                                                                                           }
+                                                                            },
+                                                                            {
+                                                                                "name":  "to",
+                                                                                "in":  "query",
+                                                                                "required":  false,
+                                                                                "schema":  {
+                                                                                               "type":  "string",
+                                                                                               "format":  "date-time"
+                                                                                           }
+                                                                            },
+                                                                            {
+                                                                                "name":  "pageable",
+                                                                                "in":  "query",
+                                                                                "required":  true,
+                                                                                "schema":  {
+                                                                                               "$ref":  "#/components/schemas/Pageable"
+                                                                                           }
+                                                                            }
+                                                                        ],
+                                                         "responses":  {
+                                                                           "200":  {
+                                                                                       "description":  "OK",
+                                                                                       "content":  {
+                                                                                                       "*/*":  {
+                                                                                                                   "schema":  {
+                                                                                                                                  "$ref":  "#/components/schemas/PageAuditLogResponse"
+                                                                                                                              }
+                                                                                                               }
+                                                                                                   }
+                                                                                   }
+                                                                       }
+                                                     }
+                                         }
+              },
+    "components":  {
+                       "schemas":  {
+                                       "StoredFileResponse":  {
+                                                                  "type":  "object",
+                                                                  "properties":  {
+                                                                                     "fileId":  {
+                                                                                                    "type":  "string",
+                                                                                                    "format":  "uuid"
+                                                                                                },
+                                                                                     "originalFilename":  {
+                                                                                                              "type":  "string"
+                                                                                                          },
+                                                                                     "contentType":  {
+                                                                                                         "type":  "string"
+                                                                                                     },
+                                                                                     "fileSizeBytes":  {
+                                                                                                           "type":  "integer",
+                                                                                                           "format":  "int64"
+                                                                                                       },
+                                                                                     "storageUrl":  {
+                                                                                                        "type":  "string"
+                                                                                                    },
+                                                                                     "uploaderId":  {
+                                                                                                        "type":  "string"
+                                                                                                    },
+                                                                                     "uploadTimestamp":  {
+                                                                                                             "type":  "string",
+                                                                                                             "format":  "date-time"
+                                                                                                         },
+                                                                                     "fileType":  {
+                                                                                                      "type":  "string",
+                                                                                                      "enum":  [
+                                                                                                                   "RESUME",
+                                                                                                                   "SLIDE",
+                                                                                                                   "CERTIFICATE",
+                                                                                                                   "OTHER"
+                                                                                                               ]
+                                                                                                  },
+                                                                                     "version":  {
+                                                                                                     "type":  "integer",
+                                                                                                     "format":  "int32"
+                                                                                                 }
+                                                                                 }
+                                                              },
+                                       "AuditLogRequest":  {
+                                                               "type":  "object",
+                                                               "properties":  {
+                                                                                  "userId":  {
+                                                                                                 "type":  "string",
+                                                                                                 "maxLength":  100,
+                                                                                                 "minLength":  0
+                                                                                             },
+                                                                                  "action":  {
+                                                                                                 "type":  "string",
+                                                                                                 "maxLength":  255,
+                                                                                                 "minLength":  0
+                                                                                             },
+                                                                                  "ipAddress":  {
+                                                                                                    "type":  "string",
+                                                                                                    "maxLength":  45,
+                                                                                                    "minLength":  0
+                                                                                                },
+                                                                                  "resourceType":  {
+                                                                                                       "type":  "string",
+                                                                                                       "maxLength":  100,
+                                                                                                       "minLength":  0
+                                                                                                   },
+                                                                                  "resourceId":  {
+                                                                                                     "type":  "string",
+                                                                                                     "maxLength":  100,
+                                                                                                     "minLength":  0
+                                                                                                 },
+                                                                                  "details":  {
+                                                                                                  "type":  "string"
+                                                                                              }
+                                                                              },
+                                                               "required":  [
+                                                                                "action",
+                                                                                "ipAddress",
+                                                                                "userId"
+                                                                            ]
+                                                           },
+                                       "Pageable":  {
+                                                        "type":  "object",
+                                                        "properties":  {
+                                                                           "page":  {
+                                                                                        "type":  "integer",
+                                                                                        "format":  "int32",
+                                                                                        "minimum":  0
+                                                                                    },
+                                                                           "size":  {
+                                                                                        "type":  "integer",
+                                                                                        "format":  "int32",
+                                                                                        "minimum":  1
+                                                                                    },
+                                                                           "sort":  {
+                                                                                        "type":  "array",
+                                                                                        "items":  {
+                                                                                                      "type":  "string"
+                                                                                                  }
+                                                                                    }
+                                                                       }
+                                                    },
+                                       "AuditLogResponse":  {
+                                                                "type":  "object",
+                                                                "properties":  {
+                                                                                   "id":  {
+                                                                                              "type":  "string",
+                                                                                              "format":  "uuid"
+                                                                                          },
+                                                                                   "userId":  {
+                                                                                                  "type":  "string"
+                                                                                              },
+                                                                                   "action":  {
+                                                                                                  "type":  "string"
+                                                                                              },
+                                                                                   "ipAddress":  {
+                                                                                                     "type":  "string"
+                                                                                                 },
+                                                                                   "timestamp":  {
+                                                                                                     "type":  "string",
+                                                                                                     "format":  "date-time"
+                                                                                                 },
+                                                                                   "resourceType":  {
+                                                                                                        "type":  "string"
+                                                                                                    },
+                                                                                   "resourceId":  {
+                                                                                                      "type":  "string"
+                                                                                                  },
+                                                                                   "details":  {
+                                                                                                   "type":  "string"
+                                                                                               }
+                                                                               }
+                                                            },
+                                       "PageAuditLogResponse":  {
+                                                                    "type":  "object",
+                                                                    "properties":  {
+                                                                                       "totalPages":  {
+                                                                                                          "type":  "integer",
+                                                                                                          "format":  "int32"
+                                                                                                      },
+                                                                                       "totalElements":  {
+                                                                                                             "type":  "integer",
+                                                                                                             "format":  "int64"
+                                                                                                         },
+                                                                                       "size":  {
+                                                                                                    "type":  "integer",
+                                                                                                    "format":  "int32"
+                                                                                                },
+                                                                                       "content":  {
+                                                                                                       "type":  "array",
+                                                                                                       "items":  {
+                                                                                                                     "$ref":  "#/components/schemas/AuditLogResponse"
+                                                                                                                 }
+                                                                                                   },
+                                                                                       "number":  {
+                                                                                                      "type":  "integer",
+                                                                                                      "format":  "int32"
+                                                                                                  },
+                                                                                       "sort":  {
+                                                                                                    "$ref":  "#/components/schemas/SortObject"
+                                                                                                },
+                                                                                       "pageable":  {
+                                                                                                        "$ref":  "#/components/schemas/PageableObject"
+                                                                                                    },
+                                                                                       "numberOfElements":  {
+                                                                                                                "type":  "integer",
+                                                                                                                "format":  "int32"
+                                                                                                            },
+                                                                                       "first":  {
+                                                                                                     "type":  "boolean"
+                                                                                                 },
+                                                                                       "last":  {
+                                                                                                    "type":  "boolean"
+                                                                                                },
+                                                                                       "empty":  {
+                                                                                                     "type":  "boolean"
+                                                                                                 }
+                                                                                   }
+                                                                },
+                                       "PageableObject":  {
+                                                              "type":  "object",
+                                                              "properties":  {
+                                                                                 "offset":  {
+                                                                                                "type":  "integer",
+                                                                                                "format":  "int64"
+                                                                                            },
+                                                                                 "sort":  {
+                                                                                              "$ref":  "#/components/schemas/SortObject"
+                                                                                          },
+                                                                                 "pageNumber":  {
+                                                                                                    "type":  "integer",
+                                                                                                    "format":  "int32"
+                                                                                                },
+                                                                                 "pageSize":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "format":  "int32"
+                                                                                              },
+                                                                                 "paged":  {
+                                                                                               "type":  "boolean"
+                                                                                           },
+                                                                                 "unpaged":  {
+                                                                                                 "type":  "boolean"
+                                                                                             }
+                                                                             }
+                                                          },
+                                       "SortObject":  {
+                                                          "type":  "object",
+                                                          "properties":  {
+                                                                             "empty":  {
+                                                                                           "type":  "boolean"
+                                                                                       },
+                                                                             "sorted":  {
+                                                                                            "type":  "boolean"
+                                                                                        },
+                                                                             "unsorted":  {
+                                                                                              "type":  "boolean"
+                                                                                          }
+                                                                         }
+                                                      }
+                                   }
+                   }
+}
