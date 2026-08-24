@@ -15,6 +15,7 @@ import com.portal.event_participation_service.dto.CheckinRequest;
 import com.portal.event_participation_service.dto.RegistrationStatusUpdateRequest;
 import com.portal.event_participation_service.entity.Registration;
 import com.portal.event_participation_service.repository.QrSessionRepository;
+import com.portal.event_participation_service.dto.FeedbackRequest;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import java.time.Instant;
@@ -322,6 +323,115 @@ void checkIn_nonExistentRegistration_returns404() throws Exception {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(checkinRequest)))
             .andExpect(status().isNotFound());
+}
+
+@Test
+void submitFeedback_afterCheckIn_returnsCreated() throws Exception {
+    UUID eventId = UUID.randomUUID();
+    UUID studentId = UUID.randomUUID();
+
+    // Register
+    String registrationResponse = mockMvc.perform(post("/api/v1/registrations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new RegistrationRequest(eventId, studentId))))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String registrationId = objectMapper.readTree(registrationResponse).get("registrationId").asText();
+
+    // Generate QR and check in
+    String qrResponse = mockMvc.perform(post("/api/v1/events/" + eventId + "/qr-sessions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"validForMinutes\": 30}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String qrCodeValue = objectMapper.readTree(qrResponse).get("qrCodeValue").asText();
+
+    mockMvc.perform(post("/api/v1/attendance/checkin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(
+                            new CheckinRequest(UUID.fromString(registrationId), qrCodeValue))))
+            .andExpect(status().isCreated());
+
+    // Submit feedback
+    FeedbackRequest feedbackRequest = new FeedbackRequest(UUID.fromString(registrationId), 5, "Great session!");
+
+    mockMvc.perform(post("/api/v1/feedback")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(feedbackRequest)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.rating").value(5))
+            .andExpect(jsonPath("$.comments").value("Great session!"));
+}
+
+@Test
+void submitFeedback_withoutCheckIn_returnsConflict() throws Exception {
+    UUID eventId = UUID.randomUUID();
+    UUID studentId = UUID.randomUUID();
+
+    String registrationResponse = mockMvc.perform(post("/api/v1/registrations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new RegistrationRequest(eventId, studentId))))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String registrationId = objectMapper.readTree(registrationResponse).get("registrationId").asText();
+
+    // No check-in performed
+    FeedbackRequest feedbackRequest = new FeedbackRequest(UUID.fromString(registrationId), 4, "Nice");
+
+    mockMvc.perform(post("/api/v1/feedback")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(feedbackRequest)))
+            .andExpect(status().isConflict());
+}
+
+@Test
+void submitFeedback_duplicateSubmission_returnsConflict() throws Exception {
+    UUID eventId = UUID.randomUUID();
+    UUID studentId = UUID.randomUUID();
+
+    String registrationResponse = mockMvc.perform(post("/api/v1/registrations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new RegistrationRequest(eventId, studentId))))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String registrationId = objectMapper.readTree(registrationResponse).get("registrationId").asText();
+
+    String qrResponse = mockMvc.perform(post("/api/v1/events/" + eventId + "/qr-sessions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"validForMinutes\": 30}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String qrCodeValue = objectMapper.readTree(qrResponse).get("qrCodeValue").asText();
+
+    mockMvc.perform(post("/api/v1/attendance/checkin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(
+                            new CheckinRequest(UUID.fromString(registrationId), qrCodeValue))))
+            .andExpect(status().isCreated());
+
+    FeedbackRequest feedbackRequest = new FeedbackRequest(UUID.fromString(registrationId), 5, "First submission");
+
+    // First submission succeeds
+    mockMvc.perform(post("/api/v1/feedback")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(feedbackRequest)))
+            .andExpect(status().isCreated());
+
+    // Second submission for the same registration should fail
+    mockMvc.perform(post("/api/v1/feedback")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(feedbackRequest)))
+            .andExpect(status().isConflict());
+}
+
+@Test
+void submitFeedback_ratingOutOfRange_returnsUnprocessableEntity() throws Exception {
+    FeedbackRequest invalidRequest = new FeedbackRequest(UUID.randomUUID(), 10, "Invalid rating");
+
+    mockMvc.perform(post("/api/v1/feedback")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(invalidRequest)))
+            .andExpect(status().isUnprocessableEntity());
 }
 
 }
