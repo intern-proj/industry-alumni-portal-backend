@@ -33,6 +33,11 @@ public class GlobalExceptionHandler {
                 "An unexpected error occurred.", request);
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ProblemDetail handleConflict(IllegalStateException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, "state-conflict", "Conflict", ex.getMessage(), request);
+}
+
    
 
     private ProblemDetail build(HttpStatus status, String slug, String title, String detail, HttpServletRequest request) {

@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import com.portal.event_participation_service.dto.CheckinRequest;
 
 import com.portal.event_participation_service.dto.RegistrationStatusUpdateRequest;
 import com.portal.event_participation_service.entity.Registration;
@@ -169,4 +170,158 @@ void verifyQrSession_inactiveAfterTimeLimitExpires() throws Exception {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.active").value(false));
 }
+
+
+@Test
+void checkIn_validRegistrationAndActiveQr_returnsPresentAttendance() throws Exception {
+    UUID eventId = UUID.randomUUID();
+    UUID studentId = UUID.randomUUID();
+
+    // 1. Create registration for the event
+    RegistrationRequest registrationRequest = new RegistrationRequest(eventId, studentId);
+    String registrationResponse = mockMvc.perform(post("/api/v1/registrations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registrationRequest)))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String registrationId = objectMapper.readTree(registrationResponse).get("registrationId").asText();
+
+    // 2. Generate a QR session for the SAME event
+    String qrResponse = mockMvc.perform(post("/api/v1/events/" + eventId + "/qr-sessions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"validForMinutes\": 30}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String qrCodeValue = objectMapper.readTree(qrResponse).get("qrCodeValue").asText();
+
+    // 3. Check in
+    CheckinRequest checkinRequest = new CheckinRequest(UUID.fromString(registrationId), qrCodeValue);
+
+    mockMvc.perform(post("/api/v1/attendance/checkin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(checkinRequest)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("PRESENT"))
+            .andExpect(jsonPath("$.checkinMethod").value("QR_SCAN"))
+            .andExpect(jsonPath("$.registrationId").value(registrationId));
+}
+
+@Test
+void checkIn_duplicateCheckin_returnsConflict() throws Exception {
+    UUID eventId = UUID.randomUUID();
+    UUID studentId = UUID.randomUUID();
+
+    RegistrationRequest registrationRequest = new RegistrationRequest(eventId, studentId);
+    String registrationResponse = mockMvc.perform(post("/api/v1/registrations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registrationRequest)))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String registrationId = objectMapper.readTree(registrationResponse).get("registrationId").asText();
+
+    String qrResponse = mockMvc.perform(post("/api/v1/events/" + eventId + "/qr-sessions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"validForMinutes\": 30}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String qrCodeValue = objectMapper.readTree(qrResponse).get("qrCodeValue").asText();
+
+    CheckinRequest checkinRequest = new CheckinRequest(UUID.fromString(registrationId), qrCodeValue);
+
+    // First check-in succeeds
+    mockMvc.perform(post("/api/v1/attendance/checkin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(checkinRequest)))
+            .andExpect(status().isCreated());
+
+    // Second check-in with the same registration should fail
+    mockMvc.perform(post("/api/v1/attendance/checkin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(checkinRequest)))
+            .andExpect(status().isConflict());
+}
+
+@Test
+void checkIn_expiredQrSession_returnsConflict() throws Exception {
+    UUID eventId = UUID.randomUUID();
+    UUID studentId = UUID.randomUUID();
+
+    RegistrationRequest registrationRequest = new RegistrationRequest(eventId, studentId);
+    String registrationResponse = mockMvc.perform(post("/api/v1/registrations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registrationRequest)))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String registrationId = objectMapper.readTree(registrationResponse).get("registrationId").asText();
+
+    String qrResponse = mockMvc.perform(post("/api/v1/events/" + eventId + "/qr-sessions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"validForMinutes\": 30}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String qrCodeValue = objectMapper.readTree(qrResponse).get("qrCodeValue").asText();
+
+    // Force the QR session to expire
+    var session = qrSessionRepository.findByQrCodeValue(qrCodeValue).orElseThrow();
+    session.setExpiresAt(Instant.now().minusSeconds(60));
+    qrSessionRepository.save(session);
+
+    CheckinRequest checkinRequest = new CheckinRequest(UUID.fromString(registrationId), qrCodeValue);
+
+    mockMvc.perform(post("/api/v1/attendance/checkin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(checkinRequest)))
+            .andExpect(status().isConflict());
+}
+
+@Test
+void checkIn_qrFromDifferentEvent_returnsConflict() throws Exception {
+    UUID registeredEventId = UUID.randomUUID();
+    UUID differentEventId = UUID.randomUUID();
+    UUID studentId = UUID.randomUUID();
+
+    // Register for one event
+    RegistrationRequest registrationRequest = new RegistrationRequest(registeredEventId, studentId);
+    String registrationResponse = mockMvc.perform(post("/api/v1/registrations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registrationRequest)))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String registrationId = objectMapper.readTree(registrationResponse).get("registrationId").asText();
+
+    // Generate QR for a DIFFERENT event
+    String qrResponse = mockMvc.perform(post("/api/v1/events/" + differentEventId + "/qr-sessions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"validForMinutes\": 30}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String qrCodeValue = objectMapper.readTree(qrResponse).get("qrCodeValue").asText();
+
+    CheckinRequest checkinRequest = new CheckinRequest(UUID.fromString(registrationId), qrCodeValue);
+
+    mockMvc.perform(post("/api/v1/attendance/checkin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(checkinRequest)))
+            .andExpect(status().isConflict());
+}
+
+@Test
+void checkIn_nonExistentRegistration_returns404() throws Exception {
+    UUID eventId = UUID.randomUUID();
+
+    String qrResponse = mockMvc.perform(post("/api/v1/events/" + eventId + "/qr-sessions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"validForMinutes\": 30}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String qrCodeValue = objectMapper.readTree(qrResponse).get("qrCodeValue").asText();
+
+    CheckinRequest checkinRequest = new CheckinRequest(UUID.randomUUID(), qrCodeValue);
+
+    mockMvc.perform(post("/api/v1/attendance/checkin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(checkinRequest)))
+            .andExpect(status().isNotFound());
+}
+
 }
