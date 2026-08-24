@@ -8,13 +8,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserProfileResponseDto {
+public class UserAdminResponseDto {
     private String userId;
     private String firstName;
     private String lastName;
@@ -27,10 +26,6 @@ public class UserProfileResponseDto {
     private String faculty;
     private String department;
     private Boolean isActivelyLooking;
-    private AcademicRecordResponseDto academicRecord;
-    private List<SkillResponseDto> skills;
-    private List<ResumeResponseDto> resumes;
-    private JobPreferenceResponseDto jobPreference;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

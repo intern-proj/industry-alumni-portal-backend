@@ -33,8 +33,17 @@ public class UserProfile {
     @Column(name = "profile_pic_url")
     private String profilePicUrl;
 
-    @Column(name = "user_type", nullable = false)
-    private String userType;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "user_role", nullable = false)
+    private UserRole userRole;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_status", nullable = false)
+    private AccountStatus accountStatus;
+
+    private String faculty;
+
+    private String department;
 
     @Column(name = "is_actively_looking")
     private Boolean isActivelyLooking;
@@ -49,6 +58,12 @@ public class UserProfile {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+        if (this.accountStatus == null) {
+            this.accountStatus = AccountStatus.ACTIVE;
+        }
+        if (this.isActivelyLooking == null) {
+            this.isActivelyLooking = false;
+        }
     }
 
     @PreUpdate

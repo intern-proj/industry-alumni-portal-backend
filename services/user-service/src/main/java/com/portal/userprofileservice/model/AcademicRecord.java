@@ -33,4 +33,7 @@ public class AcademicRecord {
     private Double gpa;
 
     private String batch;
+
+    @Column(name = "transcript_url")
+    private String transcriptUrl;
 }

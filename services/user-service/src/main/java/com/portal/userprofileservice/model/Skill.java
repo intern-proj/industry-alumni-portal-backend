@@ -24,4 +24,6 @@ public class Skill {
 
     @Column(name = "skill_level")
     private String skillLevel;
+
+    private String category;
 }
