@@ -49,6 +49,9 @@ class AuthServiceTest {
     private OtpCodeRepository otpCodeRepository;
 
     @Mock
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Mock
     private RabbitTemplate rabbitTemplate;
 
     @Mock
@@ -65,6 +68,8 @@ class AuthServiceTest {
         ReflectionTestUtils.setField(authService, "exchange", "notification.exchange");
         ReflectionTestUtils.setField(authService, "routingKey", "notification.routingkey");
         ReflectionTestUtils.setField(authService, "otpExpirationMinutes", 5L);
+        ReflectionTestUtils.setField(authService, "resetPasswordExpirationMinutes", 15L);
+        ReflectionTestUtils.setField(authService, "resetPasswordFrontendUrl", "https://portal.domain.com/reset-password");
     }
 
     @Nested
@@ -584,6 +589,234 @@ class AuthServiceTest {
             // Assert
             assertThat(response.valid()).isFalse();
             assertThat(response.username()).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("forgotPassword Tests")
+    class ForgotPasswordTests {
+
+        @Test
+        @DisplayName("Should successfully create reset token and send notification for valid non-admin staff email")
+        void forgotPassword_Staff_Success() {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("staff@nsbm.ac.lk");
+            ManagementStaff staff = ManagementStaff.builder()
+                    .id(1L)
+                    .email("staff@nsbm.ac.lk")
+                    .role(Role.FACULTY_COORDINATOR)
+                    .build();
+
+            when(studentRepository.findByEmail("staff@nsbm.ac.lk")).thenReturn(Optional.empty());
+            when(staffRepository.findByEmail("staff@nsbm.ac.lk")).thenReturn(Optional.of(staff));
+
+            // Act
+            authService.forgotPassword(request);
+
+            // Assert - Verify existing tokens deleted
+            verify(passwordResetTokenRepository).deleteByEmail("staff@nsbm.ac.lk");
+
+            // Assert - Verify PasswordResetToken saved
+            ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
+            verify(passwordResetTokenRepository).save(tokenCaptor.capture());
+            PasswordResetToken savedToken = tokenCaptor.getValue();
+            assertThat(savedToken.getEmail()).isEqualTo("staff@nsbm.ac.lk");
+            assertThat(savedToken.getUserType()).isEqualTo("MANAGEMENT_STAFF");
+            assertThat(savedToken.getToken()).isNotBlank();
+
+            // Assert - Verify RabbitMQ notification sent
+            ArgumentCaptor<EmailNotificationMessage> messageCaptor = ArgumentCaptor.forClass(EmailNotificationMessage.class);
+            verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), messageCaptor.capture());
+            EmailNotificationMessage sentMsg = messageCaptor.getValue();
+            assertThat(sentMsg.recipientEmail()).isEqualTo("staff@nsbm.ac.lk");
+            assertThat(sentMsg.eventType()).isEqualTo("PASSWORD_RESET");
+        }
+
+        @Test
+        @DisplayName("Should successfully create reset token and send notification for valid partner email")
+        void forgotPassword_Partner_Success() {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("partner@company.com");
+            IndustryPartner partner = IndustryPartner.builder()
+                    .id(1L)
+                    .email("partner@company.com")
+                    .build();
+
+            when(studentRepository.findByEmail("partner@company.com")).thenReturn(Optional.empty());
+            when(staffRepository.findByEmail("partner@company.com")).thenReturn(Optional.empty());
+            when(partnerRepository.findByEmail("partner@company.com")).thenReturn(Optional.of(partner));
+
+            // Act
+            authService.forgotPassword(request);
+
+            // Assert
+            verify(passwordResetTokenRepository).deleteByEmail("partner@company.com");
+            ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
+            verify(passwordResetTokenRepository).save(tokenCaptor.capture());
+            assertThat(tokenCaptor.getValue().getUserType()).isEqualTo("INDUSTRY_PARTNER");
+        }
+
+        @Test
+        @DisplayName("Should throw IllegalArgumentException when email belongs to a student")
+        void forgotPassword_ThrowsException_ForStudent() {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("student@nsbm.ac.lk");
+            Student student = Student.builder().email("student@nsbm.ac.lk").build();
+            when(studentRepository.findByEmail("student@nsbm.ac.lk")).thenReturn(Optional.of(student));
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.forgotPassword(request))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Forgot password feature is not available for students.");
+        }
+
+        @Test
+        @DisplayName("Should throw IllegalArgumentException when email belongs to an Admin staff")
+        void forgotPassword_ThrowsException_ForAdmin() {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("admin@nsbm.ac.lk");
+            ManagementStaff adminStaff = ManagementStaff.builder()
+                    .email("admin@nsbm.ac.lk")
+                    .role(Role.ADMIN)
+                    .build();
+            when(studentRepository.findByEmail("admin@nsbm.ac.lk")).thenReturn(Optional.empty());
+            when(staffRepository.findByEmail("admin@nsbm.ac.lk")).thenReturn(Optional.of(adminStaff));
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.forgotPassword(request))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Forgot password feature is not available for admins.");
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidCredentialsException when email is not found")
+        void forgotPassword_ThrowsException_WhenEmailNotFound() {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("unknown@nsbm.ac.lk");
+            when(studentRepository.findByEmail("unknown@nsbm.ac.lk")).thenReturn(Optional.empty());
+            when(staffRepository.findByEmail("unknown@nsbm.ac.lk")).thenReturn(Optional.empty());
+            when(partnerRepository.findByEmail("unknown@nsbm.ac.lk")).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.forgotPassword(request))
+                    .isInstanceOf(InvalidCredentialsException.class)
+                    .hasMessageContaining("No user account found with the provided email address.");
+        }
+    }
+
+    @Nested
+    @DisplayName("resetPassword Tests")
+    class ResetPasswordTests {
+
+        @Test
+        @DisplayName("Should successfully reset password for staff member with valid token")
+        void resetPassword_Staff_Success() {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("reset-token-123", "NewPassword123", "NewPassword123");
+            PasswordResetToken resetToken = PasswordResetToken.builder()
+                    .id(1L)
+                    .email("staff@nsbm.ac.lk")
+                    .token("reset-token-123")
+                    .userType("MANAGEMENT_STAFF")
+                    .expiresAt(LocalDateTime.now().plusMinutes(10))
+                    .build();
+
+            ManagementStaff staff = ManagementStaff.builder()
+                    .id(1L)
+                    .email("staff@nsbm.ac.lk")
+                    .role(Role.FACULTY_COORDINATOR)
+                    .build();
+
+            when(passwordResetTokenRepository.findByToken("reset-token-123")).thenReturn(Optional.of(resetToken));
+            when(staffRepository.findByEmail("staff@nsbm.ac.lk")).thenReturn(Optional.of(staff));
+            when(passwordEncoder.encode("NewPassword123")).thenReturn("newHashedPassword");
+
+            // Act
+            authService.resetPassword(request);
+
+            // Assert
+            verify(staffRepository).save(staff);
+            assertThat(staff.getPasswordHash()).isEqualTo("newHashedPassword");
+            verify(passwordResetTokenRepository).delete(resetToken);
+        }
+
+        @Test
+        @DisplayName("Should successfully reset password for industry partner with valid token")
+        void resetPassword_Partner_Success() {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("partner-reset-token", "NewPartnerPass123", "NewPartnerPass123");
+            PasswordResetToken resetToken = PasswordResetToken.builder()
+                    .id(2L)
+                    .email("partner@company.com")
+                    .token("partner-reset-token")
+                    .userType("INDUSTRY_PARTNER")
+                    .expiresAt(LocalDateTime.now().plusMinutes(10))
+                    .build();
+
+            IndustryPartner partner = IndustryPartner.builder()
+                    .id(1L)
+                    .email("partner@company.com")
+                    .build();
+
+            when(passwordResetTokenRepository.findByToken("partner-reset-token")).thenReturn(Optional.of(resetToken));
+            when(partnerRepository.findByEmail("partner@company.com")).thenReturn(Optional.of(partner));
+            when(passwordEncoder.encode("NewPartnerPass123")).thenReturn("newHashedPartnerPassword");
+
+            // Act
+            authService.resetPassword(request);
+
+            // Assert
+            verify(partnerRepository).save(partner);
+            assertThat(partner.getPasswordHash()).isEqualTo("newHashedPartnerPassword");
+            verify(passwordResetTokenRepository).delete(resetToken);
+        }
+
+        @Test
+        @DisplayName("Should throw IllegalArgumentException when passwords do not match")
+        void resetPassword_ThrowsException_WhenPasswordsDoNotMatch() {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("token-123", "NewPassword123", "MismatchPassword");
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.resetPassword(request))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Passwords do not match.");
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidTokenException when reset token is invalid")
+        void resetPassword_ThrowsException_WhenTokenInvalid() {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("invalid-token", "NewPassword123", "NewPassword123");
+            when(passwordResetTokenRepository.findByToken("invalid-token")).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.resetPassword(request))
+                    .isInstanceOf(InvalidTokenException.class)
+                    .hasMessageContaining("Invalid or expired password reset token.");
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidTokenException when reset token is expired")
+        void resetPassword_ThrowsException_WhenTokenExpired() {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("expired-token", "NewPassword123", "NewPassword123");
+            PasswordResetToken expiredToken = PasswordResetToken.builder()
+                    .id(1L)
+                    .email("staff@nsbm.ac.lk")
+                    .token("expired-token")
+                    .userType("MANAGEMENT_STAFF")
+                    .expiresAt(LocalDateTime.now().minusMinutes(5)) // Expired
+                    .build();
+
+            when(passwordResetTokenRepository.findByToken("expired-token")).thenReturn(Optional.of(expiredToken));
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.resetPassword(request))
+                    .isInstanceOf(InvalidTokenException.class)
+                    .hasMessageContaining("Password reset token has expired.");
+
+            verify(passwordResetTokenRepository).delete(expiredToken);
         }
     }
 }
