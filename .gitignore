@@ -26,3 +26,6 @@ target/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Claude code
+CLAUDE.md

@@ -1,0 +1,50 @@
+{
+  "info": {
+    "name": "Microservices API Docs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Audit Storage Service",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8089/v3/api-docs"
+      }
+    },
+    {
+      "name": "Auth Service",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/v3/api-docs"
+      }
+    },
+    {
+      "name": "Event Management Service",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8082/v3/api-docs"
+      }
+    },
+    {
+      "name": "Event Participation Service",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8083/v3/api-docs"
+      }
+    },
+    {
+      "name": "Notification Service",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8088/v3/api-docs"
+      }
+    },
+    {
+      "name": "Application Service",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8084/v3/api-docs"
+      }
+    }
+  ]
+}

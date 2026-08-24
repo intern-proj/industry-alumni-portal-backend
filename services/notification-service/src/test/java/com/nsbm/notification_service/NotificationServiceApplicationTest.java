@@ -67,11 +67,11 @@ public class NotificationServiceApplicationTest {
         OtpSendingService sendingService = new OtpSendingService(emailDeliveryService);
 
         OtpEmailDTO otp = new OtpEmailDTO("prasadkvithana@gmail.com", "123456");
-        doNothing().when(emailDeliveryService).sendEmail(anyString(), anyString(), anyString());
+        doNothing().when(emailDeliveryService).sendHtmlEmail(anyString(), anyString(), anyString());
 
         boolean result = sendingService.OtpProcessing(otp);
 
         assertTrue(result);
-        verify(emailDeliveryService).sendEmail(eq("prasadkvithana@gmail.com"), anyString(), anyString());
+        verify(emailDeliveryService).sendHtmlEmail(eq("prasadkvithana@gmail.com"), anyString(), anyString());
     }
-}
+}

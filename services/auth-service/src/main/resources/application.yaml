@@ -7,17 +7,16 @@ spring:
 #    database connection string
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/auth_db}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgrespassword}
+    username: ${SPRING_DATASOURCE_USERNAME:user}
+    password: ${SPRING_DATASOURCE_PASSWORD:root}
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   flyway:
-    enabled: true
-    baseline-on-migrate: true
+    enabled: false
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -36,7 +35,7 @@ app:
     expiration-minutes: 5
   rabbitmq:
     exchange: ${RABBITMQ_EXCHANGE:notification.exchange}
-    routing-key: ${RABBITMQ_ROUTING_KEY:notification.routingkey}
+    routing-key: ${RABBITMQ_ROUTING_KEY:notification.invitation}
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
 
@@ -47,12 +46,18 @@ eureka:
     service-url:
       defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
 
+#springdoc:
+#  api-docs:
+#    path: /v3/api-docs
+
 management:
   endpoints:
     web:
       exposure:
-        include: "health,info"
+        include: health,info,metrics
   endpoint:
     health:
-      show-details: never
+      show-details: always
+      probes:
+        enabled: true
 

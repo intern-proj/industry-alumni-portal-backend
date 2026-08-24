@@ -20,23 +20,27 @@ public class OtpListener {
 
 
     @RabbitListener(queues = "otp.queue")
-    public void handleOTP(OtpEmailDTO otp){
-
+    public void handleOTP(OtpEmailDTO otp) {
         OtpEmailStatusDTO statusDTO = new OtpEmailStatusDTO();
-        statusDTO.setToEmail(otp.getToEmail());
+        String recipient = (otp != null && otp.getToEmail() != null) ? otp.getToEmail() : "unknown";
+        statusDTO.setToEmail(recipient);
 
         try {
-             statusDTO.setStatus(otpSendingService.OtpProcessing(otp));
-        }catch (Exception ex){
-
+            statusDTO.setStatus(otpSendingService.OtpProcessing(otp));
+            log.info("Successfully processed OTP notification for {}", recipient);
+        } catch (Exception ex) {
+            log.error("Failed to process OTP notification for {}: {}", recipient, ex.getMessage(), ex);
             statusDTO.setStatus(false);
-            statusDTO.setError(ex.getLocalizedMessage());
-
+            statusDTO.setError(ex.getMessage() != null ? ex.getMessage() : "Unknown error processing OTP");
         }
 
-        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME,"notification.status.otp",statusDTO);
-
+        try {
+            rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, "notification.status.otp", statusDTO);
+        } catch (Exception ex) {
+            log.error("Failed to publish status back to RabbitMQ for OTP to {}: {}", recipient, ex.getMessage());
+        }
     }
+
 
 
 }
