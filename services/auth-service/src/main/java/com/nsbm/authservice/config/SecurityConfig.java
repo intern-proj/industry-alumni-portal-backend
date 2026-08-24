@@ -42,6 +42,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/staff/complete-registration",
                                 "/api/v1/auth/partner/pending",
                                 "/api/v1/auth/partner/complete-registration",
+                                "/api/v1/auth/forgot-password",
+                                "/api/v1/auth/reset-password",
                                 "/api/v1/auth/validate",
                                 "/actuator/**",
                                 "/v3/api-docs/**",
