@@ -29,6 +29,7 @@ public class AuthService {
     private final StudentRepository studentRepository;
     private final IndustryPartnerRepository partnerRepository;
     private final OtpCodeRepository otpCodeRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final RabbitTemplate rabbitTemplate;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -42,12 +43,19 @@ public class AuthService {
     @Value("${app.otp.expiration-minutes:5}")
     private long otpExpirationMinutes;
 
+    @Value("${app.reset-password.expiration-minutes:15}")
+    private long resetPasswordExpirationMinutes;
+
+    @Value("${app.reset-password.frontend-url:http://localhost:3000/reset-password}")
+    private String resetPasswordFrontendUrl;
+
     public AuthService(ManagementStaffRepository staffRepository,
                        PendingStaffRepository pendingStaffRepository,
                        PendingPartnerRepository pendingPartnerRepository,
                        StudentRepository studentRepository,
                        IndustryPartnerRepository partnerRepository,
                        OtpCodeRepository otpCodeRepository,
+                       PasswordResetTokenRepository passwordResetTokenRepository,
                        RabbitTemplate rabbitTemplate,
                        PasswordEncoder passwordEncoder,
                        JwtTokenProvider jwtTokenProvider) {
@@ -57,6 +65,7 @@ public class AuthService {
         this.studentRepository = studentRepository;
         this.partnerRepository = partnerRepository;
         this.otpCodeRepository = otpCodeRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
@@ -129,7 +138,6 @@ public class AuthService {
 
     @Transactional
     public void createPendingPartner(ApplyPartnerRegistrationRequest request) {
-        // Use injected instance 'partnerRepository' instead of class 'IndustryPartnerRepository'
         if (IndustryPartnerRepository.existsByEmail(request.email()) || pendingPartnerRepository.existsByEmail(request.email())) {
             throw new StaffAlreadyExistsException("Partner with email " + request.email() + " is already registered or invited.");
         }
@@ -160,7 +168,6 @@ public class AuthService {
     public void completePartnerRegistration(CompletePartnerRegistrationRequest request) {
         PendingPartner pendingPartner = pendingPartnerRepository.findByRegistrationToken(request.registrationToken())
                 .orElseThrow(() -> new InvalidTokenException("Invalid or expired registration token."));
-        // Use injected instance 'partnerRepository' instead of class 'IndustryPartnerRepository'
         if (IndustryPartnerRepository.existsByUsername(request.username())) {
             throw new UsernameAlreadyExistsException("Username '" + request.username() + "' is already taken.");
         }
@@ -176,7 +183,6 @@ public class AuthService {
                 .companyAddress(pendingPartner.getCompanyAddress())
                 .companyDescription(pendingPartner.getCompanyDescription())
                 .build();
-        // Use injected instance 'partnerRepository' instead of class 'IndustryPartnerRepository'
         partnerRepository.save(partner);
         pendingPartnerRepository.delete(pendingPartner);
     }
@@ -278,6 +284,100 @@ public class AuthService {
             return new TokenValidationResponse(true, username, email, role, userType);
         }
         return new TokenValidationResponse(false, null, null, null, null);
+    }
+
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        String email = request.email();
+
+        // 1. Check if email belongs to a Student -> Reject
+        Optional<Student> studentOpt = studentRepository.findByEmail(email);
+        if (studentOpt.isPresent()) {
+            throw new IllegalArgumentException("Forgot password feature is not available for students.");
+        }
+
+        // 2. Check if email belongs to ManagementStaff
+        Optional<ManagementStaff> staffOpt = staffRepository.findByEmail(email);
+        String userType = null;
+        if (staffOpt.isPresent()) {
+            ManagementStaff staff = staffOpt.get();
+            if (staff.getRole() == Role.ADMIN) {
+                throw new IllegalArgumentException("Forgot password feature is not available for admins.");
+            }
+            userType = "MANAGEMENT_STAFF";
+        } else {
+            // 3. Check if email belongs to IndustryPartner
+            Optional<IndustryPartner> partnerOpt = partnerRepository.findByEmail(email);
+            if (partnerOpt.isPresent()) {
+                userType = "INDUSTRY_PARTNER";
+            }
+        }
+
+        if (userType == null) {
+            throw new InvalidCredentialsException("No user account found with the provided email address.");
+        }
+
+        // 4. Invalidate any existing reset tokens for this email
+        passwordResetTokenRepository.deleteByEmail(email);
+
+        // 5. Generate reset token and set expiration
+        String token = UUID.randomUUID().toString();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(resetPasswordExpirationMinutes);
+
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .email(email)
+                .token(token)
+                .userType(userType)
+                .expiresAt(expiresAt)
+                .build();
+        passwordResetTokenRepository.save(resetToken);
+
+        // 6. Build reset link and send via RabbitMQ
+        String resetUrl = resetPasswordFrontendUrl + "?token=" + token;
+        EmailNotificationMessage message = new EmailNotificationMessage(
+                email,
+                "Password Reset Request",
+                "You requested a password reset. Please click the link to set a new password: " + resetUrl + "\nThis link will expire in " + resetPasswordExpirationMinutes + " minutes.",
+                "PASSWORD_RESET"
+        );
+        sendRabbitNotification(message);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            throw new IllegalArgumentException("Passwords do not match.");
+        }
+
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.token())
+                .orElseThrow(() -> new InvalidTokenException("Invalid or expired password reset token."));
+
+        if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            passwordResetTokenRepository.delete(resetToken);
+            throw new InvalidTokenException("Password reset token has expired.");
+        }
+
+        String email = resetToken.getEmail();
+        String userType = resetToken.getUserType();
+
+        if ("MANAGEMENT_STAFF".equals(userType)) {
+            ManagementStaff staff = staffRepository.findByEmail(email)
+                    .orElseThrow(() -> new InvalidCredentialsException("Staff account not found."));
+            if (staff.getRole() == Role.ADMIN) {
+                throw new IllegalArgumentException("Forgot password feature is not available for admins.");
+            }
+            staff.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+            staffRepository.save(staff);
+        } else if ("INDUSTRY_PARTNER".equals(userType)) {
+            IndustryPartner partner = partnerRepository.findByEmail(email)
+                    .orElseThrow(() -> new InvalidCredentialsException("Industry partner account not found."));
+            partner.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+            partnerRepository.save(partner);
+        } else {
+            throw new InvalidTokenException("Invalid user type in reset token.");
+        }
+
+        passwordResetTokenRepository.delete(resetToken);
     }
 
 }
