@@ -17,6 +17,7 @@ import com.portal.event_participation_service.entity.Registration;
 import com.portal.event_participation_service.repository.QrSessionRepository;
 import com.portal.event_participation_service.dto.FeedbackRequest;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.portal.event_participation_service.repository.CertificateEligibilityRepository;
 
 import java.time.Instant;
 
@@ -38,6 +39,9 @@ class EventParticipationServiceApplicationTests {
 
     @Autowired
     private QrSessionRepository qrSessionRepository;
+
+    @Autowired
+    private CertificateEligibilityRepository certificateEligibilityRepository;
 
     @BeforeEach
     void setup() {
@@ -432,6 +436,56 @@ void submitFeedback_ratingOutOfRange_returnsUnprocessableEntity() throws Excepti
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(invalidRequest)))
             .andExpect(status().isUnprocessableEntity());
+}
+
+@Test
+void feedbackSubmission_triggersEligibility_becomesEligible() throws Exception {
+    UUID eventId = UUID.randomUUID();
+    UUID studentId = UUID.randomUUID();
+
+    String registrationResponse = mockMvc.perform(post("/api/v1/registrations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new RegistrationRequest(eventId, studentId))))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String registrationId = objectMapper.readTree(registrationResponse).get("registrationId").asText();
+
+    String qrResponse = mockMvc.perform(post("/api/v1/events/" + eventId + "/qr-sessions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"validForMinutes\": 30}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+    String qrCodeValue = objectMapper.readTree(qrResponse).get("qrCodeValue").asText();
+
+    mockMvc.perform(post("/api/v1/attendance/checkin")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(
+                            new CheckinRequest(UUID.fromString(registrationId), qrCodeValue))))
+            .andExpect(status().isCreated());
+
+    // Before feedback, eligibility should not exist yet
+    mockMvc.perform(get("/api/v1/certificate-eligibility/registration/" + registrationId))
+            .andExpect(status().isNotFound());
+
+    // Submit feedback — this should auto-trigger eligibility evaluation
+    mockMvc.perform(post("/api/v1/feedback")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(
+                            new FeedbackRequest(UUID.fromString(registrationId), 5, "Great!"))))
+            .andExpect(status().isCreated());
+
+    // After feedback, eligibility should exist and be true
+    mockMvc.perform(get("/api/v1/certificate-eligibility/registration/" + registrationId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.attendanceMet").value(true))
+            .andExpect(jsonPath("$.feedbackMet").value(true))
+            .andExpect(jsonPath("$.eligible").value(true));
+}
+
+@Test
+void getEligibility_noRecordYet_returns404() throws Exception {
+    mockMvc.perform(get("/api/v1/certificate-eligibility/registration/" + UUID.randomUUID()))
+            .andExpect(status().isNotFound());
 }
 
 }

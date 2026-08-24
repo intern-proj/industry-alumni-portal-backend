@@ -17,6 +17,7 @@ public class FeedbackService {
     private final FeedbackRepository feedbackRepository;
     private final RegistrationRepository registrationRepository;
     private final AttendanceRepository attendanceRepository;
+    private final CertificateEligibilityService certificateEligibilityService;
 
     public FeedbackResponse submit(FeedbackRequest request) {
         // 1. Confirm registration exists
@@ -43,6 +44,11 @@ public class FeedbackService {
                 .comments(request.comments())
                 .build();
 
-        return FeedbackResponse.from(feedbackRepository.save(feedback));
+        FeedbackResponse response = FeedbackResponse.from(feedbackRepository.save(feedback));
+
+        // Trigger certificate eligibility evaluation now that feedback is in
+        certificateEligibilityService.evaluate(request.registrationId());
+
+        return response;
     }
 }
