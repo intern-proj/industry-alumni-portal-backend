@@ -33,6 +33,9 @@ app:
     default-email: ${ADMIN_DEFAULT_EMAIL:kgamadushika@students.nsbm.ac.lk}
   otp:
     expiration-minutes: 5
+  reset-password:
+    expiration-minutes: 15
+    frontend-url: ${FRONTEND_RESET_PASSWORD_URL:http://localhost:3000/reset-password}
   rabbitmq:
     exchange: ${RABBITMQ_EXCHANGE:notification.exchange}
     routing-key: ${RABBITMQ_ROUTING_KEY:notification.invitation}
