@@ -378,6 +378,78 @@ class AuthControllerTest {
     }
 
     @Nested
+    @DisplayName("POST /api/v1/auth/forgot-password Tests")
+    class ForgotPasswordApiTests {
+
+        @Test
+        @DisplayName("Should return 200 OK for valid forgot password request")
+        void forgotPassword_Returns200OK() throws Exception {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("user@nsbm.ac.lk");
+            doNothing().when(authService).forgotPassword(any(ForgotPasswordRequest.class));
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/forgot-password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
+
+            verify(authService, times(1)).forgotPassword(request);
+        }
+
+        @Test
+        @DisplayName("Should return 400 Bad Request when email is invalid")
+        void forgotPassword_Returns400BadRequest_WhenInvalidEmail() throws Exception {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("invalid-email-format");
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/forgot-password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
+
+            verify(authService, never()).forgotPassword(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/reset-password Tests")
+    class ResetPasswordApiTests {
+
+        @Test
+        @DisplayName("Should return 200 OK for valid reset password request")
+        void resetPassword_Returns200OK() throws Exception {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("reset-token-123", "NewPassword123", "NewPassword123");
+            doNothing().when(authService).resetPassword(any(ResetPasswordRequest.class));
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/reset-password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
+
+            verify(authService, times(1)).resetPassword(request);
+        }
+
+        @Test
+        @DisplayName("Should return 400 Bad Request when password is too short")
+        void resetPassword_Returns400BadRequest_WhenShortPassword() throws Exception {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("reset-token-123", "12345", "12345");
+
+            // Act & Assert
+            mockMvc.perform(post("/api/v1/auth/reset-password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
+
+            verify(authService, never()).resetPassword(any());
+        }
+    }
+
+    @Nested
     @DisplayName("POST /api/v1/auth/validate Tests")
     class ValidateTokenApiTests {
 

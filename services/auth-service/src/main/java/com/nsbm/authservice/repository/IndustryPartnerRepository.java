@@ -9,6 +9,7 @@ import java.util.Optional;
 @Repository
 public interface IndustryPartnerRepository extends JpaRepository<IndustryPartner, Long> {
     Optional<IndustryPartner> findByUsername(String username);
+    Optional<IndustryPartner> findByEmail(String email);
 
     static boolean existsByUsername(String username) {
         return false;
