@@ -55,7 +55,7 @@ class AdminInitializerTest {
         assertThat(savedAdmin.getUsername()).isEqualTo("Admin");
         assertThat(savedAdmin.getEmail()).isEqualTo("admin@nsbm.ac.lk");
         assertThat(savedAdmin.getPasswordHash()).isEqualTo("encoded_admin_pass");
-        assertThat(savedAdmin.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(savedAdmin.getRole()).isEqualTo(Role.SYSTEM_ADMIN);
     }
 
     @Test

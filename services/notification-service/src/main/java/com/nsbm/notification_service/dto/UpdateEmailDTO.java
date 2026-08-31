@@ -31,6 +31,9 @@ public class UpdateEmailDTO {
         PROFILE_APPROVED,
         JOB_POSTED,
         APPLICATION_UPDATE,
-        GENERAL_UPDATE
+        GENERAL_UPDATE,
+        VACANCY_APPROVED,
+        VACANCY_CHANGES_REQUESTED,
+        VACANCY_REJECTED
     }
 }

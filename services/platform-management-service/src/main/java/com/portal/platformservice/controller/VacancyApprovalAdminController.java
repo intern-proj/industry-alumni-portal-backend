@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.UUID;
@@ -33,33 +34,39 @@ public class VacancyApprovalAdminController {
     private final VacancyApprovalService vacancyApprovalService;
     private final ApprovalHistoryService approvalHistoryService;
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT')")
     @GetMapping
     public Page<VacancyApprovalSummaryResponse> list(
             @RequestParam VacancyApprovalStatus status, Pageable pageable) {
         return vacancyApprovalService.listByStatus(status, pageable);
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT')")
     @GetMapping("/{id}")
     public VacancyApprovalResponse getById(@PathVariable UUID id) {
         return vacancyApprovalService.getById(id);
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT')")
     @GetMapping("/{id}/history")
     public List<ApprovalHistoryResponse> getHistory(@PathVariable UUID id) {
         return approvalHistoryService.getHistory(ApprovalType.VACANCY_APPROVAL, id);
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PostMapping("/{id}/claim")
     public VacancyApprovalResponse claim(@PathVariable UUID id, @RequestParam UUID reviewerId) {
         return vacancyApprovalService.claim(id, reviewerId);
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PostMapping("/{id}/decision")
     public VacancyApprovalResponse decide(
             @PathVariable UUID id, @Valid @RequestBody VacancyApprovalDecisionRequest request) {
         return vacancyApprovalService.decide(id, request);
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PatchMapping("/{id}")
     public VacancyApprovalResponse adminEdit(
             @PathVariable UUID id, @Valid @RequestBody VacancyApprovalAdminEditRequest request) {

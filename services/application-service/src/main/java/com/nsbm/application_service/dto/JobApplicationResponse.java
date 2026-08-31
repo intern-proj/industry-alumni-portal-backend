@@ -12,7 +12,7 @@ import java.util.UUID;
 @Builder
 public class JobApplicationResponse {
     private UUID id;
-    private UUID vacancyId;
+    private Long vacancyId;
     private UUID alumniId;
     private String resumeUrl;
     private String coverLetter;

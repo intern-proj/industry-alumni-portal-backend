@@ -1,4 +1,4 @@
-CREATE TABLE organizations (
+CREATE TABLE IF NOT EXISTS organizations (
                                id BIGSERIAL PRIMARY KEY,
                                name VARCHAR(255) NOT NULL,
                                industry VARCHAR(255),
@@ -9,7 +9,7 @@ CREATE TABLE organizations (
                                updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
-CREATE TABLE venues (
+CREATE TABLE IF NOT EXISTS venues (
                         id BIGSERIAL PRIMARY KEY,
                         name VARCHAR(255) NOT NULL,
                         address VARCHAR(500),
@@ -21,7 +21,7 @@ CREATE TABLE venues (
                         updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
-CREATE TABLE guest_speakers (
+CREATE TABLE IF NOT EXISTS guest_speakers (
                                 id BIGSERIAL PRIMARY KEY,
                                 full_name VARCHAR(255) NOT NULL,
                                 title VARCHAR(255),
@@ -34,7 +34,7 @@ CREATE TABLE guest_speakers (
                                 updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
                         id BIGSERIAL PRIMARY KEY,
                         title VARCHAR(255) NOT NULL,
                         description TEXT,
@@ -48,7 +48,7 @@ CREATE TABLE events (
                         updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
-CREATE TABLE agendas (
+CREATE TABLE IF NOT EXISTS agendas (
                          id BIGSERIAL PRIMARY KEY,
                          event_id BIGINT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
                          title VARCHAR(255) NOT NULL,
@@ -61,14 +61,14 @@ CREATE TABLE agendas (
                          updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
-CREATE TABLE event_speakers (
+CREATE TABLE IF NOT EXISTS event_speakers (
                                 id BIGSERIAL PRIMARY KEY,
                                 event_id BIGINT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
                                 speaker_id BIGINT NOT NULL REFERENCES guest_speakers(id) ON DELETE CASCADE,
                                 role VARCHAR(20) NOT NULL
 );
 
-CREATE TABLE certificate_eligibility_criteria (
+CREATE TABLE IF NOT EXISTS certificate_eligibility_criteria (
                                                   id BIGSERIAL PRIMARY KEY,
                                                   event_id BIGINT NOT NULL UNIQUE REFERENCES events(id) ON DELETE CASCADE,
                                                   min_attendance_percentage INTEGER,
@@ -79,7 +79,7 @@ CREATE TABLE certificate_eligibility_criteria (
                                                   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_events_status ON events(status);
-CREATE INDEX idx_events_start_date ON events(start_date_time);
-CREATE INDEX idx_agendas_event_id ON agendas(event_id);
-CREATE INDEX idx_event_speakers_event_id ON event_speakers(event_id);
+CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
+CREATE INDEX IF NOT EXISTS idx_events_start_date ON events(start_date_time);
+CREATE INDEX IF NOT EXISTS idx_agendas_event_id ON agendas(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_speakers_event_id ON event_speakers(event_id);

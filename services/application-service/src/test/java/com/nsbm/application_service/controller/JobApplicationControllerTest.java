@@ -6,40 +6,47 @@ import com.nsbm.application_service.model.ApplicationStatus;
 import com.nsbm.application_service.service.JobApplicationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(JobApplicationController.class)
+@ExtendWith(MockitoExtension.class)
 public class JobApplicationControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean
+    @Mock
     private JobApplicationService jobApplicationService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @InjectMocks
+    private JobApplicationController jobApplicationController;
 
+    private ObjectMapper objectMapper;
     private JobApplicationResponse applicationResponse;
     private JobApplicationRequest applicationRequest;
     private UUID applicationId;
-    private UUID vacancyId;
+    private Long vacancyId;
     private UUID alumniId;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(jobApplicationController).build();
+        objectMapper = new ObjectMapper().findAndRegisterModules();
+
         applicationId = UUID.randomUUID();
-        vacancyId = UUID.randomUUID();
+        vacancyId = 1L;
         alumniId = UUID.randomUUID();
 
         applicationResponse = JobApplicationResponse.builder()

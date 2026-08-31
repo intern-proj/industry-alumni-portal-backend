@@ -4,6 +4,7 @@ import com.nsbm.authservice.dto.ApplyPartnerRegistrationRequest;
 import com.nsbm.authservice.dto.AuthResponse;
 import com.nsbm.authservice.dto.CompletePartnerRegistrationRequest;
 import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
+import com.nsbm.authservice.dto.CreateAdminRequest;
 import com.nsbm.authservice.dto.ForgotPasswordRequest;
 import com.nsbm.authservice.dto.LoginRequest;
 import com.nsbm.authservice.dto.LoginResponse;
@@ -13,7 +14,7 @@ import com.nsbm.authservice.dto.ResetPasswordRequest;
 import com.nsbm.authservice.dto.StaffInvitationRequest;
 import com.nsbm.authservice.dto.Step1LoginResponse;
 import com.nsbm.authservice.dto.TokenValidationResponse;
-import com.nsbm.authservice.dto.UpdateEmailPayload;
+import com.nsbm.notification_service.dto.UpdateEmailDTO;
 import com.nsbm.authservice.entity.*;
 import com.nsbm.authservice.exception.*;
 import com.nsbm.authservice.repository.*;
@@ -62,6 +63,9 @@ public class AuthService {
     @Value("${app.reset-password.frontend-url:http://localhost:3000/reset-password}")
     private String resetPasswordFrontendUrl;
 
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
+
     public AuthService(ManagementStaffRepository staffRepository,
                        PendingStaffRepository pendingStaffRepository,
                        PendingPartnerRepository pendingPartnerRepository,
@@ -85,10 +89,60 @@ public class AuthService {
     }
 
     @Transactional
+    public void createAdmin(CreateAdminRequest request) {
+        if (staffRepository.existsByUsername(request.username())) {
+            throw new UsernameAlreadyExistsException("Username '" + request.username() + "' is already taken.");
+        }
+        if (staffRepository.existsByEmail(request.email())) {
+            throw new StaffAlreadyExistsException("Administrator with email " + request.email() + " already exists.");
+        }
+
+        ManagementStaff admin = ManagementStaff.builder()
+                .username(request.username())
+                .email(request.email())
+                .passwordHash(passwordEncoder.encode(request.password()))
+                .role(Role.SYSTEM_ADMIN)
+                .build();
+
+        staffRepository.save(admin);
+        log.info("Successfully created new Administrator account: {}", request.username());
+    }
+
+    @Transactional
+    public void deleteUser(String identifier) {
+        boolean deleted = false;
+        
+        // 1. Delete from staffRepository (active credentials)
+        if (staffRepository.existsByUsername(identifier)) {
+            staffRepository.deleteByUsername(identifier);
+            deleted = true;
+        } else if (staffRepository.existsByEmail(identifier)) {
+            staffRepository.deleteByEmail(identifier);
+            deleted = true;
+        }
+
+        // 2. Delete from pendingStaffRepository (pending invitations)
+        if (pendingStaffRepository.existsByEmail(identifier)) {
+            pendingStaffRepository.deleteByEmail(identifier);
+            deleted = true;
+        }
+
+        if (deleted) {
+            log.info("Deleted auth credentials / invitations for identifier: {}", identifier);
+        } else {
+            log.warn("No auth records found to delete for identifier: {}", identifier);
+        }
+    }
+
+    @Transactional
     public void inviteStaff(StaffInvitationRequest request) {
-        // 1. Verify user does not already exist
-        if (staffRepository.existsByEmail(request.email()) || pendingStaffRepository.existsByEmail(request.email())) {
-            throw new StaffAlreadyExistsException("Staff member with email " + request.email() + " is already registered or invited.");
+        // 1. Verify user does not already exist as registered staff
+        if (staffRepository.existsByEmail(request.email())) {
+            throw new StaffAlreadyExistsException("A staff account with email " + request.email() + " already exists.");
+        }
+        // 2. If there's an existing pending invite, delete it first (allows re-invite after revoke)
+        if (pendingStaffRepository.existsByEmail(request.email())) {
+            pendingStaffRepository.deleteByEmail(request.email());
         }
 
         // 2. Generate unique registration token
@@ -103,8 +157,8 @@ public class AuthService {
         pendingStaffRepository.save(pendingStaff);
 
         // 4. Publish message to RabbitMQ for Notification Service
-        String invitationUrl = "https://portal.domain.com/complete-registration?token=" + token;
-        UpdateEmailPayload message = new UpdateEmailPayload(
+        String invitationUrl = frontendUrl + "/staff/complete-registration?token=" + token;
+        UpdateEmailDTO message = new UpdateEmailDTO(
                 request.email(),
                 request.email(),
                 "GENERAL_UPDATE",
@@ -115,7 +169,14 @@ public class AuthService {
         sendRabbitNotification(message);
     }
 
-    private void sendRabbitNotification(UpdateEmailPayload message) {
+    @Transactional
+    public void revokeStaffInvitation(String email) {
+        // Always attempt delete — the @Modifying query is idempotent
+        pendingStaffRepository.deleteByEmail(email);
+        log.info("Revoked pending staff invitation for email: {}", email);
+    }
+
+    private void sendRabbitNotification(UpdateEmailDTO message) {
         try {
             rabbitTemplate.convertAndSend(exchange, routingKey, message);
             log.info("Published notification message to RabbitMQ: {}", message.updateType());
@@ -125,7 +186,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void completeStaffRegistration(CompleteStaffRegistrationRequest request) {
+    public String completeStaffRegistration(CompleteStaffRegistrationRequest request) {
         // 1. Fetch pending registration record using invitation token
         PendingStaff pendingStaff = pendingStaffRepository.findByInvitationToken(request.invitationToken())
                 .orElseThrow(() -> new InvalidTokenException("Invalid or expired invitation token."));
@@ -148,6 +209,8 @@ public class AuthService {
 
         // 5. Remove record from pending_staff staging table
         pendingStaffRepository.delete(pendingStaff);
+
+        return managementStaff.getEmail();
     }
 
     @Transactional
@@ -168,10 +231,30 @@ public class AuthService {
                 .registrationToken(token)
                 .build();
         pendingPartnerRepository.save(pendingPartner);
-        String invitationUrl = "https://portal.domain.com/complete-partner-registration?token=" + token;
-        UpdateEmailPayload message = new UpdateEmailPayload(
+        UpdateEmailDTO message = new UpdateEmailDTO(
                 request.email(),
                 request.companyName(),
+                "GENERAL_UPDATE",
+                "Your partner registration application has been received and is pending admin approval.",
+                frontendUrl + "/login"
+        );
+        sendRabbitNotification(message);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<PendingPartner> getAllPendingPartners() {
+        return pendingPartnerRepository.findAll();
+    }
+
+    @Transactional
+    public void approvePendingPartner(Long id) {
+        PendingPartner pendingPartner = pendingPartnerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pending partner not found"));
+        
+        String invitationUrl = frontendUrl + "/partner/complete-registration?token=" + pendingPartner.getRegistrationToken();
+        UpdateEmailDTO message = new UpdateEmailDTO(
+                pendingPartner.getEmail(),
+                pendingPartner.getCompanyName(),
                 "GENERAL_UPDATE",
                 "Your registration request has been approved. Please complete your registration here: " + invitationUrl,
                 invitationUrl
@@ -180,7 +263,48 @@ public class AuthService {
     }
 
     @Transactional
-    public void completePartnerRegistration(CompletePartnerRegistrationRequest request) {
+    public void rejectPendingPartner(Long id) {
+        PendingPartner pendingPartner = pendingPartnerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pending partner not found"));
+        
+        UpdateEmailDTO message = new UpdateEmailDTO(
+                pendingPartner.getEmail(),
+                pendingPartner.getCompanyName(),
+                "GENERAL_UPDATE",
+                "We regret to inform you that your partner registration application has been rejected.",
+                frontendUrl
+        );
+        sendRabbitNotification(message);
+        pendingPartnerRepository.delete(pendingPartner);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<IndustryPartner> getAllIndustryPartners() {
+        return partnerRepository.findAll();
+    }
+
+    @Transactional
+    public void toggleIndustryPartnerStatus(Long id) {
+        IndustryPartner partner = partnerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Industry partner not found"));
+        // Assuming we will add accountStatus to IndustryPartner
+        if ("INACTIVE".equals(partner.getAccountStatus())) {
+            partner.setAccountStatus("ACTIVE");
+        } else {
+            partner.setAccountStatus("INACTIVE");
+        }
+        partnerRepository.save(partner);
+    }
+
+    @Transactional
+    public void deleteIndustryPartner(Long id) {
+        IndustryPartner partner = partnerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Industry partner not found"));
+        partnerRepository.delete(partner);
+    }
+
+    @Transactional
+    public String completePartnerRegistration(CompletePartnerRegistrationRequest request) {
         PendingPartner pendingPartner = pendingPartnerRepository.findByRegistrationToken(request.registrationToken())
                 .orElseThrow(() -> new InvalidTokenException("Invalid or expired registration token."));
         if (IndustryPartnerRepository.existsByUsername(request.username())) {
@@ -200,6 +324,7 @@ public class AuthService {
                 .build();
         partnerRepository.save(partner);
         pendingPartnerRepository.delete(pendingPartner);
+        return partner.getEmail();
     }
 
     @Transactional
@@ -219,7 +344,7 @@ public class AuthService {
         Optional<ManagementStaff> staffOpt = staffRepository.findByUsername(request.username());
         if (staffOpt.isPresent()) {
             ManagementStaff staff = staffOpt.get();
-            if (staff.getRole() == Role.ADMIN) {
+            if (staff.getRole() == Role.SYSTEM_ADMIN) {
                 throw new InvalidCredentialsException("Administrators must log in via the dedicated Administrator Portal.");
             }
             if (passwordEncoder.matches(request.password(), staff.getPasswordHash())) {
@@ -243,21 +368,14 @@ public class AuthService {
         throw new InvalidCredentialsException("Invalid username or password.");
     }
 
-    @Transactional(readOnly = true)
-    public AuthResponse loginStudentOrPartner(LoginRequest request) {
-        LoginResponse response = login(request);
-        if (response.requiresOtp()) {
-            throw new InvalidCredentialsException("OTP verification required for this account.");
-        }
-        return new AuthResponse(response.accessToken(), response.username(), response.email(), response.role(), response.userType());
-    }
+
 
     @Transactional
     public Step1LoginResponse initiateAdminLogin(LoginRequest request) {
         ManagementStaff staff = staffRepository.findByUsername(request.username())
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password."));
 
-        if (staff.getRole() != Role.ADMIN) {
+        if (staff.getRole() != Role.SYSTEM_ADMIN) {
             throw new InvalidCredentialsException("Invalid username or password.");
         }
 
@@ -375,7 +493,7 @@ public class AuthService {
         String userType = null;
         if (staffOpt.isPresent()) {
             ManagementStaff staff = staffOpt.get();
-            if (staff.getRole() == Role.ADMIN) {
+            if (staff.getRole() == Role.SYSTEM_ADMIN) {
                 throw new IllegalArgumentException("Forgot password feature is not available for admins.");
             }
             userType = "MANAGEMENT_STAFF";
@@ -408,7 +526,7 @@ public class AuthService {
 
         // 6. Build reset link and send via RabbitMQ
         String resetUrl = resetPasswordFrontendUrl + "?token=" + token;
-        UpdateEmailPayload message = new UpdateEmailPayload(
+        UpdateEmailDTO message = new UpdateEmailDTO(
                 email,
                 email,
                 "GENERAL_UPDATE",
@@ -438,7 +556,7 @@ public class AuthService {
         if ("MANAGEMENT_STAFF".equals(userType)) {
             ManagementStaff staff = staffRepository.findByEmail(email)
                     .orElseThrow(() -> new InvalidCredentialsException("Staff account not found."));
-            if (staff.getRole() == Role.ADMIN) {
+            if (staff.getRole() == Role.SYSTEM_ADMIN) {
                 throw new IllegalArgumentException("Forgot password feature is not available for admins.");
             }
             staff.setPasswordHash(passwordEncoder.encode(request.newPassword()));

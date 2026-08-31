@@ -21,6 +21,9 @@ public class EmailDeliveryService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
+    @Value("${app.mail.mock-sending:false}")
+    private boolean mockSending;
+
     private final JavaMailSender javaMailSender;
 
     /**
@@ -28,6 +31,11 @@ public class EmailDeliveryService {
      */
     public void sendEmail(String to, String subject, String body) {
         validateEmailParams(to, subject);
+
+        if (mockSending) {
+            log.info("\n========== MOCK EMAIL SENT ==========\nTo: {}\nSubject: {}\n\nBody:\n{}\n=======================================\n", to, subject, body);
+            return;
+        }
 
         try {
             SimpleMailMessage mail = new SimpleMailMessage();
@@ -55,6 +63,11 @@ public class EmailDeliveryService {
      */
     public void sendHtmlEmail(String to, String subject, String htmlBody) {
         validateEmailParams(to, subject);
+
+        if (mockSending) {
+            log.info("\n========== MOCK HTML EMAIL SENT ==========\nTo: {}\nSubject: {}\n\nHTML Body:\n{}\n============================================\n", to, subject, htmlBody);
+            return;
+        }
 
         try {
             MimeMessage message = javaMailSender.createMimeMessage();

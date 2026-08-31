@@ -11,13 +11,17 @@ import com.portal.userprofileservice.model.AccountStatus;
 import com.portal.userprofileservice.model.UserProfile;
 import com.portal.userprofileservice.model.UserRole;
 import com.portal.userprofileservice.repository.UserProfileRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -30,7 +34,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             UserRole.SYSTEM_ADMIN,
             UserRole.FACULTY_MANAGEMENT,
             UserRole.FACULTY_COORDINATOR,
-            UserRole.ACADEMIC_STAFF,
+            UserRole.EVENT_COORDINATOR,
             UserRole.ADMINISTRATIVE_STAFF
     );
 
@@ -80,7 +84,30 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional(readOnly = true)
     public PageResponseDto<UserAdminResponseDto> getAllUsers(String query, UserRole role, AccountStatus status, Pageable pageable) {
-        Page<UserProfile> usersPage = userProfileRepository.searchUsers(query, role, status, pageable);
+        Specification<UserProfile> spec = (root, q, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (query != null && !query.trim().isEmpty()) {
+                String pattern = "%" + query.trim().toLowerCase() + "%";
+                Predicate firstMatch = cb.like(cb.lower(root.get("firstName")), pattern);
+                Predicate lastMatch = cb.like(cb.lower(root.get("lastName")), pattern);
+                Predicate emailMatch = cb.like(cb.lower(root.get("email")), pattern);
+                Predicate userMatch = cb.like(cb.lower(root.get("userId")), pattern);
+                predicates.add(cb.or(firstMatch, lastMatch, emailMatch, userMatch));
+            }
+
+            if (role != null) {
+                predicates.add(cb.equal(root.get("userRole"), role));
+            }
+
+            if (status != null) {
+                predicates.add(cb.equal(root.get("accountStatus"), status));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<UserProfile> usersPage = userProfileRepository.findAll(spec, pageable);
         Page<UserAdminResponseDto> dtoPage = usersPage.map(this::mapToDto);
         return PageResponseDto.from(dtoPage);
     }

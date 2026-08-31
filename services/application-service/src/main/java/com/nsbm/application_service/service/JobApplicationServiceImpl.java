@@ -53,7 +53,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     }
 
     @Override
-    public List<JobApplicationResponse> getApplicationsByVacancyId(UUID vacancyId) {
+    public List<JobApplicationResponse> getApplicationsByVacancyId(Long vacancyId) {
         return jobApplicationRepository.findByVacancyId(vacancyId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());

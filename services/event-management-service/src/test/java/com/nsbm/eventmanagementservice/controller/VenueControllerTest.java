@@ -3,17 +3,19 @@ package com.nsbm.eventmanagementservice.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nsbm.eventmanagementservice.dto.VenueRequest;
 import com.nsbm.eventmanagementservice.dto.VenueResponse;
+import com.nsbm.eventmanagementservice.exception.GlobalExceptionHandler;
 import com.nsbm.eventmanagementservice.exception.VenueNotFoundException;
 import com.nsbm.eventmanagementservice.model.VenueType;
 import com.nsbm.eventmanagementservice.service.VenueService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
 
@@ -23,23 +25,28 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(VenueController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@ExtendWith(MockitoExtension.class)
 public class VenueControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
     private ObjectMapper objectMapper;
 
-    @MockitoBean
+    @Mock
     private VenueService venueService;
+
+    @InjectMocks
+    private VenueController venueController;
 
     private VenueResponse venueResponse;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(venueController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+        objectMapper = new ObjectMapper();
+
         venueResponse = VenueResponse.builder()
                 .id(1L)
                 .name("Auditorium A")
@@ -119,4 +126,3 @@ public class VenueControllerTest {
                 .andExpect(status().isNoContent());
     }
 }
-

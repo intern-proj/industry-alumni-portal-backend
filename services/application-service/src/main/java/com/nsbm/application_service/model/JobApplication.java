@@ -19,7 +19,7 @@ public class JobApplication {
     private UUID id;
 
     @Column(name = "vacancy_id", nullable = false)
-    private UUID vacancyId;
+    private Long vacancyId;
 
     @Column(name = "alumni_id", nullable = false)
     private UUID alumniId;

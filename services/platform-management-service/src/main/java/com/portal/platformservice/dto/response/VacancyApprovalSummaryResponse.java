@@ -18,7 +18,7 @@ import java.util.UUID;
 public class VacancyApprovalSummaryResponse {
 
     private UUID id;
-    private UUID vacancyId;
+    private String vacancyId;
     private UUID companyUserId;
     private String vacancyTitleSnapshot;
     private String companyNameSnapshot;

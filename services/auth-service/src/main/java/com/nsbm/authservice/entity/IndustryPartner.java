@@ -51,6 +51,10 @@ public class IndustryPartner {
     @Column(name = "company_description", columnDefinition = "TEXT")
     private String companyDescription;
 
+    @Column(name = "account_status", nullable = false, length = 20)
+    @Builder.Default
+    private String accountStatus = "ACTIVE";
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

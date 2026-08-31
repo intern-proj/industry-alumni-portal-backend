@@ -7,7 +7,7 @@ import java.util.UUID;
 public interface JobApplicationService {
     JobApplicationResponse createApplication(JobApplicationRequest request);
     JobApplicationResponse getApplicationById(UUID id);
-    List<JobApplicationResponse> getApplicationsByVacancyId(UUID vacancyId);
+    List<JobApplicationResponse> getApplicationsByVacancyId(Long vacancyId);
     List<JobApplicationResponse> getApplicationsByAlumniId(UUID alumniId);
     JobApplicationResponse updateApplicationStatus(UUID id, StatusChangeRequest request);
     List<StatusAuditResponse> getStatusAudits(UUID id);

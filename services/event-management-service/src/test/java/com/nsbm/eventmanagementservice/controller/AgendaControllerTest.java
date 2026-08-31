@@ -5,15 +5,17 @@ import com.nsbm.eventmanagementservice.dto.AgendaRequest;
 import com.nsbm.eventmanagementservice.dto.AgendaResponse;
 import com.nsbm.eventmanagementservice.exception.AgendaNotFoundException;
 import com.nsbm.eventmanagementservice.exception.EventNotFoundException;
+import com.nsbm.eventmanagementservice.exception.GlobalExceptionHandler;
 import com.nsbm.eventmanagementservice.service.AgendaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,23 +26,28 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(AgendaController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@ExtendWith(MockitoExtension.class)
 public class AgendaControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
     private ObjectMapper objectMapper;
 
-    @MockitoBean
+    @Mock
     private AgendaService agendaService;
+
+    @InjectMocks
+    private AgendaController agendaController;
 
     private AgendaResponse agendaResponse;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(agendaController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+        objectMapper = new ObjectMapper().findAndRegisterModules();
+
         agendaResponse = AgendaResponse.builder()
                 .id(1L)
                 .eventId(1L)

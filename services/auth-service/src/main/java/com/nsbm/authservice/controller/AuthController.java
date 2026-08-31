@@ -4,6 +4,7 @@ import com.nsbm.authservice.dto.ApplyPartnerRegistrationRequest;
 import com.nsbm.authservice.dto.AuthResponse;
 import com.nsbm.authservice.dto.CompletePartnerRegistrationRequest;
 import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
+import com.nsbm.authservice.dto.CreateAdminRequest;
 import com.nsbm.authservice.dto.ForgotPasswordRequest;
 import com.nsbm.authservice.dto.LoginRequest;
 import com.nsbm.authservice.dto.LoginResponse;
@@ -17,6 +18,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import java.util.Map;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,17 +33,38 @@ public class AuthController {
         this.authService = authService;
     }
 
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @PostMapping("/admin/create")
+    public ResponseEntity<Void> createAdmin(@Valid @RequestBody CreateAdminRequest request) {
+        authService.createAdmin(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @DeleteMapping("/user/{identifier}")
+    public ResponseEntity<Void> deleteUser(@PathVariable String identifier) {
+        authService.deleteUser(identifier);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PostMapping("/staff/invite")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> inviteStaff(@Valid @RequestBody StaffInvitationRequest request) {
         authService.inviteStaff(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
+    @DeleteMapping("/staff/invite")
+    public ResponseEntity<Void> revokeStaffInvitation(@RequestParam String email) {
+        authService.revokeStaffInvitation(email);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/staff/complete-registration")
-    public ResponseEntity<Void> completeStaffRegistration(@Valid @RequestBody CompleteStaffRegistrationRequest request) {
-        authService.completeStaffRegistration(request);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<Map<String, String>> completeStaffRegistration(@Valid @RequestBody CompleteStaffRegistrationRequest request) {
+        String email = authService.completeStaffRegistration(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("email", email));
     }
 
     @PostMapping("/partner/pending")
@@ -51,9 +74,9 @@ public class AuthController {
     }
 
     @PostMapping("/partner/complete-registration")
-    public ResponseEntity<Void> completePartnerRegistration(@Valid @RequestBody CompletePartnerRegistrationRequest request) {
-        authService.completePartnerRegistration(request);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<Map<String, String>> completePartnerRegistration(@Valid @RequestBody CompletePartnerRegistrationRequest request) {
+        String email = authService.completePartnerRegistration(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("email", email));
     }
 
     @PostMapping("/login")

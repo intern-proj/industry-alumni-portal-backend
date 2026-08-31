@@ -7,9 +7,9 @@ spring:
   profiles:
     active: h2
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:industry_alumni_portal_certificate_db}
-    username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD:postgres}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:industry_alumni_portal_certificate_db}}
+    username: ${POSTGRES_USER:${SPRING_DATASOURCE_USERNAME:user}}
+    password: ${POSTGRES_PASSWORD:${SPRING_DATASOURCE_PASSWORD:root}}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -35,6 +35,26 @@ certificate:
   storage:
     path: ./uploads/certificates
   baseUrl: https://portal.nsbm.ac.lk
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+      cors:
+        allowed-origin-patterns: "*"
+        allowed-methods: "*"
+        allowed-headers: "*"
+  endpoint:
+    health:
+      show-details: always
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
 
 ---
 spring:

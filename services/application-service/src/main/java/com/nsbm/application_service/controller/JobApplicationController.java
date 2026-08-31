@@ -32,7 +32,7 @@ public class JobApplicationController {
 
     @GetMapping("/vacancy/{vacancyId}")
     public ResponseEntity<List<JobApplicationResponse>> getApplicationsByVacancyId(
-            @PathVariable UUID vacancyId) {
+            @PathVariable Long vacancyId) {
         List<JobApplicationResponse> responses = jobApplicationService.getApplicationsByVacancyId(vacancyId);
         return ResponseEntity.ok(responses);
     }

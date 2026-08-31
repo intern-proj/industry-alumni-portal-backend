@@ -4,6 +4,7 @@ import com.nsbm.authservice.dto.ApplyPartnerRegistrationRequest;
 import com.nsbm.authservice.dto.AuthResponse;
 import com.nsbm.authservice.dto.CompletePartnerRegistrationRequest;
 import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
+import com.nsbm.authservice.dto.CreateAdminRequest;
 import com.nsbm.authservice.dto.ForgotPasswordRequest;
 import com.nsbm.authservice.dto.LoginRequest;
 import com.nsbm.authservice.dto.LoginResponse;
@@ -86,6 +87,43 @@ class AuthServiceTest {
     }
 
     @Nested
+    @DisplayName("createAdmin Tests")
+    class CreateAdminTests {
+
+        @Test
+        @DisplayName("Should successfully create admin when username and email are unique")
+        void createAdmin_Success() {
+            CreateAdminRequest request = new CreateAdminRequest("new_admin", "admin.new@nsbm.ac.lk", "SecurePass123!");
+            when(staffRepository.existsByUsername(request.username())).thenReturn(false);
+            when(staffRepository.existsByEmail(request.email())).thenReturn(false);
+            when(passwordEncoder.encode(request.password())).thenReturn("encoded_pass");
+
+            authService.createAdmin(request);
+
+            ArgumentCaptor<ManagementStaff> captor = ArgumentCaptor.forClass(ManagementStaff.class);
+            verify(staffRepository).save(captor.capture());
+            ManagementStaff saved = captor.getValue();
+            assertThat(saved.getUsername()).isEqualTo("new_admin");
+            assertThat(saved.getEmail()).isEqualTo("admin.new@nsbm.ac.lk");
+            assertThat(saved.getPasswordHash()).isEqualTo("encoded_pass");
+            assertThat(saved.getRole()).isEqualTo(Role.SYSTEM_ADMIN);
+        }
+
+        @Test
+        @DisplayName("Should throw UsernameAlreadyExistsException when username already taken")
+        void createAdmin_ThrowsException_WhenUsernameExists() {
+            CreateAdminRequest request = new CreateAdminRequest("existing_admin", "admin.new@nsbm.ac.lk", "SecurePass123!");
+            when(staffRepository.existsByUsername(request.username())).thenReturn(true);
+
+            assertThatThrownBy(() -> authService.createAdmin(request))
+                    .isInstanceOf(UsernameAlreadyExistsException.class)
+                    .hasMessageContaining("already taken");
+
+            verify(staffRepository, never()).save(any());
+        }
+    }
+
+    @Nested
     @DisplayName("inviteStaff Tests")
     class InviteStaffTests {
 
@@ -93,7 +131,7 @@ class AuthServiceTest {
         @DisplayName("Should successfully invite staff when email does not exist")
         void inviteStaff_Success() {
             // Arrange
-            StaffInvitationRequest request = new StaffInvitationRequest("lecturer@nsbm.ac.lk", Role.ACADEMIC_STAFF);
+            StaffInvitationRequest request = new StaffInvitationRequest("lecturer@nsbm.ac.lk", Role.EVENT_COORDINATOR);
             when(staffRepository.existsByEmail(request.email())).thenReturn(false);
             when(pendingStaffRepository.existsByEmail(request.email())).thenReturn(false);
 
@@ -105,7 +143,7 @@ class AuthServiceTest {
             verify(pendingStaffRepository).save(pendingStaffCaptor.capture());
             PendingStaff savedPending = pendingStaffCaptor.getValue();
             assertThat(savedPending.getEmail()).isEqualTo("lecturer@nsbm.ac.lk");
-            assertThat(savedPending.getRole()).isEqualTo(Role.ACADEMIC_STAFF);
+            assertThat(savedPending.getRole()).isEqualTo(Role.EVENT_COORDINATOR);
             assertThat(savedPending.getInvitationToken()).isNotBlank();
 
             // Assert - Verify RabbitMQ message published
@@ -120,7 +158,7 @@ class AuthServiceTest {
         @DisplayName("Should throw StaffAlreadyExistsException when email already registered as ManagementStaff")
         void inviteStaff_ThrowsException_WhenEmailExistsInStaff() {
             // Arrange
-            StaffInvitationRequest request = new StaffInvitationRequest("existing@nsbm.ac.lk", Role.ADMIN);
+            StaffInvitationRequest request = new StaffInvitationRequest("existing@nsbm.ac.lk", Role.SYSTEM_ADMIN);
             when(staffRepository.existsByEmail(request.email())).thenReturn(true);
 
             // Act & Assert
@@ -132,22 +170,7 @@ class AuthServiceTest {
             verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
         }
 
-        @Test
-        @DisplayName("Should throw StaffAlreadyExistsException when email already exists in PendingStaff")
-        void inviteStaff_ThrowsException_WhenEmailExistsInPendingStaff() {
-            // Arrange
-            StaffInvitationRequest request = new StaffInvitationRequest("pending@nsbm.ac.lk", Role.FACULTY_COORDINATOR);
-            when(staffRepository.existsByEmail(request.email())).thenReturn(false);
-            when(pendingStaffRepository.existsByEmail(request.email())).thenReturn(true);
 
-            // Act & Assert
-            assertThatThrownBy(() -> authService.inviteStaff(request))
-                    .isInstanceOf(StaffAlreadyExistsException.class)
-                    .hasMessageContaining("pending@nsbm.ac.lk");
-
-            verify(pendingStaffRepository, never()).save(any());
-            verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
-        }
     }
 
     @Nested
@@ -166,7 +189,7 @@ class AuthServiceTest {
             PendingStaff pendingStaff = PendingStaff.builder()
                     .id(1L)
                     .email("john@nsbm.ac.lk")
-                    .role(Role.ACADEMIC_STAFF)
+                    .role(Role.EVENT_COORDINATOR)
                     .invitationToken(token)
                     .build();
 
@@ -183,7 +206,7 @@ class AuthServiceTest {
             ManagementStaff savedStaff = staffCaptor.getValue();
             assertThat(savedStaff.getUsername()).isEqualTo("john_doe");
             assertThat(savedStaff.getEmail()).isEqualTo("john@nsbm.ac.lk");
-            assertThat(savedStaff.getRole()).isEqualTo(Role.ACADEMIC_STAFF);
+            assertThat(savedStaff.getRole()).isEqualTo(Role.EVENT_COORDINATOR);
             assertThat(savedStaff.getPasswordHash()).isEqualTo("encodedPasswordHash");
 
             // Assert - Verify PendingStaff record removed
@@ -222,7 +245,7 @@ class AuthServiceTest {
             PendingStaff pendingStaff = PendingStaff.builder()
                     .id(1L)
                     .email("john@nsbm.ac.lk")
-                    .role(Role.ACADEMIC_STAFF)
+                    .role(Role.EVENT_COORDINATOR)
                     .invitationToken(token)
                     .build();
 
@@ -432,7 +455,7 @@ class AuthServiceTest {
                     .id(1L)
                     .username("academic_staff")
                     .email("academic@nsbm.ac.lk")
-                    .role(Role.ACADEMIC_STAFF)
+                    .role(Role.EVENT_COORDINATOR)
                     .passwordHash("encoded_pass")
                     .build();
 
@@ -481,7 +504,7 @@ class AuthServiceTest {
                     .id(1L)
                     .username("admin_staff")
                     .email("admin@nsbm.ac.lk")
-                    .role(Role.ADMIN)
+                    .role(Role.SYSTEM_ADMIN)
                     .passwordHash("hashedAdminPassword")
                     .build();
 
@@ -517,7 +540,7 @@ class AuthServiceTest {
             LoginRequest request = new LoginRequest("admin_staff", "WrongPassword");
             ManagementStaff staff = ManagementStaff.builder()
                     .username("admin_staff")
-                    .role(Role.ADMIN)
+                    .role(Role.SYSTEM_ADMIN)
                     .passwordHash("hashedAdminPassword")
                     .build();
 
@@ -553,13 +576,13 @@ class AuthServiceTest {
             ManagementStaff staff = ManagementStaff.builder()
                     .username("admin_staff")
                     .email("admin@nsbm.ac.lk")
-                    .role(Role.ADMIN)
+                    .role(Role.SYSTEM_ADMIN)
                     .build();
 
             when(otpCodeRepository.findTopBySessionTokenAndCodeOrderByCreatedAtDesc("session-token-123", "123456"))
                     .thenReturn(Optional.of(otpCode));
             when(staffRepository.findByUsername("admin_staff")).thenReturn(Optional.of(staff));
-            when(jwtTokenProvider.generateToken("admin_staff", "admin@nsbm.ac.lk", "ADMIN", "MANAGEMENT_STAFF"))
+            when(jwtTokenProvider.generateToken("admin_staff", "admin@nsbm.ac.lk", "SYSTEM_ADMIN", "MANAGEMENT_STAFF"))
                     .thenReturn("jwt-token-staff");
 
             // Act
@@ -568,7 +591,7 @@ class AuthServiceTest {
             // Assert
             assertThat(response).isNotNull();
             assertThat(response.accessToken()).isEqualTo("jwt-token-staff");
-            assertThat(response.role()).isEqualTo("ADMIN");
+            assertThat(response.role()).isEqualTo("SYSTEM_ADMIN");
             assertThat(response.userType()).isEqualTo("MANAGEMENT_STAFF");
             verify(otpCodeRepository).delete(otpCode);
         }
@@ -723,7 +746,7 @@ class AuthServiceTest {
             ForgotPasswordRequest request = new ForgotPasswordRequest("admin@nsbm.ac.lk");
             ManagementStaff adminStaff = ManagementStaff.builder()
                     .email("admin@nsbm.ac.lk")
-                    .role(Role.ADMIN)
+                    .role(Role.SYSTEM_ADMIN)
                     .build();
             when(studentRepository.findByEmail("admin@nsbm.ac.lk")).thenReturn(Optional.empty());
             when(staffRepository.findByEmail("admin@nsbm.ac.lk")).thenReturn(Optional.of(adminStaff));

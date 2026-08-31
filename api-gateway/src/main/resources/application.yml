@@ -34,7 +34,12 @@ spring:
             - id: auth-service
               uri: lb://auth-service
               predicates:
-                - Path=${api.path}/auth/**
+                - name: Path
+                  args:
+                    patterns:
+                      - ${api.path}/auth/**
+                      - ${api.path}/admin/pending-partners/**
+                      - ${api.path}/admin/partners/**
 
             - id: notification-service
               uri: lb://notification-service
@@ -78,6 +83,21 @@ spring:
                       - ${api.path}/storage/**
                       - ${api.path}/audit/**
 
+            - id: ai-service
+              uri: lb://ai-service
+              predicates:
+                - name: Path
+                  args:
+                    patterns:
+                      - ${api.path}/vacancies/institutional-check
+                      - ${api.path}/vacancies/parse-and-save
+                      - ${api.path}/ai/**
+
+            - id: vacancy-service
+              uri: lb://vacancy-service
+              predicates:
+                - Path=${api.path}/vacancies/**
+
             - id: platform-management-service
               uri: lb://platform-management-service
               predicates:
@@ -91,13 +111,122 @@ spring:
                       - ${api.path}/internal/partner-verifications/**
                       - ${api.path}/internal/vacancy-approvals/**
                       - ${api.path}/partners/**
-                      - ${api.path}/vacancies/**
+                      - ${api.path}/admin/vacancy-approvals/**
+
+            - id: user-service
+              uri: lb://user-service
+              predicates:
+                - name: Path
+                  args:
+                    patterns:
+                      - ${api.path}/user-profiles/**
+                      - ${api.path}/academic-config/**
+                      - ${api.path}/speakers/**
+                      - ${api.path}/admin/users/**
+                      - ${api.path}/admin/users
+
+            - id: certificate-service
+              uri: lb://certificate-service
+              predicates:
+                - Path=${api.path}/certificates/**
+
+            # Telemetry routes for Actuator Mesh
+            - id: telemetry-auth-service
+              uri: lb://auth-service
+              predicates:
+                - Path=${api.path}/telemetry/auth/**
+              filters:
+                - RewritePath=${api.path}/telemetry/auth/(?<segment>.*), /actuator/$\{segment}
+
+            - id: telemetry-user-service
+              uri: lb://user-service
+              predicates:
+                - Path=${api.path}/telemetry/user/**
+              filters:
+                - RewritePath=${api.path}/telemetry/user/(?<segment>.*), /actuator/$\{segment}
+
+            - id: telemetry-vacancy-service
+              uri: lb://vacancy-service
+              predicates:
+                - Path=${api.path}/telemetry/vacancy/**
+              filters:
+                - RewritePath=${api.path}/telemetry/vacancy/(?<segment>.*), /actuator/$\{segment}
+
+            - id: telemetry-application-service
+              uri: lb://application-service
+              predicates:
+                - Path=${api.path}/telemetry/application/**
+              filters:
+                - RewritePath=${api.path}/telemetry/application/(?<segment>.*), /actuator/$\{segment}
+
+            - id: telemetry-event-management-service
+              uri: lb://event-management-service
+              predicates:
+                - Path=${api.path}/telemetry/event-management/**
+              filters:
+                - RewritePath=${api.path}/telemetry/event-management/(?<segment>.*), /actuator/$\{segment}
+
+            - id: telemetry-certificate-service
+              uri: lb://certificate-service
+              predicates:
+                - Path=${api.path}/telemetry/certificate/**
+              filters:
+                - RewritePath=${api.path}/telemetry/certificate/(?<segment>.*), /actuator/$\{segment}
+
+            - id: telemetry-platform-management-service
+              uri: lb://platform-management-service
+              predicates:
+                - Path=${api.path}/telemetry/platform-management/**
+              filters:
+                - RewritePath=${api.path}/telemetry/platform-management/(?<segment>.*), /actuator/$\{segment}
+
+            - id: telemetry-audit-storage-service
+              uri: lb://audit-storage-service
+              predicates:
+                - Path=${api.path}/telemetry/audit-storage/**
+              filters:
+                - RewritePath=${api.path}/telemetry/audit-storage/(?<segment>.*), /actuator/$\{segment}
+
+            - id: telemetry-notification-service
+              uri: lb://notification-service
+              predicates:
+                - Path=${api.path}/telemetry/notification/**
+              filters:
+                - RewritePath=${api.path}/telemetry/notification/(?<segment>.*), /actuator/$\{segment}
+
+            - id: telemetry-event-participation-service
+              uri: lb://event-participation-service
+              predicates:
+                - Path=${api.path}/telemetry/event-participation/**
+              filters:
+                - RewritePath=${api.path}/telemetry/event-participation/(?<segment>.*), /actuator/$\{segment}
+
+            - id: telemetry-ai-service
+              uri: lb://ai-service
+              predicates:
+                - Path=${api.path}/telemetry/ai/**
+              filters:
+                - RewritePath=${api.path}/telemetry/ai/(?<segment>.*), /actuator/$\{segment}
 
             # Swagger / OpenAPI Documentation Aggregation Routes
             - id: auth-service-docs
               uri: lb://auth-service
               predicates:
                 - Path=/services-docs/auth-service/**
+              filters:
+                - SetPath=/v3/api-docs
+
+            - id: user-service-docs
+              uri: lb://user-service
+              predicates:
+                - Path=/services-docs/user-service/**
+              filters:
+                - SetPath=/v3/api-docs
+
+            - id: certificate-service-docs
+              uri: lb://certificate-service
+              predicates:
+                - Path=/services-docs/certificate-service/**
               filters:
                 - SetPath=/v3/api-docs
 
@@ -143,12 +272,34 @@ spring:
               filters:
                 - SetPath=/v3/api-docs
 
+            - id: vacancy-service-docs
+              uri: lb://vacancy-service
+              predicates:
+                - Path=/services-docs/vacancy-service/**
+              filters:
+                - SetPath=/v3/api-docs
+
+            - id: ai-service-docs
+              uri: lb://ai-service
+              predicates:
+                - Path=/services-docs/ai-service/**
+              filters:
+                - SetPath=/openapi.json
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
     urls:
       - name: Auth Service
         url: /services-docs/auth-service
+      - name: User Service
+        url: /services-docs/user-service
+      - name: Vacancy Service
+        url: /services-docs/vacancy-service
+      - name: AI Service
+        url: /services-docs/ai-service
+      - name: Certificate Service
+        url: /services-docs/certificate-service
       - name: Event Management Service
         url: /services-docs/event-management-service
       - name: Event Participation Service
@@ -173,14 +324,20 @@ management:
   endpoints:
     web:
       exposure:
-        include:
-          - info
-          - health
-          - gateway
-          - metrics
+        include: "*"
+      cors:
+        allowed-origin-patterns: "*"
+        allowed-methods: "*"
+        allowed-headers: "*"
+        allow-credentials: true
 
 eureka:
+  instance:
+    preferIpAddress: true
   client:
     service-url:
       defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+
+
 

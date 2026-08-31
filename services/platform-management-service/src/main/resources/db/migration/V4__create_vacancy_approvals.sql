@@ -1,4 +1,4 @@
-CREATE TABLE vacancy_approvals (
+CREATE TABLE IF NOT EXISTS vacancy_approvals (
     id                     UUID PRIMARY KEY,
     vacancy_id             UUID NOT NULL UNIQUE,
     company_user_id        UUID NOT NULL,
@@ -16,5 +16,5 @@ CREATE TABLE vacancy_approvals (
     version                BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_vacancy_approvals_status ON vacancy_approvals (status);
-CREATE INDEX idx_vacancy_approvals_sync_status ON vacancy_approvals (sync_status);
+CREATE INDEX IF NOT EXISTS idx_vacancy_approvals_status ON vacancy_approvals (status);
+CREATE INDEX IF NOT EXISTS idx_vacancy_approvals_sync_status ON vacancy_approvals (sync_status);

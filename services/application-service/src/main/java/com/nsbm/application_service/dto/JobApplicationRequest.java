@@ -14,7 +14,7 @@ import java.util.UUID;
 public class JobApplicationRequest {
 
     @NotNull
-    private UUID vacancyId;
+    private Long vacancyId;
 
     @NotNull
     private UUID alumniId;

@@ -17,9 +17,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/v1/admin/users")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('SYSTEM_ADMIN')")
 public class AdminUserController {
 
     private final AdminUserService adminUserService;
