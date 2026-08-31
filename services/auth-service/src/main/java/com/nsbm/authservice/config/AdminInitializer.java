@@ -18,13 +18,13 @@ public class AdminInitializer implements CommandLineRunner {
     private final ManagementStaffRepository staffRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${app.admin.default-username:Admin}")
+    @Value("${app.admin.default-username:admin}")
     private String adminUsername;
 
     @Value("${app.admin.default-password:admin@123}")
     private String adminPassword;
 
-    @Value("${app.admin.default-email:kgamadushika@students.nsbm.ac.lk}")
+    @Value("${app.admin.default-email:prasadkvithana@gmail.com}")
     private String adminEmail;
 
     public AdminInitializer(ManagementStaffRepository staffRepository, PasswordEncoder passwordEncoder) {
@@ -45,8 +45,8 @@ public class AdminInitializer implements CommandLineRunner {
             staffRepository.save(admin);
             log.info("Initial admin account created with username: '{}' and email: '{}'", adminUsername, adminEmail);
         } else {
-            log.info("Admin account with username '{}' or email '{}' already exists. Skipping initial creation.", adminUsername, adminEmail);
+            log.info("Admin account with username '{}' or email '{}' already exists. Skipping initial creation.",
+                    adminUsername, adminEmail);
         }
     }
 }
-

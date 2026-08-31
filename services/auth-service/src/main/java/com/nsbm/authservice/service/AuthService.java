@@ -1,6 +1,19 @@
 package com.nsbm.authservice.service;
 
-import com.nsbm.authservice.dto.*;
+import com.nsbm.authservice.dto.ApplyPartnerRegistrationRequest;
+import com.nsbm.authservice.dto.AuthResponse;
+import com.nsbm.authservice.dto.CompletePartnerRegistrationRequest;
+import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
+import com.nsbm.authservice.dto.ForgotPasswordRequest;
+import com.nsbm.authservice.dto.LoginRequest;
+import com.nsbm.authservice.dto.LoginResponse;
+import com.nsbm.authservice.dto.OtpEmailPayload;
+import com.nsbm.authservice.dto.OtpVerificationRequest;
+import com.nsbm.authservice.dto.ResetPasswordRequest;
+import com.nsbm.authservice.dto.StaffInvitationRequest;
+import com.nsbm.authservice.dto.Step1LoginResponse;
+import com.nsbm.authservice.dto.TokenValidationResponse;
+import com.nsbm.authservice.dto.UpdateEmailPayload;
 import com.nsbm.authservice.entity.*;
 import com.nsbm.authservice.exception.*;
 import com.nsbm.authservice.repository.*;
@@ -91,20 +104,21 @@ public class AuthService {
 
         // 4. Publish message to RabbitMQ for Notification Service
         String invitationUrl = "https://portal.domain.com/complete-registration?token=" + token;
-        EmailNotificationMessage message = new EmailNotificationMessage(
+        UpdateEmailPayload message = new UpdateEmailPayload(
                 request.email(),
-                "Portal Staff Registration Invitation",
+                request.email(),
+                "GENERAL_UPDATE",
                 "You have been invited as a " + request.role() + ". Complete registration here: " + invitationUrl,
-                "STAFF_INVITATION"
+                invitationUrl
         );
 
         sendRabbitNotification(message);
     }
 
-    private void sendRabbitNotification(EmailNotificationMessage message) {
+    private void sendRabbitNotification(UpdateEmailPayload message) {
         try {
             rabbitTemplate.convertAndSend(exchange, routingKey, message);
-            log.info("Published notification message to RabbitMQ: {}", message.eventType());
+            log.info("Published notification message to RabbitMQ: {}", message.updateType());
         } catch (Exception e) {
             log.error("Failed to send message to RabbitMQ: {}", e.getMessage(), e);
         }
@@ -155,11 +169,12 @@ public class AuthService {
                 .build();
         pendingPartnerRepository.save(pendingPartner);
         String invitationUrl = "https://portal.domain.com/complete-partner-registration?token=" + token;
-        EmailNotificationMessage message = new EmailNotificationMessage(
+        UpdateEmailPayload message = new UpdateEmailPayload(
                 request.email(),
-                "Industry Partner Registration Link",
+                request.companyName(),
+                "GENERAL_UPDATE",
                 "Your registration request has been approved. Please complete your registration here: " + invitationUrl,
-                "PARTNER_REGISTRATION"
+                invitationUrl
         );
         sendRabbitNotification(message);
     }
@@ -187,70 +202,111 @@ public class AuthService {
         pendingPartnerRepository.delete(pendingPartner);
     }
 
-    @Transactional(readOnly = true)
-    public AuthResponse loginStudentOrPartner(LoginRequest request) {
-        // Check Student login
+    @Transactional
+    public LoginResponse login(LoginRequest request) {
+        // 1. Check Student login (Direct single-step authentication)
         Optional<Student> studentOpt = studentRepository.findByUsername(request.username());
         if (studentOpt.isPresent()) {
             Student student = studentOpt.get();
             if (passwordEncoder.matches(request.password(), student.getPasswordHash())) {
                 String token = jwtTokenProvider.generateToken(student.getUsername(), student.getEmail(), Role.STUDENT.name(), "STUDENT");
-                return new AuthResponse(token, student.getUsername(), student.getEmail(), Role.STUDENT.name(), "STUDENT");
+                return LoginResponse.direct(new AuthResponse(token, student.getUsername(), student.getEmail(), Role.STUDENT.name(), "STUDENT"));
             }
+            throw new InvalidCredentialsException("Invalid username or password.");
         }
 
-        // Check Industry Partner login
+        // 2. Check Management Staff login (Triggers 2FA OTP for academic & management staff)
+        Optional<ManagementStaff> staffOpt = staffRepository.findByUsername(request.username());
+        if (staffOpt.isPresent()) {
+            ManagementStaff staff = staffOpt.get();
+            if (staff.getRole() == Role.ADMIN) {
+                throw new InvalidCredentialsException("Administrators must log in via the dedicated Administrator Portal.");
+            }
+            if (passwordEncoder.matches(request.password(), staff.getPasswordHash())) {
+                Step1LoginResponse step1 = generateAndSendOtp(staff.getUsername(), staff.getEmail());
+                return LoginResponse.otpRequired(step1.sessionToken(), staff.getUsername(), "A 6-digit verification code has been sent to your registered email.", otpExpirationMinutes * 60L);
+            }
+            throw new InvalidCredentialsException("Invalid username or password.");
+        }
+
+        // 3. Check Industry Partner login (Triggers 2FA OTP)
         Optional<IndustryPartner> partnerOpt = partnerRepository.findByUsername(request.username());
         if (partnerOpt.isPresent()) {
             IndustryPartner partner = partnerOpt.get();
             if (passwordEncoder.matches(request.password(), partner.getPasswordHash())) {
-                String token = jwtTokenProvider.generateToken(partner.getUsername(), partner.getEmail(), Role.INDUSTRY_PARTNER.name(), "INDUSTRY_PARTNER");
-                return new AuthResponse(token, partner.getUsername(), partner.getEmail(), Role.INDUSTRY_PARTNER.name(), "INDUSTRY_PARTNER");
+                Step1LoginResponse step1 = generateAndSendOtp(partner.getUsername(), partner.getEmail());
+                return LoginResponse.otpRequired(step1.sessionToken(), partner.getUsername(), "A 6-digit verification code has been sent to your registered email.", otpExpirationMinutes * 60L);
             }
+            throw new InvalidCredentialsException("Invalid username or password.");
         }
 
         throw new InvalidCredentialsException("Invalid username or password.");
     }
 
+    @Transactional(readOnly = true)
+    public AuthResponse loginStudentOrPartner(LoginRequest request) {
+        LoginResponse response = login(request);
+        if (response.requiresOtp()) {
+            throw new InvalidCredentialsException("OTP verification required for this account.");
+        }
+        return new AuthResponse(response.accessToken(), response.username(), response.email(), response.role(), response.userType());
+    }
+
     @Transactional
-    public Step1LoginResponse initiateStaffLogin(LoginRequest request) {
+    public Step1LoginResponse initiateAdminLogin(LoginRequest request) {
         ManagementStaff staff = staffRepository.findByUsername(request.username())
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password."));
+
+        if (staff.getRole() != Role.ADMIN) {
+            throw new InvalidCredentialsException("Invalid username or password.");
+        }
 
         if (!passwordEncoder.matches(request.password(), staff.getPasswordHash())) {
             throw new InvalidCredentialsException("Invalid username or password.");
         }
 
+        return generateAndSendOtp(staff.getUsername(), staff.getEmail());
+    }
+
+    @Transactional
+    public Step1LoginResponse initiateStaffLogin(LoginRequest request) {
+        return initiateAdminLogin(request);
+    }
+
+    private Step1LoginResponse generateAndSendOtp(String username, String email) {
         String otpCode = String.format("%06d", new SecureRandom().nextInt(1000000));
         String sessionToken = UUID.randomUUID().toString();
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(otpExpirationMinutes);
 
         OtpCode otpEntity = OtpCode.builder()
-                .username(staff.getUsername())
+                .username(username)
                 .code(otpCode)
                 .sessionToken(sessionToken)
                 .expiresAt(expiresAt)
                 .build();
         otpCodeRepository.save(otpEntity);
 
-        EmailNotificationMessage message = new EmailNotificationMessage(
-                staff.getEmail(),
-                "Your Management Portal Verification Code",
-                "Your OTP code is " + otpCode + ". It will expire in " + otpExpirationMinutes + " minutes.",
-                "STAFF_OTP"
+        OtpEmailPayload otpPayload = new OtpEmailPayload(
+                email,
+                otpCode
         );
-        sendRabbitNotification(message);
+        try {
+            rabbitTemplate.convertAndSend(exchange, "notification.otp", otpPayload);
+            log.info("Published OTP notification message to RabbitMQ for user {}", username);
+        } catch (Exception e) {
+            log.error("Failed to send OTP message to RabbitMQ: {}", e.getMessage(), e);
+        }
 
         return new Step1LoginResponse(
                 sessionToken,
-                staff.getUsername(),
+                username,
                 "OTP verification code sent to registered email.",
-                otpExpirationMinutes * 60
+                otpExpirationMinutes * 60L
         );
     }
 
     @Transactional
-    public AuthResponse verifyStaffOtp(OtpVerificationRequest request) {
+    public AuthResponse verifyOtp(OtpVerificationRequest request) {
         Optional<OtpCode> otpOpt = otpCodeRepository.findTopBySessionTokenAndCodeOrderByCreatedAtDesc(
                 request.sessionToken(), request.otpCode());
 
@@ -266,13 +322,31 @@ public class AuthService {
             throw new OtpInvalidException("OTP code has expired. Please log in again.");
         }
 
-        ManagementStaff staff = staffRepository.findByUsername(otpEntity.getUsername())
-                .orElseThrow(() -> new InvalidCredentialsException("Associated staff member not found."));
-
+        String username = otpEntity.getUsername();
         otpCodeRepository.delete(otpEntity);
 
-        String token = jwtTokenProvider.generateToken(staff.getUsername(), staff.getEmail(), staff.getRole().name(), "MANAGEMENT_STAFF");
-        return new AuthResponse(token, staff.getUsername(), staff.getEmail(), staff.getRole().name(), "MANAGEMENT_STAFF");
+        // 1. Check if user is ManagementStaff (Admin / Academic Staff)
+        Optional<ManagementStaff> staffOpt = staffRepository.findByUsername(username);
+        if (staffOpt.isPresent()) {
+            ManagementStaff staff = staffOpt.get();
+            String token = jwtTokenProvider.generateToken(staff.getUsername(), staff.getEmail(), staff.getRole().name(), "MANAGEMENT_STAFF");
+            return new AuthResponse(token, staff.getUsername(), staff.getEmail(), staff.getRole().name(), "MANAGEMENT_STAFF");
+        }
+
+        // 2. Check if user is IndustryPartner
+        Optional<IndustryPartner> partnerOpt = partnerRepository.findByUsername(username);
+        if (partnerOpt.isPresent()) {
+            IndustryPartner partner = partnerOpt.get();
+            String token = jwtTokenProvider.generateToken(partner.getUsername(), partner.getEmail(), Role.INDUSTRY_PARTNER.name(), "INDUSTRY_PARTNER");
+            return new AuthResponse(token, partner.getUsername(), partner.getEmail(), Role.INDUSTRY_PARTNER.name(), "INDUSTRY_PARTNER");
+        }
+
+        throw new InvalidCredentialsException("Associated user account not found.");
+    }
+
+    @Transactional
+    public AuthResponse verifyStaffOtp(OtpVerificationRequest request) {
+        return verifyOtp(request);
     }
 
     public TokenValidationResponse validateToken(String token) {
@@ -334,11 +408,12 @@ public class AuthService {
 
         // 6. Build reset link and send via RabbitMQ
         String resetUrl = resetPasswordFrontendUrl + "?token=" + token;
-        EmailNotificationMessage message = new EmailNotificationMessage(
+        UpdateEmailPayload message = new UpdateEmailPayload(
                 email,
-                "Password Reset Request",
+                email,
+                "GENERAL_UPDATE",
                 "You requested a password reset. Please click the link to set a new password: " + resetUrl + "\nThis link will expire in " + resetPasswordExpirationMinutes + " minutes.",
-                "PASSWORD_RESET"
+                resetUrl
         );
         sendRabbitNotification(message);
     }

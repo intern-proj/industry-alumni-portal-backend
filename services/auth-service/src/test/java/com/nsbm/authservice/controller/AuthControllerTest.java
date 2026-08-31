@@ -1,7 +1,18 @@
 package com.nsbm.authservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nsbm.authservice.dto.*;
+import com.nsbm.authservice.dto.ApplyPartnerRegistrationRequest;
+import com.nsbm.authservice.dto.AuthResponse;
+import com.nsbm.authservice.dto.CompletePartnerRegistrationRequest;
+import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
+import com.nsbm.authservice.dto.ForgotPasswordRequest;
+import com.nsbm.authservice.dto.LoginRequest;
+import com.nsbm.authservice.dto.LoginResponse;
+import com.nsbm.authservice.dto.OtpVerificationRequest;
+import com.nsbm.authservice.dto.ResetPasswordRequest;
+import com.nsbm.authservice.dto.StaffInvitationRequest;
+import com.nsbm.authservice.dto.Step1LoginResponse;
+import com.nsbm.authservice.dto.TokenValidationResponse;
 import com.nsbm.authservice.entity.Role;
 import com.nsbm.authservice.exception.GlobalExceptionHandler;
 import com.nsbm.authservice.exception.InvalidCredentialsException;
@@ -315,12 +326,13 @@ class AuthControllerTest {
     class LoginStudentOrPartnerApiTests {
 
         @Test
-        @DisplayName("Should return 200 OK with AuthResponse for student/partner login")
+        @DisplayName("Should return 200 OK with LoginResponse for student login")
         void loginStudentOrPartner_Returns200OK() throws Exception {
             // Arrange
             LoginRequest request = new LoginRequest("student_user", "password123");
-            AuthResponse response = new AuthResponse("mock-jwt-token", "student_user", "student@nsbm.ac.lk", "STUDENT", "STUDENT");
-            when(authService.loginStudentOrPartner(any(LoginRequest.class))).thenReturn(response);
+            AuthResponse auth = new AuthResponse("mock-jwt-token", "student_user", "student@nsbm.ac.lk", "STUDENT", "STUDENT");
+            LoginResponse response = LoginResponse.direct(auth);
+            when(authService.login(any(LoginRequest.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(post("/api/v1/auth/login")
@@ -343,7 +355,7 @@ class AuthControllerTest {
             // Arrange
             LoginRequest request = new LoginRequest("admin_staff", "password123");
             Step1LoginResponse response = new Step1LoginResponse("session-token-123", "admin_staff", "OTP sent", 300L);
-            when(authService.initiateStaffLogin(any(LoginRequest.class))).thenReturn(response);
+            when(authService.initiateAdminLogin(any(LoginRequest.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(post("/api/v1/auth/staff/login")
@@ -365,7 +377,7 @@ class AuthControllerTest {
             // Arrange
             OtpVerificationRequest request = new OtpVerificationRequest("session-token-123", "123456");
             AuthResponse response = new AuthResponse("staff-jwt-token", "admin_staff", "admin@nsbm.ac.lk", "ADMIN", "MANAGEMENT_STAFF");
-            when(authService.verifyStaffOtp(any(OtpVerificationRequest.class))).thenReturn(response);
+            when(authService.verifyOtp(any(OtpVerificationRequest.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(post("/api/v1/auth/staff/verify-otp")

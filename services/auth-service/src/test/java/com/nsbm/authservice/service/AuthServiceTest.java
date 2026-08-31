@@ -1,6 +1,19 @@
 package com.nsbm.authservice.service;
 
-import com.nsbm.authservice.dto.*;
+import com.nsbm.authservice.dto.ApplyPartnerRegistrationRequest;
+import com.nsbm.authservice.dto.AuthResponse;
+import com.nsbm.authservice.dto.CompletePartnerRegistrationRequest;
+import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
+import com.nsbm.authservice.dto.ForgotPasswordRequest;
+import com.nsbm.authservice.dto.LoginRequest;
+import com.nsbm.authservice.dto.LoginResponse;
+import com.nsbm.authservice.dto.OtpEmailPayload;
+import com.nsbm.authservice.dto.OtpVerificationRequest;
+import com.nsbm.authservice.dto.ResetPasswordRequest;
+import com.nsbm.authservice.dto.StaffInvitationRequest;
+import com.nsbm.authservice.dto.Step1LoginResponse;
+import com.nsbm.authservice.dto.TokenValidationResponse;
+import com.nsbm.authservice.dto.UpdateEmailPayload;
 import com.nsbm.authservice.entity.*;
 import com.nsbm.authservice.exception.*;
 import com.nsbm.authservice.repository.*;
@@ -96,11 +109,11 @@ class AuthServiceTest {
             assertThat(savedPending.getInvitationToken()).isNotBlank();
 
             // Assert - Verify RabbitMQ message published
-            ArgumentCaptor<EmailNotificationMessage> messageCaptor = ArgumentCaptor.forClass(EmailNotificationMessage.class);
+            ArgumentCaptor<UpdateEmailPayload> messageCaptor = ArgumentCaptor.forClass(UpdateEmailPayload.class);
             verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), messageCaptor.capture());
-            EmailNotificationMessage sentMessage = messageCaptor.getValue();
-            assertThat(sentMessage.recipientEmail()).isEqualTo("lecturer@nsbm.ac.lk");
-            assertThat(sentMessage.eventType()).isEqualTo("STAFF_INVITATION");
+            UpdateEmailPayload sentMessage = messageCaptor.getValue();
+            assertThat(sentMessage.toEmail()).isEqualTo("lecturer@nsbm.ac.lk");
+            assertThat(sentMessage.updateType()).isEqualTo("GENERAL_UPDATE");
         }
 
         @Test
@@ -254,11 +267,11 @@ class AuthServiceTest {
             assertThat(savedPartner.getRegistrationToken()).isNotBlank();
 
             // Assert - Verify RabbitMQ message published
-            ArgumentCaptor<EmailNotificationMessage> messageCaptor = ArgumentCaptor.forClass(EmailNotificationMessage.class);
+            ArgumentCaptor<UpdateEmailPayload> messageCaptor = ArgumentCaptor.forClass(UpdateEmailPayload.class);
             verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), messageCaptor.capture());
-            EmailNotificationMessage sentMessage = messageCaptor.getValue();
-            assertThat(sentMessage.recipientEmail()).isEqualTo("jane@company.com");
-            assertThat(sentMessage.eventType()).isEqualTo("PARTNER_REGISTRATION");
+            UpdateEmailPayload sentMessage = messageCaptor.getValue();
+            assertThat(sentMessage.toEmail()).isEqualTo("jane@company.com");
+            assertThat(sentMessage.updateType()).isEqualTo("GENERAL_UPDATE");
         }
 
         @Test
@@ -349,12 +362,12 @@ class AuthServiceTest {
     }
 
     @Nested
-    @DisplayName("loginStudentOrPartner Tests")
-    class LoginStudentOrPartnerTests {
+    @DisplayName("login Tests")
+    class LoginTests {
 
         @Test
-        @DisplayName("Should successfully authenticate Student and return AuthResponse")
-        void loginStudentOrPartner_Student_Success() {
+        @DisplayName("Should successfully authenticate Student directly and return LoginResponse")
+        void login_Student_Success() {
             // Arrange
             LoginRequest request = new LoginRequest("student_user", "password123");
             Student student = Student.builder()
@@ -370,10 +383,11 @@ class AuthServiceTest {
                     .thenReturn("mock-jwt-token-student");
 
             // Act
-            AuthResponse response = authService.loginStudentOrPartner(request);
+            LoginResponse response = authService.login(request);
 
             // Assert
             assertThat(response).isNotNull();
+            assertThat(response.requiresOtp()).isFalse();
             assertThat(response.accessToken()).isEqualTo("mock-jwt-token-student");
             assertThat(response.username()).isEqualTo("student_user");
             assertThat(response.role()).isEqualTo("STUDENT");
@@ -381,8 +395,8 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Should successfully authenticate IndustryPartner and return AuthResponse")
-        void loginStudentOrPartner_Partner_Success() {
+        @DisplayName("Should initiate 2FA OTP for IndustryPartner and return LoginResponse with requiresOtp true")
+        void login_Partner_Success() {
             // Arrange
             LoginRequest request = new LoginRequest("partner_user", "password123");
             IndustryPartner partner = IndustryPartner.builder()
@@ -393,31 +407,62 @@ class AuthServiceTest {
                     .build();
 
             when(studentRepository.findByUsername("partner_user")).thenReturn(Optional.empty());
+            when(staffRepository.findByUsername("partner_user")).thenReturn(Optional.empty());
             when(partnerRepository.findByUsername("partner_user")).thenReturn(Optional.of(partner));
             when(passwordEncoder.matches("password123", "encoded_pass")).thenReturn(true);
-            when(jwtTokenProvider.generateToken("partner_user", "partner@company.com", "INDUSTRY_PARTNER", "INDUSTRY_PARTNER"))
-                    .thenReturn("mock-jwt-token-partner");
 
             // Act
-            AuthResponse response = authService.loginStudentOrPartner(request);
+            LoginResponse response = authService.login(request);
 
             // Assert
             assertThat(response).isNotNull();
-            assertThat(response.accessToken()).isEqualTo("mock-jwt-token-partner");
-            assertThat(response.role()).isEqualTo("INDUSTRY_PARTNER");
-            assertThat(response.userType()).isEqualTo("INDUSTRY_PARTNER");
+            assertThat(response.requiresOtp()).isTrue();
+            assertThat(response.sessionToken()).isNotBlank();
+            assertThat(response.username()).isEqualTo("partner_user");
+            verify(otpCodeRepository).save(any(OtpCode.class));
+            verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.otp"), any(OtpEmailPayload.class));
+        }
+
+        @Test
+        @DisplayName("Should initiate 2FA OTP for Academic Staff and return LoginResponse with requiresOtp true")
+        void login_AcademicStaff_Success() {
+            // Arrange
+            LoginRequest request = new LoginRequest("academic_staff", "password123");
+            ManagementStaff staff = ManagementStaff.builder()
+                    .id(1L)
+                    .username("academic_staff")
+                    .email("academic@nsbm.ac.lk")
+                    .role(Role.ACADEMIC_STAFF)
+                    .passwordHash("encoded_pass")
+                    .build();
+
+            when(studentRepository.findByUsername("academic_staff")).thenReturn(Optional.empty());
+            when(staffRepository.findByUsername("academic_staff")).thenReturn(Optional.of(staff));
+            when(passwordEncoder.matches("password123", "encoded_pass")).thenReturn(true);
+
+            // Act
+            LoginResponse response = authService.login(request);
+
+            // Assert
+            assertThat(response).isNotNull();
+            assertThat(response.requiresOtp()).isTrue();
+            assertThat(response.sessionToken()).isNotBlank();
+            assertThat(response.username()).isEqualTo("academic_staff");
+            verify(otpCodeRepository).save(any(OtpCode.class));
+            verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.otp"), any(OtpEmailPayload.class));
         }
 
         @Test
         @DisplayName("Should throw InvalidCredentialsException when credentials do not match")
-        void loginStudentOrPartner_ThrowsException_WhenInvalidCredentials() {
+        void login_ThrowsException_WhenInvalidCredentials() {
             // Arrange
             LoginRequest request = new LoginRequest("unknown_user", "wrong_pass");
             when(studentRepository.findByUsername("unknown_user")).thenReturn(Optional.empty());
+            when(staffRepository.findByUsername("unknown_user")).thenReturn(Optional.empty());
             when(partnerRepository.findByUsername("unknown_user")).thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> authService.loginStudentOrPartner(request))
+            assertThatThrownBy(() -> authService.login(request))
                     .isInstanceOf(InvalidCredentialsException.class)
                     .hasMessageContaining("Invalid username or password.");
         }
@@ -455,9 +500,9 @@ class AuthServiceTest {
             assertThat(savedOtp.getSessionToken()).isNotBlank();
 
             // Assert - Verify RabbitMQ message published
-            ArgumentCaptor<EmailNotificationMessage> msgCaptor = ArgumentCaptor.forClass(EmailNotificationMessage.class);
-            verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), msgCaptor.capture());
-            assertThat(msgCaptor.getValue().eventType()).isEqualTo("STAFF_OTP");
+            ArgumentCaptor<OtpEmailPayload> msgCaptor = ArgumentCaptor.forClass(OtpEmailPayload.class);
+            verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.otp"), msgCaptor.capture());
+            assertThat(msgCaptor.getValue().toEmail()).isEqualTo("admin@nsbm.ac.lk");
 
             // Assert - Verify returned Step1LoginResponse
             assertThat(response).isNotNull();
@@ -472,6 +517,7 @@ class AuthServiceTest {
             LoginRequest request = new LoginRequest("admin_staff", "WrongPassword");
             ManagementStaff staff = ManagementStaff.builder()
                     .username("admin_staff")
+                    .role(Role.ADMIN)
                     .passwordHash("hashedAdminPassword")
                     .build();
 
@@ -625,11 +671,11 @@ class AuthServiceTest {
             assertThat(savedToken.getToken()).isNotBlank();
 
             // Assert - Verify RabbitMQ notification sent
-            ArgumentCaptor<EmailNotificationMessage> messageCaptor = ArgumentCaptor.forClass(EmailNotificationMessage.class);
+            ArgumentCaptor<UpdateEmailPayload> messageCaptor = ArgumentCaptor.forClass(UpdateEmailPayload.class);
             verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), messageCaptor.capture());
-            EmailNotificationMessage sentMsg = messageCaptor.getValue();
-            assertThat(sentMsg.recipientEmail()).isEqualTo("staff@nsbm.ac.lk");
-            assertThat(sentMsg.eventType()).isEqualTo("PASSWORD_RESET");
+            UpdateEmailPayload sentMsg = messageCaptor.getValue();
+            assertThat(sentMsg.toEmail()).isEqualTo("staff@nsbm.ac.lk");
+            assertThat(sentMsg.updateType()).isEqualTo("GENERAL_UPDATE");
         }
 
         @Test

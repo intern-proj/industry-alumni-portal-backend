@@ -1,6 +1,17 @@
 package com.nsbm.authservice.controller;
 
-import com.nsbm.authservice.dto.*;
+import com.nsbm.authservice.dto.ApplyPartnerRegistrationRequest;
+import com.nsbm.authservice.dto.AuthResponse;
+import com.nsbm.authservice.dto.CompletePartnerRegistrationRequest;
+import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
+import com.nsbm.authservice.dto.ForgotPasswordRequest;
+import com.nsbm.authservice.dto.LoginRequest;
+import com.nsbm.authservice.dto.LoginResponse;
+import com.nsbm.authservice.dto.OtpVerificationRequest;
+import com.nsbm.authservice.dto.ResetPasswordRequest;
+import com.nsbm.authservice.dto.StaffInvitationRequest;
+import com.nsbm.authservice.dto.Step1LoginResponse;
+import com.nsbm.authservice.dto.TokenValidationResponse;
 import com.nsbm.authservice.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -46,20 +57,20 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> loginStudentOrPartner(@Valid @RequestBody LoginRequest request) {
-        AuthResponse response = authService.loginStudentOrPartner(request);
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        LoginResponse response = authService.login(request);
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/staff/login")
-    public ResponseEntity<Step1LoginResponse> initiateStaffLogin(@Valid @RequestBody LoginRequest request) {
-        Step1LoginResponse response = authService.initiateStaffLogin(request);
+    @PostMapping({"/admin/login", "/staff/login"})
+    public ResponseEntity<Step1LoginResponse> initiateAdminLogin(@Valid @RequestBody LoginRequest request) {
+        Step1LoginResponse response = authService.initiateAdminLogin(request);
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/staff/verify-otp")
-    public ResponseEntity<AuthResponse> verifyStaffOtp(@Valid @RequestBody OtpVerificationRequest request) {
-        AuthResponse response = authService.verifyStaffOtp(request);
+    @PostMapping({"/verify-otp", "/admin/verify-otp", "/staff/verify-otp"})
+    public ResponseEntity<AuthResponse> verifyOtp(@Valid @RequestBody OtpVerificationRequest request) {
+        AuthResponse response = authService.verifyOtp(request);
         return ResponseEntity.ok(response);
     }
 
