@@ -13,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.nsbm.notification_service.repository.NotificationTemplateRepository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -33,6 +34,9 @@ public class NotificationServiceApplicationTest {
 
     @Mock
     private RabbitTemplate rabbitTemplate;
+
+    @Mock
+    private NotificationTemplateRepository templateRepository;
 
     @InjectMocks
     private OtpListener otpListener;
@@ -64,7 +68,7 @@ public class NotificationServiceApplicationTest {
 
     @Test
     void test_OtpSendingService_Processing() {
-        OtpSendingService sendingService = new OtpSendingService(emailDeliveryService);
+        OtpSendingService sendingService = new OtpSendingService(emailDeliveryService, templateRepository);
 
         OtpEmailDTO otp = new OtpEmailDTO("prasadkvithana@gmail.com", "123456");
         doNothing().when(emailDeliveryService).sendHtmlEmail(anyString(), anyString(), anyString());
