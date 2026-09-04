@@ -15,6 +15,8 @@ public class GuestSpeakerRequest {
 
     private String title;
 
+    private String company;
+
     private String bio;
 
     @Email(message = "Must be a valid email")

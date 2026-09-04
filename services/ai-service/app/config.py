@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     HOST: str = "0.0.0.0"
     PORT: int = 8000
+    BACKEND_API_BASE_URL: str = "http://localhost:8080/api/v1"
+
 
     # PostgreSQL Database Settings
     DB_USER: str = "user"

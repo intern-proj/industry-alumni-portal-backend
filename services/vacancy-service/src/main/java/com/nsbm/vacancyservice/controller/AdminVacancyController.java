@@ -82,4 +82,11 @@ public class AdminVacancyController {
         VacancyStatsDto stats = vacancyService.getVacancyStats();
         return ResponseEntity.ok(ApiResponseDto.success(stats, "Vacancy statistics calculated successfully"));
     }
+
+    @PostMapping("/{id}/reprocess")
+    @Operation(summary = "Re-trigger AI extraction for the vacancy using the uploaded flyer")
+    public ResponseEntity<ApiResponseDto<Void>> reprocessVacancy(@PathVariable Long id) {
+        vacancyService.reprocessVacancy(id);
+        return ResponseEntity.ok(ApiResponseDto.success(null, "Vacancy sent for AI reprocessing successfully"));
+    }
 }

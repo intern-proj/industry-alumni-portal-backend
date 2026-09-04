@@ -5,7 +5,7 @@ import com.nsbm.eventmanagementservice.dto.VenueRequest;
 import com.nsbm.eventmanagementservice.dto.VenueResponse;
 import com.nsbm.eventmanagementservice.exception.GlobalExceptionHandler;
 import com.nsbm.eventmanagementservice.exception.VenueNotFoundException;
-import com.nsbm.eventmanagementservice.model.VenueType;
+
 import com.nsbm.eventmanagementservice.service.VenueService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,7 +51,7 @@ public class VenueControllerTest {
                 .id(1L)
                 .name("Auditorium A")
                 .capacity(200)
-                .venueType(VenueType.PHYSICAL)
+
                 .build();
     }
 
@@ -60,7 +60,7 @@ public class VenueControllerTest {
         VenueRequest request = VenueRequest.builder()
                 .name("Auditorium A")
                 .capacity(200)
-                .venueType(VenueType.PHYSICAL)
+
                 .build();
 
         when(venueService.createVenue(any(VenueRequest.class))).thenReturn(venueResponse);
@@ -76,7 +76,7 @@ public class VenueControllerTest {
     void createVenue_withMissingName_returns400() throws Exception {
         VenueRequest request = VenueRequest.builder()
                 .capacity(200)
-                .venueType(VenueType.PHYSICAL)
+
                 .build();
 
         mockMvc.perform(post("/api/v1/venues")
@@ -107,7 +107,7 @@ public class VenueControllerTest {
         VenueRequest request = VenueRequest.builder()
                 .name("Auditorium B")
                 .capacity(300)
-                .venueType(VenueType.HYBRID)
+
                 .build();
 
         when(venueService.updateVenue(eq(1L), any(VenueRequest.class))).thenReturn(venueResponse);

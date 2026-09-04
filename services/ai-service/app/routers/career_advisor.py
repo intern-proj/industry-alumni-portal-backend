@@ -6,7 +6,10 @@ from app.schemas import (
     RecruiterCandidateMatchRequest,
     RecruiterCandidateMatchResponse,
     ResumeAnalysisRequest,
+    CoverLetterRequest,
+    CoverLetterResponse,
 )
+from app.services.llm_engine import LLMEngine
 from app.services.matcher_service import MatcherService
 from app.services.resume_advisor import ResumeCareerAdvisorService
 
@@ -28,6 +31,20 @@ async def analyze_resume_for_market_guidance(request: ResumeAnalysisRequest):
             detail=f"Failed to analyze resume: {str(e)}"
         )
 
+@router.post("/resume/generate-cover-letter", response_model=CoverLetterResponse)
+def generate_cover_letter_for_vacancy(request: CoverLetterRequest):
+    """
+    Generates a personalized, professional HTML cover letter tailored to the specific
+    job vacancy requirements and the candidate's skills.
+    """
+    try:
+        html_content = LLMEngine.generate_cover_letter(request)
+        return CoverLetterResponse(cover_letter_html=html_content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate cover letter: {str(e)}"
+        )
 
 @router.post("/vacancies/recommend-for-candidate", response_model=CandidateVacancyMatchResponse)
 def recommend_vacancies_for_candidate(request: CandidateVacancyMatchRequest):

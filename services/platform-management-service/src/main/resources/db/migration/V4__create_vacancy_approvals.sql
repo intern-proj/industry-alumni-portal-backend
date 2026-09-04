@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS vacancy_approvals (
     id                     UUID PRIMARY KEY,
-    vacancy_id             UUID NOT NULL UNIQUE,
+    vacancy_id             VARCHAR(255) NOT NULL UNIQUE,
     company_user_id        UUID NOT NULL,
     submitted_by_user_id   UUID,
     vacancy_title_snapshot VARCHAR(255),

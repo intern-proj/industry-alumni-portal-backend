@@ -31,6 +31,9 @@ public class JobApplicationServiceImplTest {
     @Mock
     private RecruitmentStageRepository recruitmentStageRepository;
 
+    @Mock
+    private org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
+
     @InjectMocks
     private JobApplicationServiceImpl jobApplicationService;
 
@@ -59,7 +62,7 @@ public class JobApplicationServiceImplTest {
 
         applicationRequest = JobApplicationRequest.builder()
                 .vacancyId(vacancyId)
-                .alumniId(alumniId)
+                .alumniId(alumniId.toString())
                 .resumeUrl("http://example.com/resume.pdf")
                 .coverLetter("Here is my cover letter")
                 .build();

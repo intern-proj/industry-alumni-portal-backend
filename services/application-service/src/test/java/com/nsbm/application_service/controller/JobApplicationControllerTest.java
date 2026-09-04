@@ -62,7 +62,7 @@ public class JobApplicationControllerTest {
 
         applicationRequest = JobApplicationRequest.builder()
                 .vacancyId(vacancyId)
-                .alumniId(alumniId)
+                .alumniId(alumniId.toString())
                 .resumeUrl("http://example.com/resume.pdf")
                 .coverLetter("Cover letter content")
                 .build();

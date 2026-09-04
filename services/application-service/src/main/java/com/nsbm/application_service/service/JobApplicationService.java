@@ -7,6 +7,7 @@ import java.util.UUID;
 public interface JobApplicationService {
     JobApplicationResponse createApplication(JobApplicationRequest request);
     JobApplicationResponse getApplicationById(UUID id);
+    List<JobApplicationResponse> getAllApplications();
     List<JobApplicationResponse> getApplicationsByVacancyId(Long vacancyId);
     List<JobApplicationResponse> getApplicationsByAlumniId(UUID alumniId);
     JobApplicationResponse updateApplicationStatus(UUID id, StatusChangeRequest request);
@@ -14,4 +15,6 @@ public interface JobApplicationService {
     RecruitmentStageResponse scheduleStage(UUID id, RecruitmentStageRequest request);
     RecruitmentStageResponse updateStage(UUID id, UUID stageId, StageUpdateRequest request);
     List<RecruitmentStageResponse> getStages(UUID id);
+    JobApplicationResponse updateAiInsights(UUID id, AiInsightsUpdateRequest request);
+    void deleteApplication(UUID id, UUID alumniId);
 }

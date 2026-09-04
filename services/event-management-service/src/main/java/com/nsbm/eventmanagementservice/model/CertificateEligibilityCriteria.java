@@ -33,6 +33,21 @@ public class CertificateEligibilityCriteria {
     @Column(name = "other_criteria_notes", columnDefinition = "TEXT")
     private String otherCriteriaNotes;
 
+    @Column(name = "template_image")
+    private String templateImage;
+
+    @Column(name = "name_pos_x")
+    private Integer namePosX;
+
+    @Column(name = "name_pos_y")
+    private Integer namePosY;
+
+    @Column(name = "name_font_size")
+    private Integer nameFontSize;
+
+    @Column(name = "name_font_color")
+    private String nameFontColor;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -329,8 +329,13 @@ public class AuthService {
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
+        String identifier = request.username() != null ? request.username().trim() : "";
+
         // 1. Check Student login (Direct single-step authentication)
-        Optional<Student> studentOpt = studentRepository.findByUsername(request.username());
+        Optional<Student> studentOpt = studentRepository.findByUsername(identifier);
+        if (studentOpt.isEmpty()) {
+            studentOpt = studentRepository.findByEmail(identifier);
+        }
         if (studentOpt.isPresent()) {
             Student student = studentOpt.get();
             if (passwordEncoder.matches(request.password(), student.getPasswordHash())) {
@@ -341,7 +346,10 @@ public class AuthService {
         }
 
         // 2. Check Management Staff login (Triggers 2FA OTP for academic & management staff)
-        Optional<ManagementStaff> staffOpt = staffRepository.findByUsername(request.username());
+        Optional<ManagementStaff> staffOpt = staffRepository.findByUsername(identifier);
+        if (staffOpt.isEmpty()) {
+            staffOpt = staffRepository.findByEmail(identifier);
+        }
         if (staffOpt.isPresent()) {
             ManagementStaff staff = staffOpt.get();
             if (staff.getRole() == Role.SYSTEM_ADMIN) {
@@ -355,7 +363,10 @@ public class AuthService {
         }
 
         // 3. Check Industry Partner login (Triggers 2FA OTP)
-        Optional<IndustryPartner> partnerOpt = partnerRepository.findByUsername(request.username());
+        Optional<IndustryPartner> partnerOpt = partnerRepository.findByUsername(identifier);
+        if (partnerOpt.isEmpty()) {
+            partnerOpt = partnerRepository.findByEmail(identifier);
+        }
         if (partnerOpt.isPresent()) {
             IndustryPartner partner = partnerOpt.get();
             if (passwordEncoder.matches(request.password(), partner.getPasswordHash())) {
@@ -372,7 +383,9 @@ public class AuthService {
 
     @Transactional
     public Step1LoginResponse initiateAdminLogin(LoginRequest request) {
-        ManagementStaff staff = staffRepository.findByUsername(request.username())
+        String identifier = request.username() != null ? request.username().trim() : "";
+        ManagementStaff staff = staffRepository.findByUsername(identifier)
+                .or(() -> staffRepository.findByEmail(identifier))
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password."));
 
         if (staff.getRole() != Role.SYSTEM_ADMIN) {

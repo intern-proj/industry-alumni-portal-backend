@@ -25,6 +25,29 @@ public class EmailDeliveryService {
     private boolean mockSending;
 
     private final JavaMailSender javaMailSender;
+    private final com.nsbm.notification_service.repository.SmtpConfigurationRepository smtpRepository;
+    private final com.nsbm.notification_service.service.SmtpConfigService smtpConfigService;
+
+    private JavaMailSender resolveMailSender() {
+        return smtpRepository.findFirstByIsActiveTrueOrderByIdDesc()
+                .filter(cfg -> cfg.getHost() != null && !cfg.getHost().isBlank())
+                .<JavaMailSender>map(smtpConfigService::buildMailSender)
+                .orElse(javaMailSender);
+    }
+
+    private String resolveFromEmail() {
+        return smtpRepository.findFirstByIsActiveTrueOrderByIdDesc()
+                .filter(cfg -> cfg.getSenderEmail() != null && !cfg.getSenderEmail().isBlank())
+                .map(com.nsbm.notification_service.model.SmtpConfiguration::getSenderEmail)
+                .orElse(fromEmail);
+    }
+
+    private String resolveFromName() {
+        return smtpRepository.findFirstByIsActiveTrueOrderByIdDesc()
+                .filter(cfg -> cfg.getSenderName() != null && !cfg.getSenderName().isBlank())
+                .map(com.nsbm.notification_service.model.SmtpConfiguration::getSenderName)
+                .orElse("NSBM Industry & Alumni Portal");
+    }
 
     /**
      * Sends a plain-text email. Used by OTP and simple reminder flows.
@@ -40,12 +63,12 @@ public class EmailDeliveryService {
         try {
             SimpleMailMessage mail = new SimpleMailMessage();
 
-            mail.setFrom(fromEmail);
+            mail.setFrom(resolveFromEmail());
             mail.setTo(to);
             mail.setSubject(subject);
             mail.setText(body);
 
-            javaMailSender.send(mail);
+            resolveMailSender().send(mail);
 
             log.info("Email sent successfully to - {}", to);
 
@@ -70,15 +93,16 @@ public class EmailDeliveryService {
         }
 
         try {
-            MimeMessage message = javaMailSender.createMimeMessage();
+            JavaMailSender activeSender = resolveMailSender();
+            MimeMessage message = activeSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail);
+            helper.setFrom(resolveFromEmail(), resolveFromName());
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
 
-            javaMailSender.send(message);
+            activeSender.send(message);
 
             log.info("HTML Email sent successfully to - {}", to);
 

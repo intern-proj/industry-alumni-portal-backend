@@ -2,172 +2,231 @@ import re
 from typing import Any, Dict, List, Optional
 from app.schemas import SmartSearchParsedIntent, SmartSearchRequest, SmartSearchResponse, SmartSearchResultItem
 
-SRI_LANKA_LOCATIONS = [
-    "colombo", "kandy", "galle", "gampaha", "moratuwa", "jaffna", "kurunegala",
-    "negombo", "ratnapura", "kalutara", "batticaloa", "matara", "remote", "hybrid", "on-site"
+
+KNOWN_SKILLS = [
+    "python", "java", "c++", "c#", "react", "angular", "vue", "node.js", "nodejs",
+    "spring", "spring boot", "springboot", "docker", "kubernetes", "aws", "azure", "gcp",
+    "sql", "postgresql", "mysql", "mongodb", "git", "ci/cd", "devops", "linux",
+    "typescript", "javascript", "html", "css", "figma", "machine learning", "ai",
+    "data science", "nlp", "cybersecurity", "flutter", "dart", "kotlin", "swift",
+    "adobe creative suite", "graphic design", "full-stack", "backend", "frontend"
 ]
 
-COMMON_TECH_SKILLS = [
-    "react", "react.js", "spring", "spring boot", "springboot", "java", "python",
-    "javascript", "typescript", "node", "nodejs", "express", "angular", "vue",
-    "docker", "kubernetes", "aws", "azure", "gcp", "sql", "postgresql", "mysql",
-    "mongodb", "redis", "graphql", "rest", "c#", ".net", "c++", "flutter", "dart",
-    "swift", "kotlin", "html", "css", "tailwind", "figma", "machine learning", "ai",
-    "nlp", "data science", "tableau", "power bi", "git", "ci/cd", "linux"
-]
-
-COMMON_BIZ_SKILLS = [
-    "marketing", "digital marketing", "seo", "sem", "content creation", "sales",
-    "b2b", "accounting", "auditing", "financial analysis", "excel", "human resources",
-    "recruitment", "talent acquisition", "supply chain", "logistics", "business analysis",
-    "project management", "scrum", "agile"
+KNOWN_LOCATIONS = [
+    "colombo", "kandy", "galle", "malabe", "homagama", "nsbm", "sri lanka", "remote", "hybrid", "on-site"
 ]
 
 
 class SmartSearchService:
     """
     Parses complex natural language queries into structured intent and filters
-    candidate or vacancy listings with match scoring and reason highlights.
+    candidate, company, or vacancy listings with match scoring and reason highlights.
     """
 
     @classmethod
     def parse_query_intent(cls, query: str) -> SmartSearchParsedIntent:
-        lower_query = query.lower()
+        import logging
+        logger = logging.getLogger("ai_service.smart_search")
 
-        # 1. Extract Locations
-        detected_locations = [loc.capitalize() for loc in SRI_LANKA_LOCATIONS if re.search(r'\b' + re.escape(loc) + r'\b', lower_query)]
+        q_lower = query.lower()
+        extracted_skills = []
+        for sk in KNOWN_SKILLS:
+            # Word boundary matching
+            pattern = r'\b' + re.escape(sk) + r'\b'
+            if re.search(pattern, q_lower):
+                extracted_skills.append(sk.title())
 
-        # 2. Extract Salary Thresholds (e.g. "more than 100000LKR", "> 150k", "pays 80000")
-        min_salary = None
-        currency = "LKR"
-        if "usd" in lower_query or "$" in lower_query:
-            currency = "USD"
+        extracted_locs = []
+        for loc in KNOWN_LOCATIONS:
+            if re.search(r'\b' + re.escape(loc) + r'\b', q_lower):
+                extracted_locs.append(loc.title())
 
-        salary_patterns = [
-            r'(?:more than|above|over|paying|pays|min|minimum|greater than|\>)\s*(?:lkr|rs\.?|\$)?\s*(\d+(?:[,\.]\d+)?)\s*(k|lkr|usd)?',
-            r'(\d+)\s*(?:k|thousand)\s*(?:lkr|usd)?',
-            r'(\d{5,7})\s*(?:lkr|usd)?'
-        ]
-
-        for pat in salary_patterns:
-            match = re.search(pat, lower_query)
-            if match:
-                val_str = match.group(1).replace(",", "")
-                try:
-                    val = float(val_str)
-                    # Check if 'k' suffix was used
-                    if "k" in lower_query[match.start():match.end() + 2] or (len(match.groups()) > 1 and match.group(2) == "k"):
-                        val *= 1000
-                    min_salary = val
-                    break
-                except ValueError:
-                    pass
-
-        # 3. Extract Skills
-        detected_skills = []
-        for skill in COMMON_TECH_SKILLS + COMMON_BIZ_SKILLS:
-            if re.search(r'\b' + re.escape(skill) + r'\b', lower_query):
-                detected_skills.append(skill.title())
-
-        # 4. Extract Target Role
-        target_role = None
-        role_patterns = [
-            r'(?:for|as|hiring|seeking|want)\s+([a-zA-Z\s]+?)(?:graduate|intern|developer|engineer|specialist|manager|analyst)',
-            r'([a-zA-Z\s]+?(?:developer|engineer|specialist|manager|analyst|associate|intern|lead))'
-        ]
-        for rp in role_patterns:
-            match = re.search(rp, lower_query)
-            if match:
-                candidate_role = match.group(0).strip().title()
-                if len(candidate_role) > 3 and not any(w in candidate_role.lower() for w in ["find", "search", "looking", "candidates", "vacancies"]):
-                    target_role = candidate_role
-                    break
-
-        # 5. Extract Experience / Level
-        experience_level = None
-        if any(term in lower_query for term in ["intern", "internship"]):
-            experience_level = "Internship"
-        elif any(term in lower_query for term in ["graduate", "fresher", "entry level", "junior"]):
-            experience_level = "Junior/Graduate"
-        elif any(term in lower_query for term in ["senior", "lead", "architect"]):
-            experience_level = "Senior"
-
-        # 6. Workplace Type
         workplace_type = None
-        if "remote" in lower_query:
+        if "remote" in q_lower:
             workplace_type = "REMOTE"
-        elif "hybrid" in lower_query:
+        elif "hybrid" in q_lower:
             workplace_type = "HYBRID"
-        elif "on-site" in lower_query or "onsite" in lower_query:
+        elif "on-site" in q_lower or "onsite" in q_lower or "office" in q_lower:
             workplace_type = "ON_SITE"
 
-        # Key tokens
-        tokens = [w for w in re.findall(r'\w+', lower_query) if len(w) > 3 and w not in ["find", "with", "that", "than", "more", "from", "show", "give"]]
+        tokens = [w for w in re.findall(r'\b[a-zA-Z0-9_\+#\.]+\b', q_lower) if len(w) > 2 and w not in ["find", "with", "that", "the", "and", "for", "are"]]
 
-        return SmartSearchParsedIntent(
-            raw_query=query,
-            target_role=target_role,
-            locations=detected_locations,
-            min_salary=min_salary,
-            currency=currency,
-            required_skills=detected_skills,
-            experience_level=experience_level,
-            workplace_type=workplace_type,
-            keywords=tokens
-        )
+        # If fast extraction found explicit skills or tokens, return immediately for sub-millisecond response
+        if extracted_skills or extracted_locs:
+            return SmartSearchParsedIntent(
+                raw_query=query,
+                required_skills=extracted_skills,
+                locations=extracted_locs,
+                workplace_type=workplace_type,
+                keywords=tokens
+            )
+
+        # Fallback to concise LLM parsing for ambiguous natural language
+        try:
+            from app.services.llm_engine import LLMEngine
+            import json
+
+            llm = LLMEngine.get_instance()
+            prompt = (
+                f"<|im_start|>system\n"
+                f"Extract search intent as strict JSON with keys: required_skills (list), locations (list), workplace_type (REMOTE/HYBRID/ON_SITE or null), keywords (list).\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>user\n"
+                f"{query}<|im_end|>\n"
+                f"<|im_start|>assistant\n```json\n"
+            )
+
+            response = llm(
+                prompt,
+                max_tokens=90,
+                stop=["<|im_end|>", "```"],
+                temperature=0.1
+            )
+            raw_output = response["choices"][0]["text"].strip()
+            if raw_output.startswith("```json"):
+                raw_output = raw_output[7:]
+            if raw_output.endswith("```"):
+                raw_output = raw_output[:-3]
+
+            parsed_dict = json.loads(raw_output.strip())
+            parsed_dict["raw_query"] = query
+            if "keywords" not in parsed_dict or not parsed_dict["keywords"]:
+                parsed_dict["keywords"] = tokens
+
+            return SmartSearchParsedIntent(**parsed_dict)
+        except Exception as e:
+            logger.warning(f"Fast search intent parsing fallback used: {e}")
+            return SmartSearchParsedIntent(
+                raw_query=query,
+                required_skills=extracted_skills,
+                locations=extracted_locs,
+                workplace_type=workplace_type,
+                keywords=tokens
+            )
 
     @classmethod
     def execute_smart_search(cls, request: SmartSearchRequest) -> SmartSearchResponse:
+        from app.services.embedding_engine import EmbeddingEngine
+
         intent = cls.parse_query_intent(request.query)
         items = request.items_to_rank or []
 
+        if not items:
+            return SmartSearchResponse(
+                status="success",
+                search_type=request.search_type,
+                parsed_intent=intent,
+                results=[],
+                total_found=0
+            )
+
         scored_results: List[SmartSearchResultItem] = []
 
-        for idx, item in enumerate(items):
-            item_text = " ".join([str(v) for v in item.values()]).lower()
-            score = 50  # Base match
+        # Batch encode for semantic search, capturing skills, program, bio, description, and completed projects
+        item_texts = []
+        for item in items:
+            title = item.get("title", item.get("companyName", item.get("name", "")))
+            desc = item.get("description", item.get("requirements", item.get("notes", item.get("bio", ""))))
+            skills_val = item.get("skills", [])
+            skills_str = " ".join(skills_val) if isinstance(skills_val, list) else str(skills_val or "")
+            program = item.get("program", item.get("degreeProgram", item.get("faculty", "")))
+            tags = item.get("tags", item.get("industry", ""))
+
+            # Parse project evidence for candidates
+            proj_raw = item.get("projects")
+            proj_text = ""
+            if isinstance(proj_raw, str):
+                try:
+                    p_list = json.loads(proj_raw)
+                    if isinstance(p_list, list):
+                        proj_text = " ".join([f"{p.get('title', '')} {' '.join(p.get('tech_stack', []) or p.get('techStack', []))} {p.get('description', '')}" for p in p_list])
+                except Exception:
+                    proj_text = proj_raw
+            elif isinstance(proj_raw, list):
+                proj_text = " ".join([f"{p.get('title', '')} {' '.join(p.get('tech_stack', []) or p.get('techStack', []))} {p.get('description', '')}" for p in proj_raw])
+
+            item_texts.append(f"{title} {desc} {skills_str} {program} {tags} {proj_text}".strip().lower())
+
+        query_vec = EmbeddingEngine.encode_text(request.query.lower())
+        item_vecs = EmbeddingEngine.encode_batch(item_texts)
+
+        for idx, (item, item_text, item_vec) in enumerate(zip(items, item_texts, item_vecs)):
+            sim_score = EmbeddingEngine.compute_cosine_similarity(query_vec, item_vec)
+
+            # Map similarity to a 20-70 base score
+            semantic_base = max(15, min(70, int(sim_score * 80)))
+            score = semantic_base
             reasons = []
 
-            # Check skills
+            # ── 1. LOGICAL THINKING: Verified Project Evidence ──
+            proj_raw = item.get("projects")
+            parsed_projects = []
+            if isinstance(proj_raw, str):
+                try:
+                    p_parsed = json.loads(proj_raw)
+                    if isinstance(p_parsed, list):
+                        parsed_projects = p_parsed
+                except Exception:
+                    pass
+            elif isinstance(proj_raw, list):
+                parsed_projects = proj_raw
+
+            project_evidence = []
+            for p in parsed_projects:
+                p_title = p.get("title", "Project")
+                p_tech = [str(t).lower() for t in (p.get("tech_stack") or p.get("techStack") or [])]
+                p_desc = (p.get("description") or "").lower()
+
+                # Check if this project proves any required skills or query terms
+                for sk in intent.required_skills:
+                    sk_lower = sk.lower()
+                    if sk_lower in p_tech or sk_lower in p_desc:
+                        project_evidence.append((sk, p_title))
+
+                # Check intent keywords
+                for kw in intent.keywords:
+                    if len(kw) > 3 and (kw in p_tech or kw in p_desc):
+                        if not any(e[0].lower() == kw for e in project_evidence):
+                            project_evidence.append((kw.title(), p_title))
+
+            if project_evidence:
+                # Award significant evidence score boost for actually building things with the technology!
+                evidence_boost = min(35, len(project_evidence) * 15)
+                score += evidence_boost
+                for sk, p_name in project_evidence[:2]:
+                    reasons.append(f"✓ Proven implementation: Built '{p_name}' using {sk}")
+
+            # ── 2. Verified Technical Skills Alignment ──
             matched_skills = [sk for sk in intent.required_skills if sk.lower() in item_text]
             if matched_skills:
-                score += min(30, len(matched_skills) * 15)
-                reasons.append(f"Matches skills: {', '.join(matched_skills)}")
+                score += min(20, len(matched_skills) * 10)
+                reasons.append(f"Demonstrates competencies: {', '.join(matched_skills)}")
 
-            # Check location
+            # ── 3. Location and Workplace Flexibility ──
             matched_locs = [loc for loc in intent.locations if loc.lower() in item_text]
             if matched_locs:
-                score += 15
-                reasons.append(f"Located in: {', '.join(matched_locs)}")
+                score += 10
+                reasons.append(f"Location match: {', '.join(matched_locs)}")
 
-            # Check workplace type
             if intent.workplace_type and intent.workplace_type.lower() in item_text:
                 score += 10
-                reasons.append(f"Offers {intent.workplace_type} work mode")
+                reasons.append(f"{intent.workplace_type.replace('_', ' ').title()} flexibility")
 
-            # Check salary if vacancy item has salary data
-            if intent.min_salary:
-                salary_str = str(item.get("salaryRange", item.get("salary_raw", "")))
-                num_match = re.search(r'(\d[\d,]*)', salary_str)
-                if num_match:
-                    try:
-                        extracted_val = float(num_match.group(1).replace(",", ""))
-                        if extracted_val >= intent.min_salary:
-                            score += 15
-                            reasons.append(f"Compensation meets requirement ({salary_str})")
-                    except ValueError:
-                        pass
-
-            # Keyword match
+            # ── 4. Keyword Match Boost ──
             matched_kw = [kw for kw in intent.keywords if kw in item_text]
-            if matched_kw:
-                score += min(10, len(matched_kw) * 3)
+            if matched_kw and not project_evidence:
+                score += min(10, len(matched_kw) * 4)
+                if not reasons:
+                    reasons.append(f"Contains matching keywords: {', '.join(matched_kw[:3])}")
 
-            final_score = max(10, min(100, score))
+            if sim_score > 0.45 and not reasons:
+                reasons.append("High semantic alignment with search query")
+
+            final_score = int(max(20, min(99, score)))
             item_id = item.get("id", item.get("vacancy_id", item.get("userId", idx)))
 
             if not reasons:
-                reasons.append("Relevant to search terms")
+                reasons.append("Profile indexed for matching criteria")
 
             scored_results.append(SmartSearchResultItem(
                 id=item_id,

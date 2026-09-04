@@ -5,6 +5,12 @@ import threading
 import time
 
 try:
+    from rich.console import Console
+    console = Console()
+except ImportError:
+    console = None
+
+try:
     import pika
     from pika.exceptions import AMQPConnectionError
     PIKA_AVAILABLE = True
@@ -81,6 +87,7 @@ class RabbitMQConsumer:
                     exchange_type="topic",
                     durable=True
                 )
+                # 1. Vacancy Flyer Queue
                 self.channel.queue_declare(
                     queue=settings.RABBITMQ_QUEUE,
                     durable=True
@@ -91,17 +98,35 @@ class RabbitMQConsumer:
                     routing_key=settings.RABBITMQ_ROUTING_KEY
                 )
 
-                # Set prefetch count to 1 so each consumer processes one flyer at a time
+                # 2. Application AI Match Queue
+                APP_MATCH_QUEUE = "application.ai.match.queue"
+                APP_MATCH_ROUTING_KEY = "application.submitted.match"
+                self.channel.queue_declare(
+                    queue=APP_MATCH_QUEUE,
+                    durable=True
+                )
+                self.channel.queue_bind(
+                    exchange=settings.RABBITMQ_EXCHANGE,
+                    queue=APP_MATCH_QUEUE,
+                    routing_key=APP_MATCH_ROUTING_KEY
+                )
+
+                # Set prefetch count to 1 so each consumer processes one flyer/application at a time
                 self.channel.basic_qos(prefetch_count=1)
 
                 logger.info(
-                    f"Connected to RabbitMQ! Listening on queue '{settings.RABBITMQ_QUEUE}' "
-                    f"bound to exchange '{settings.RABBITMQ_EXCHANGE}' with key '{settings.RABBITMQ_ROUTING_KEY}'..."
+                    f"Connected to RabbitMQ! Listening on '{settings.RABBITMQ_QUEUE}' and '{APP_MATCH_QUEUE}' "
+                    f"bound to exchange '{settings.RABBITMQ_EXCHANGE}'..."
                 )
 
                 self.channel.basic_consume(
                     queue=settings.RABBITMQ_QUEUE,
                     on_message_callback=self._on_message,
+                    auto_ack=False
+                )
+                self.channel.basic_consume(
+                    queue=APP_MATCH_QUEUE,
+                    on_message_callback=self._on_application_match_message,
                     auto_ack=False
                 )
 
@@ -147,13 +172,25 @@ class RabbitMQConsumer:
             db = SessionLocal()
             try:
                 # Run async pipeline synchronously in this worker thread
-                response = asyncio.run(
-                    self.pipeline_service.process_and_save(
-                        image_url=file_url,
-                        db=db,
-                        partner_id=str(partner_id) if partner_id else None
+                if console:
+                    with console.status(f"[bold green]Processing Vacancy Flyer ID: {vacancy_id}...", spinner="dots") as status:
+                        # Run pipeline (it takes a few seconds)
+                        response = asyncio.run(
+                            self.pipeline_service.process_and_save(
+                                image_url=file_url,
+                                db=db,
+                                partner_id=str(partner_id) if partner_id else None,
+                                progress_callback=status.update
+                            )
+                        )
+                else:
+                    response = asyncio.run(
+                        self.pipeline_service.process_and_save(
+                            image_url=file_url,
+                            db=db,
+                            partner_id=str(partner_id) if partner_id else None
+                        )
                     )
-                )
 
                 extracted = response.extracted_data
                 institutional = response.institutional_analysis
@@ -293,13 +330,28 @@ class RabbitMQConsumer:
         # Tags from required + preferred skills
         all_skills = (extracted.required_skills or []) + (extracted.preferred_skills or [])
         if all_skills:
-            update_payload["tags"] = ", ".join(all_skills[:15])  # Limit to 15 tags
+            tags_str = ", ".join(all_skills[:15])  # Limit to 15 tags
+            if len(tags_str) > 300:
+                tags_str = tags_str[:297] + "..."
+            update_payload["tags"] = tags_str
 
         # Target faculty from institutional analysis
         if institutional.target_faculty:
             update_payload["targetFaculties"] = institutional.target_faculty
 
         # AI missing fields as JSON for admin review
+        ai_analysis = {
+            "missingFields": [],
+            "institutionalMatchScore": institutional.institutional_match_score,
+            "approvalRecommendation": institutional.approval_recommendation,
+            "isSuitableForGraduates": institutional.is_suitable_for_interns_or_graduates,
+            "complianceFlags": institutional.compliance_flags,
+            "fitNotes": institutional.institutional_fit_notes,
+            "recommendedPrograms": institutional.recommended_degree_programs,
+            "contactEmails": extracted.contact_emails if extracted.contact_emails else [],
+            "contactPhones": extracted.contact_phones if extracted.contact_phones else []
+        }
+
         if institutional.missing_explicit_fields:
             missing_fields_data = []
             for flag in institutional.missing_explicit_fields:
@@ -309,28 +361,9 @@ class RabbitMQConsumer:
                     "message": flag.message,
                     "suggestion": flag.suggestion
                 })
-            ai_analysis = {
-                "missingFields": missing_fields_data,
-                "institutionalMatchScore": institutional.institutional_match_score,
-                "approvalRecommendation": institutional.approval_recommendation,
-                "isSuitableForGraduates": institutional.is_suitable_for_interns_or_graduates,
-                "complianceFlags": institutional.compliance_flags,
-                "fitNotes": institutional.institutional_fit_notes,
-                "recommendedPrograms": institutional.recommended_degree_programs
-            }
-            update_payload["aiMissingFields"] = json.dumps(ai_analysis)
-        else:
-            # Still save the institutional analysis even without missing fields
-            ai_analysis = {
-                "missingFields": [],
-                "institutionalMatchScore": institutional.institutional_match_score,
-                "approvalRecommendation": institutional.approval_recommendation,
-                "isSuitableForGraduates": institutional.is_suitable_for_interns_or_graduates,
-                "complianceFlags": institutional.compliance_flags,
-                "fitNotes": institutional.institutional_fit_notes,
-                "recommendedPrograms": institutional.recommended_degree_programs
-            }
-            update_payload["aiMissingFields"] = json.dumps(ai_analysis)
+            ai_analysis["missingFields"] = missing_fields_data
+
+        update_payload["aiMissingFields"] = json.dumps(ai_analysis)
 
         if not update_payload:
             logger.info("No fields to update on vacancy-service.")
@@ -360,6 +393,114 @@ class RabbitMQConsumer:
         except Exception as e:
             logger.error(f"Error updating vacancy-service for vacancy {vacancy_id}: {e}", exc_info=True)
             print(f"\n❌ [AI SERVICE] Error updating vacancy #{vacancy_id}: {e}")
+
+    def _on_application_match_message(self, ch, method, properties, body):
+        """Callback invoked when a candidate job application is queued for async AI matching."""
+        logger.info(f"Received application AI match task: {body.decode('utf-8', errors='ignore')}")
+        try:
+            payload = json.loads(body.decode("utf-8"))
+            app_id = payload.get("applicationId")
+            vacancy_id = payload.get("vacancyId")
+            resume_url = payload.get("resumeUrl")
+            vac_title = payload.get("vacancyTitle") or f"Job Vacancy #{vacancy_id}"
+            vac_reqs = payload.get("vacancyRequirements") or ""
+            vac_desc = payload.get("vacancyDescription") or ""
+            vac_tags = payload.get("vacancyTags") or ""
+            cand_name = payload.get("candidateName") or "Applicant"
+            cand_email = payload.get("candidateEmail")
+            cand_faculty = payload.get("candidateFaculty")
+            cand_skills = payload.get("candidateSkills") or []
+            cover_letter = payload.get("coverLetter") or ""
+
+            print("\n" + "=" * 80)
+            print(f"[*] [AI SERVICE] ASYNC JOB APPLICATION AI MATCHING INTAKE")
+            print(f"   Application ID:  {app_id}")
+            print(f"   Candidate:       {cand_name} ({cand_email or 'N/A'})")
+            print(f"   Vacancy:         {vac_title} (ID: {vacancy_id})")
+            print(f"   Resume URL:      {resume_url}")
+            print("=" * 80 + "\n")
+
+            if not app_id:
+                logger.error("Application match message missing applicationId.")
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                return
+
+            from app.schemas import SingleApplicantMatchRequest
+            from app.services.resume_matcher_service import ResumeVacancyMatcherService
+
+            db = SessionLocal()
+            try:
+                matcher = ResumeVacancyMatcherService()
+                match_req = SingleApplicantMatchRequest(
+                    resume_url=resume_url,
+                    cover_letter=cover_letter,
+                    vacancy_id=vacancy_id,
+                    vacancy_title=vac_title,
+                    vacancy_requirements=vac_reqs,
+                    vacancy_description=vac_desc,
+                    vacancy_tags=vac_tags,
+                    candidate_name=cand_name,
+                    candidate_email=cand_email,
+                    candidate_faculty=cand_faculty,
+                    candidate_skills=cand_skills
+                )
+
+                match_res = asyncio.run(matcher.match_single_applicant(match_req, db))
+
+                print("\n" + "=" * 80)
+                print(f"[+] [AI SERVICE] APPLICATION MATCH COMPUTED SUCCESSFULLY")
+                print(f"   Match Score:     {match_res.match_percentage}% ({match_res.match_tier})")
+                print(f"   Applicant Summary: {match_res.fit_summary}")
+                print(f"   Strong Fortes:   {', '.join(match_res.strong_fortes) if match_res.strong_fortes else 'None'}")
+                print(f"   Matched Skills:  {', '.join(match_res.matched_skills) if match_res.matched_skills else 'None'}")
+                print("=" * 80 + "\n")
+
+                breakdown_str = json.dumps({
+                    "summary": match_res.fit_summary,
+                    "strongFortes": match_res.strong_fortes,
+                    "skills_coverage": match_res.score_breakdown.skills_coverage if match_res.score_breakdown else 0,
+                    "semantic_alignment": match_res.score_breakdown.semantic_alignment if match_res.score_breakdown else 0,
+                    "cross_encoder_score": match_res.score_breakdown.cross_encoder_score if match_res.score_breakdown else 0,
+                    "institutional_fit": match_res.score_breakdown.institutional_fit if match_res.score_breakdown else 0
+                })
+
+                insights_payload = {
+                    "matchPercentage": match_res.match_percentage,
+                    "matchedSkills": ", ".join(match_res.matched_skills) if match_res.matched_skills else "",
+                    "missingSkills": ", ".join(match_res.missing_skills) if match_res.missing_skills else "",
+                    "fitSummary": match_res.fit_summary,
+                    "strongFortes": json.dumps(match_res.strong_fortes) if match_res.strong_fortes else "",
+                    "scoreBreakdown": breakdown_str
+                }
+
+                saved_to_backend = False
+                for target_url in [
+                    f"http://localhost:8084/api/v1/applications/{app_id}/ai-insights",
+                    f"http://localhost:8080/api/v1/applications/{app_id}/ai-insights"
+                ]:
+                    try:
+                        with httpx.Client(timeout=10.0) as client:
+                            resp = client.put(target_url, json=insights_payload)
+                            if resp.status_code in [200, 204]:
+                                logger.info(f"Successfully saved AI insights to application-service via {target_url}")
+                                saved_to_backend = True
+                                break
+                    except Exception as http_err:
+                        logger.warning(f"Could not reach {target_url}: {http_err}")
+
+                if not saved_to_backend:
+                    logger.error(f"Failed to persist insights to application-service for application {app_id}")
+
+            except Exception as match_err:
+                logger.error(f"Error during applicant match computation: {match_err}", exc_info=True)
+            finally:
+                db.close()
+
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+        except Exception as e:
+            logger.error(f"Error handling applicant match RabbitMQ message: {e}", exc_info=True)
+            ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
 consumer_instance = RabbitMQConsumer()

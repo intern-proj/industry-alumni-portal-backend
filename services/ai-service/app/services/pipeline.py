@@ -12,17 +12,20 @@ from app.services.ocr_engine import OCREngine
 logger = logging.getLogger("ai_service.services.pipeline")
 
 
+from typing import Callable, Optional
+
 class VacancyPipelineService:
     def __init__(self):
         self.ocr = OCREngine()
 
-    async def process_and_save(self, image_url: str, db: Session, partner_id: str = None) -> VacancyParseResponse:
+    async def process_and_save(self, image_url: str, db: Session, partner_id: str = None, progress_callback: Optional[Callable[[str], None]] = None) -> VacancyParseResponse:
         start_time = time.perf_counter()
         temp_file_path: Path = await download_image_to_tempfile(image_url)
 
         try:
             # 1. OCR Extraction
             logger.info(f"Starting OCR Extraction for {temp_file_path}")
+            if progress_callback: progress_callback("[bold yellow]Downloading and extracting text via OCR...[/bold yellow]")
             raw_text = self.ocr.extract_text(temp_file_path)
             if not raw_text.strip():
                 logger.error("OCR extracted no text.")
@@ -31,16 +34,19 @@ class VacancyPipelineService:
 
             # 2. LLM Extraction into Structured Schema
             logger.info("Starting LLM parsing to structured JSON...")
+            if progress_callback: progress_callback("[bold cyan]Extracting structures via LLM...[/bold cyan]")
             parsed_data: JobVacancySchema = LLMEngine.extract_structured_json(raw_text)
             logger.info(f"LLM parsed Job Title: {parsed_data.job_title} at {parsed_data.company_name}")
 
             # 3. Institutional Suitability & Missing Explicit Fields Check
             logger.info("Starting Institutional Fit Check...")
+            if progress_callback: progress_callback("[bold magenta]Evaluating institutional fit & degree alignment...[/bold magenta]")
             institutional_analysis: InstitutionalFitAnalysis = InstitutionalFitChecker.evaluate(parsed_data)
             logger.info(f"Institutional Check complete. Score: {institutional_analysis.institutional_match_score}")
 
             # 4. Database Persistence in PostgreSQL
             logger.info("Saving extracted record to database...")
+            if progress_callback: progress_callback("[bold green]Saving candidate profile to database...[/bold green]")
             record = VacancyRecord(
                 job_title=parsed_data.job_title,
                 company_name=parsed_data.company_name,

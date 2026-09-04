@@ -49,6 +49,11 @@ public class EventController {
         return ResponseEntity.ok(eventService.getAllEvents());
     }
 
+    @GetMapping("/speaker/{speakerId}")
+    public ResponseEntity<List<EventResponse>> getEventsBySpeaker(@PathVariable Long speakerId) {
+        return ResponseEntity.ok(eventService.getEventsBySpeakerId(speakerId));
+    }
+
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PutMapping("/{id}")
     public ResponseEntity<EventResponse> updateEvent(

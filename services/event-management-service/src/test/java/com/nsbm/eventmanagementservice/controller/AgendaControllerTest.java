@@ -51,7 +51,6 @@ public class AgendaControllerTest {
         agendaResponse = AgendaResponse.builder()
                 .id(1L)
                 .eventId(1L)
-                .speakerId(2L)
                 .title("Opening Keynote")
                 .startTime(LocalDateTime.now().plusDays(5))
                 .build();
@@ -61,7 +60,6 @@ public class AgendaControllerTest {
     void createAgendaItem_withValidRequest_returns201() throws Exception {
         AgendaRequest request = AgendaRequest.builder()
                 .eventId(1L)
-                .speakerId(2L)
                 .title("Opening Keynote")
                 .startTime(LocalDateTime.now().plusDays(5))
                 .build();

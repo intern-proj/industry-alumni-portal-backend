@@ -24,6 +24,25 @@ public class JobApplicationController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    @GetMapping
+    public ResponseEntity<List<JobApplicationResponse>> getAllApplications(
+            @RequestParam(required = false) Long vacancyId,
+            @RequestParam(required = false) String alumniId) {
+        if (vacancyId != null) {
+            return ResponseEntity.ok(jobApplicationService.getApplicationsByVacancyId(vacancyId));
+        }
+        if (alumniId != null) {
+            UUID parsedUuid;
+            try {
+                parsedUuid = UUID.fromString(alumniId);
+            } catch (Exception e) {
+                parsedUuid = UUID.nameUUIDFromBytes(alumniId.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            return ResponseEntity.ok(jobApplicationService.getApplicationsByAlumniId(parsedUuid));
+        }
+        return ResponseEntity.ok(jobApplicationService.getAllApplications());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<JobApplicationResponse> getApplicationById(@PathVariable UUID id) {
         JobApplicationResponse response = jobApplicationService.getApplicationById(id);
@@ -39,8 +58,14 @@ public class JobApplicationController {
 
     @GetMapping("/alumni/{alumniId}")
     public ResponseEntity<List<JobApplicationResponse>> getApplicationsByAlumniId(
-            @PathVariable UUID alumniId) {
-        List<JobApplicationResponse> responses = jobApplicationService.getApplicationsByAlumniId(alumniId);
+            @PathVariable String alumniId) {
+        UUID parsedUuid;
+        try {
+            parsedUuid = UUID.fromString(alumniId);
+        } catch (Exception e) {
+            parsedUuid = UUID.nameUUIDFromBytes(alumniId.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+        List<JobApplicationResponse> responses = jobApplicationService.getApplicationsByAlumniId(parsedUuid);
         return ResponseEntity.ok(responses);
     }
 
@@ -49,6 +74,14 @@ public class JobApplicationController {
             @PathVariable UUID id,
             @Valid @RequestBody StatusChangeRequest request) {
         JobApplicationResponse response = jobApplicationService.updateApplicationStatus(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/ai-insights")
+    public ResponseEntity<JobApplicationResponse> updateAiInsights(
+            @PathVariable UUID id,
+            @RequestBody AiInsightsUpdateRequest request) {
+        JobApplicationResponse response = jobApplicationService.updateAiInsights(id, request);
         return ResponseEntity.ok(response);
     }
 
@@ -79,5 +112,19 @@ public class JobApplicationController {
     public ResponseEntity<List<RecruitmentStageResponse>> getStages(@PathVariable UUID id) {
         List<RecruitmentStageResponse> stages = jobApplicationService.getStages(id);
         return ResponseEntity.ok(stages);
+    }
+
+    @DeleteMapping("/{id}/alumni/{alumniId}")
+    public ResponseEntity<Void> deleteApplication(
+            @PathVariable UUID id,
+            @PathVariable String alumniId) {
+        UUID parsedUuid;
+        try {
+            parsedUuid = UUID.fromString(alumniId);
+        } catch (Exception e) {
+            parsedUuid = UUID.nameUUIDFromBytes(alumniId.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+        jobApplicationService.deleteApplication(id, parsedUuid);
+        return ResponseEntity.noContent().build();
     }
 }

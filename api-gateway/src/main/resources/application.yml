@@ -44,7 +44,11 @@ spring:
             - id: notification-service
               uri: lb://notification-service
               predicates:
-                - Path=${api.path}/templates/**
+                - name: Path
+                  args:
+                    patterns:
+                      - ${api.path}/templates/**
+                      - ${api.path}/notifications/smtp/**
 
             - id: event-participation-service
               uri: lb://event-participation-service
@@ -112,6 +116,7 @@ spring:
                       - ${api.path}/internal/vacancy-approvals/**
                       - ${api.path}/partners/**
                       - ${api.path}/admin/vacancy-approvals/**
+                      - ${api.path}/banners/**
 
             - id: user-service
               uri: lb://user-service

@@ -35,4 +35,6 @@ public interface VacancyService {
     VacancyStatsDto getVacancyStats();
 
     void incrementApplicantCount(Long id);
+
+    void reprocessVacancy(Long id);
 }

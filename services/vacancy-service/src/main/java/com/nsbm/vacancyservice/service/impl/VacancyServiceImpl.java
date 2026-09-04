@@ -281,6 +281,24 @@ public class VacancyServiceImpl implements VacancyService {
         });
     }
 
+    @Override
+    @Transactional
+    public void reprocessVacancy(Long id) {
+        Vacancy vacancy = vacancyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found with ID: " + id));
+
+        if (vacancy.getStorageFileId() != null && !vacancy.getStorageFileId().isBlank()) {
+            vacancyEventPublisher.publishVacancyFlyerUploaded(
+                    vacancy.getId(),
+                    vacancy.getPartnerId(),
+                    vacancy.getStorageFileId(),
+                    null
+            );
+        } else {
+            throw new IllegalArgumentException("Cannot reprocess vacancy without an uploaded flyer image");
+        }
+    }
+
     private VacancyResponseDto mapToDto(Vacancy v) {
         return VacancyResponseDto.builder()
                 .id(v.getId())

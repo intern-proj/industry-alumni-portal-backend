@@ -18,6 +18,8 @@ public interface EventService {
 
     List<EventResponse> getEventsByCoordinator(Long coordinatorUserId);
 
+    List<EventResponse> getEventsBySpeakerId(Long speakerId);
+
     EventResponse updateEvent(Long id, UpdateEventRequest request);
 
     EventResponse updateStatus(Long id, UpdateEventStatusRequest request);

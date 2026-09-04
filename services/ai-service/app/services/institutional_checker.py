@@ -1,6 +1,8 @@
 import re
+import json
 from typing import List, Tuple
 from app.schemas import InstitutionalFitAnalysis, JobVacancySchema, MissingFieldFlag
+from app.services.llm_engine import LLMEngine
 
 FACULTY_COMPUTING_KEYWORDS = [
     "software", "developer", "engineer", "react", "spring", "java", "python",
@@ -45,28 +47,48 @@ class InstitutionalFitChecker:
             " ".join(vacancy.education_requirements)
         ]).lower()
 
-        # 1. Faculty Alignment Scoring
-        comp_score = sum(1 for kw in FACULTY_COMPUTING_KEYWORDS if kw in full_text)
-        biz_score = sum(1 for kw in FACULTY_BUSINESS_KEYWORDS if kw in full_text)
-        eng_score = sum(1 for kw in FACULTY_ENGINEERING_KEYWORDS if kw in full_text)
-        sci_score = sum(1 for kw in FACULTY_SCIENCE_KEYWORDS if kw in full_text)
-
+        # 1. Faculty Alignment & Degree Recommendation via LLM
+        prompt = (
+            f"<|im_start|>system\n"
+            f"You are an academic curriculum evaluator. Based on the job vacancy provided, determine the most suitable Faculty and Recommended Degree Programs for this role.\n"
+            f"Here is the expertise map for the university degrees:\n"
+            f"- Faculty of Computing: BSc (Hons) Software Engineering (coding, architecture, web, mobile), BSc (Hons) Computer Science (algorithms, systems, core dev), BSc (Hons) Data Science (AI, analytics, databases), BSc (Hons) Cyber Security (networks, security), BSc (Hons) Management Information Systems (business IT, ERP).\n"
+            f"- Faculty of Business: BSc (Hons) in Business Management (admin, operations), BSc (Hons) in Marketing Management (sales, digital marketing), BSc (Hons) in Accounting & Finance (audit, numbers), BSc (Hons) in HRM (recruitment, talent).\n"
+            f"- Faculty of Engineering: BSc (Hons) in Electrical & Electronic Engineering (hardware, circuits), BSc (Hons) in Mechatronics (robotics, automation), BSc (Hons) in Civil Engineering (construction).\n"
+            f"- Faculty of Science: BSc (Hons) in Biomedical Science (lab, clinical), BSc (Hons) in Applied Sciences.\n\n"
+            f"Return ONLY a strict JSON object with exactly two keys: 'target_faculty' (string) and 'recommended_programs' (list of strings containing the exact degree names above).\n"
+            f"<|im_end|>\n"
+            f"<|im_start|>user\n"
+            f"{full_text[:1200]}<|im_end|>\n"
+            f"<|im_start|>assistant\n```json\n"
+        )
+        
         target_faculty = "Faculty of Computing"
-        max_score = comp_score
         recommended_programs = ["BSc (Hons) Software Engineering", "BSc (Hons) Computer Science", "BSc (Hons) Data Science"]
-
-        if biz_score > max_score:
-            max_score = biz_score
-            target_faculty = "Faculty of Business"
-            recommended_programs = ["BSc (Hons) in Business Management", "BSc (Hons) in Marketing Management", "BSc (Hons) in Accounting & Finance"]
-        elif eng_score > max_score:
-            max_score = eng_score
-            target_faculty = "Faculty of Engineering"
-            recommended_programs = ["BSc (Hons) in Electrical & Electronic Engineering", "BSc (Hons) in Mechatronics", "BSc (Hons) in Civil Engineering"]
-        elif sci_score > max_score:
-            max_score = sci_score
-            target_faculty = "Faculty of Science"
-            recommended_programs = ["BSc (Hons) in Biomedical Science", "BSc (Hons) in Applied Sciences"]
+        max_score = sum(1 for kw in FACULTY_COMPUTING_KEYWORDS if kw in full_text) # Base logic for score
+        
+        try:
+            llm = LLMEngine.get_instance()
+            response = llm(prompt, max_tokens=250, temperature=0.0, stop=["```", "<|im_end|>"])
+            output_text = response["choices"][0]["text"].strip()
+            if output_text.startswith("```json"):
+                output_text = output_text[7:]
+            parsed = json.loads(output_text.strip())
+            
+            target_faculty = parsed.get("target_faculty", "Faculty of Computing")
+            recommended_programs = parsed.get("recommended_programs", recommended_programs)
+            
+            # Dynamic max score based on selected faculty for base score calc later
+            if "Business" in target_faculty:
+                max_score = sum(1 for kw in FACULTY_BUSINESS_KEYWORDS if kw in full_text)
+            elif "Engineering" in target_faculty:
+                max_score = sum(1 for kw in FACULTY_ENGINEERING_KEYWORDS if kw in full_text)
+            elif "Science" in target_faculty:
+                max_score = sum(1 for kw in FACULTY_SCIENCE_KEYWORDS if kw in full_text)
+                
+        except Exception as e:
+            # Fallback to hardcoded if LLM fails
+            pass
 
         # 2. Experience Level Check (Internship / Fresh Grad Suitability)
         is_graduate_friendly = vacancy.min_experience_years <= 2.0 or any(

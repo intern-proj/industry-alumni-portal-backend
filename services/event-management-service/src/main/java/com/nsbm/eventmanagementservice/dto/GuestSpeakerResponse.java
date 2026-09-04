@@ -13,6 +13,7 @@ public class GuestSpeakerResponse {
     private Long id;
     private String fullName;
     private String title;
+    private String company;
     private String bio;
     private String email;
     private String phone;

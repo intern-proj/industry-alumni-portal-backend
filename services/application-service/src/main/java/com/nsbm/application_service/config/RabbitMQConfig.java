@@ -31,6 +31,19 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(vacancyDeletedQueue).to(vacancyExchange).with("vacancy.deleted");
     }
 
+    public static final String APPLICATION_AI_QUEUE = "application.ai.match.queue";
+    public static final String APPLICATION_SUBMITTED_ROUTING_KEY = "application.submitted.match";
+
+    @Bean
+    public Queue applicationAiQueue() {
+        return new Queue(APPLICATION_AI_QUEUE, true);
+    }
+
+    @Bean
+    public Binding applicationAiBinding(Queue applicationAiQueue, TopicExchange vacancyExchange) {
+        return BindingBuilder.bind(applicationAiQueue).to(vacancyExchange).with(APPLICATION_SUBMITTED_ROUTING_KEY);
+    }
+
     @Bean
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();

@@ -14,7 +14,7 @@ import com.nsbm.authservice.dto.ResetPasswordRequest;
 import com.nsbm.authservice.dto.StaffInvitationRequest;
 import com.nsbm.authservice.dto.Step1LoginResponse;
 import com.nsbm.authservice.dto.TokenValidationResponse;
-import com.nsbm.authservice.dto.UpdateEmailPayload;
+import com.nsbm.notification_service.dto.UpdateEmailDTO;
 import com.nsbm.authservice.entity.*;
 import com.nsbm.authservice.exception.*;
 import com.nsbm.authservice.repository.*;
@@ -147,9 +147,9 @@ class AuthServiceTest {
             assertThat(savedPending.getInvitationToken()).isNotBlank();
 
             // Assert - Verify RabbitMQ message published
-            ArgumentCaptor<UpdateEmailPayload> messageCaptor = ArgumentCaptor.forClass(UpdateEmailPayload.class);
+            ArgumentCaptor<UpdateEmailDTO> messageCaptor = ArgumentCaptor.forClass(UpdateEmailDTO.class);
             verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), messageCaptor.capture());
-            UpdateEmailPayload sentMessage = messageCaptor.getValue();
+            UpdateEmailDTO sentMessage = messageCaptor.getValue();
             assertThat(sentMessage.toEmail()).isEqualTo("lecturer@nsbm.ac.lk");
             assertThat(sentMessage.updateType()).isEqualTo("GENERAL_UPDATE");
         }
@@ -290,9 +290,9 @@ class AuthServiceTest {
             assertThat(savedPartner.getRegistrationToken()).isNotBlank();
 
             // Assert - Verify RabbitMQ message published
-            ArgumentCaptor<UpdateEmailPayload> messageCaptor = ArgumentCaptor.forClass(UpdateEmailPayload.class);
+            ArgumentCaptor<UpdateEmailDTO> messageCaptor = ArgumentCaptor.forClass(UpdateEmailDTO.class);
             verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), messageCaptor.capture());
-            UpdateEmailPayload sentMessage = messageCaptor.getValue();
+            UpdateEmailDTO sentMessage = messageCaptor.getValue();
             assertThat(sentMessage.toEmail()).isEqualTo("jane@company.com");
             assertThat(sentMessage.updateType()).isEqualTo("GENERAL_UPDATE");
         }
@@ -694,9 +694,9 @@ class AuthServiceTest {
             assertThat(savedToken.getToken()).isNotBlank();
 
             // Assert - Verify RabbitMQ notification sent
-            ArgumentCaptor<UpdateEmailPayload> messageCaptor = ArgumentCaptor.forClass(UpdateEmailPayload.class);
+            ArgumentCaptor<UpdateEmailDTO> messageCaptor = ArgumentCaptor.forClass(UpdateEmailDTO.class);
             verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), messageCaptor.capture());
-            UpdateEmailPayload sentMsg = messageCaptor.getValue();
+            UpdateEmailDTO sentMsg = messageCaptor.getValue();
             assertThat(sentMsg.toEmail()).isEqualTo("staff@nsbm.ac.lk");
             assertThat(sentMsg.updateType()).isEqualTo("GENERAL_UPDATE");
         }

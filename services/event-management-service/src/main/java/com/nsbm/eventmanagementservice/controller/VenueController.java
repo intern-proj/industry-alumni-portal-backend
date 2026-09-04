@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/v1/venues")
 @RequiredArgsConstructor
@@ -18,6 +20,7 @@ public class VenueController {
 
     private final VenueService venueService;
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PostMapping
     public ResponseEntity<VenueResponse> createVenue(@Valid @RequestBody VenueRequest request) {
         VenueResponse response = venueService.createVenue(request);
@@ -34,6 +37,7 @@ public class VenueController {
         return ResponseEntity.ok(venueService.getAllVenues());
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PutMapping("/{id}")
     public ResponseEntity<VenueResponse> updateVenue(
             @PathVariable Long id,
@@ -41,6 +45,7 @@ public class VenueController {
         return ResponseEntity.ok(venueService.updateVenue(id, request));
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVenue(@PathVariable Long id) {
         venueService.deleteVenue(id);

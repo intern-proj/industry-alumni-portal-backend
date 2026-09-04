@@ -17,11 +17,22 @@ public class JobApplicationRequest {
     private Long vacancyId;
 
     @NotNull
-    private UUID alumniId;
+    private String alumniId;
 
     @NotBlank
     @Size(max = 500)
     private String resumeUrl;
 
     private String coverLetter;
+
+    private String studentName;
+    private String studentEmail;
+    private String program;
+    private String gpa;
+    private String profilePicUrl;
+
+    private String vacancyTitle;
+    private String vacancyRequirements;
+    private String vacancyDescription;
+    private String vacancyTags;
 }

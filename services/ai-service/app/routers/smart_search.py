@@ -1,8 +1,24 @@
 from fastapi import APIRouter, HTTPException, status
-from app.schemas import SmartSearchParsedIntent, SmartSearchRequest, SmartSearchResponse
+from app.schemas import SmartSearchParsedIntent, SmartSearchRequest, SmartSearchResponse, UniversalSearchRequest, UniversalSearchResponse
 from app.services.smart_search_service import SmartSearchService
+from app.services.universal_search_service import UniversalSearchService
 
 router = APIRouter(prefix="/api/v1/ai/smart-search", tags=["Smart AI Search"])
+
+
+@router.post("/universal", response_model=UniversalSearchResponse)
+async def universal_smart_search(request: UniversalSearchRequest):
+    """
+    Multi-domain AI search orchestrator. Classifies intent, fetches live
+    backend data, scores results, and returns a frontend action directive.
+    """
+    try:
+        return await UniversalSearchService.execute_universal_search(request)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Universal search processing failed: {str(e)}"
+        )
 
 
 @router.post("/vacancies", response_model=SmartSearchResponse)

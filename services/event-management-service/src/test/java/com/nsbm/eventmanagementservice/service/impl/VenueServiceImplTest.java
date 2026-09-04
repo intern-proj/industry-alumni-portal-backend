@@ -5,7 +5,7 @@ import com.nsbm.eventmanagementservice.dto.VenueResponse;
 import com.nsbm.eventmanagementservice.exception.VenueNotFoundException;
 import com.nsbm.eventmanagementservice.mapper.VenueMapper;
 import com.nsbm.eventmanagementservice.model.Venue;
-import com.nsbm.eventmanagementservice.model.VenueType;
+
 import com.nsbm.eventmanagementservice.repository.VenueRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,14 +43,14 @@ public class VenueServiceImplTest {
                 .id(1L)
                 .name("Auditorium A")
                 .capacity(200)
-                .venueType(VenueType.PHYSICAL)
+                .capacity(200)
                 .build();
 
         venueResponse = VenueResponse.builder()
                 .id(1L)
                 .name("Auditorium A")
                 .capacity(200)
-                .venueType(VenueType.PHYSICAL)
+                .capacity(200)
                 .build();
     }
 
@@ -59,7 +59,7 @@ public class VenueServiceImplTest {
         VenueRequest request = VenueRequest.builder()
                 .name("Auditorium A")
                 .capacity(200)
-                .venueType(VenueType.PHYSICAL)
+                .capacity(200)
                 .build();
 
         when(venueMapper.toEntity(request)).thenReturn(venue);
@@ -96,7 +96,7 @@ public class VenueServiceImplTest {
         VenueRequest request = VenueRequest.builder()
                 .name("Auditorium B")
                 .capacity(300)
-                .venueType(VenueType.HYBRID)
+                .capacity(300)
                 .build();
 
         when(venueRepository.findById(1L)).thenReturn(Optional.of(venue));

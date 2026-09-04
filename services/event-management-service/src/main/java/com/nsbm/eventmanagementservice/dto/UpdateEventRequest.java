@@ -15,6 +15,8 @@ public class UpdateEventRequest {
     private String description;
 
     private String eventType;
+    private String coverImage;
+    private String targetFaculties;
 
     private LocalDateTime startDateTime;
 

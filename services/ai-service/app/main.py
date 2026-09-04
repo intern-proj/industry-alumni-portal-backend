@@ -7,12 +7,16 @@ from app.database import Base, engine
 from app.eureka_client import EurekaManager
 from app.rabbitmq_consumer import consumer_instance
 from app.routers.career_advisor import router as career_advisor_router
+from app.routers.resume_matching import router as resume_matching_router
 from app.routers.smart_search import router as smart_search_router
 from app.routers.vacancies import router as vacancy_router
+from app.routers.ai_model_router import router as ai_model_router
+from app.services.embedding_engine import EmbeddingEngine
 from app.services.llm_engine import LLMEngine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ai_service")
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 @asynccontextmanager
@@ -24,19 +28,26 @@ async def lifespan(app: FastAPI):
     # 2. Register with Eureka Server (for microservice discovery)
     await EurekaManager.start()
 
-    # 3. Start RabbitMQ consumer for asynchronous flyer processing
-    try:
-        logger.info("Starting RabbitMQ consumer...")
-        consumer_instance.start()
-    except Exception as e:
-        logger.warning(f"Note: RabbitMQ consumer startup deferred or failed: {e}")
-
-    # 4. Warm up LLM on startup (lazy or eager based on environment)
+    # 3. Warm up LLM and Embedding models on startup
     try:
         logger.info("Checking LLM Engine singleton...")
         LLMEngine.get_instance()
     except Exception as e:
         logger.warning(f"Note: LLM engine initialization deferred or skipped: {e}")
+
+    try:
+        logger.info("Checking Bi-Encoder & Cross-Encoder models...")
+        EmbeddingEngine.get_bi_encoder()
+        EmbeddingEngine.get_cross_encoder()
+    except Exception as e:
+        logger.warning(f"Note: EmbeddingEngine initialization deferred: {e}")
+
+    # 4. Start RabbitMQ consumer for asynchronous flyer processing (after models are ready)
+    try:
+        logger.info("Starting RabbitMQ consumer...")
+        consumer_instance.start()
+    except Exception as e:
+        logger.warning(f"Note: RabbitMQ consumer startup deferred or failed: {e}")
 
     yield
 
@@ -65,6 +76,8 @@ app.add_middleware(
 app.include_router(vacancy_router)
 app.include_router(smart_search_router)
 app.include_router(career_advisor_router)
+app.include_router(resume_matching_router)
+app.include_router(ai_model_router, prefix="/api/v1")
 
 
 @app.get("/", tags=["System"])
@@ -76,11 +89,15 @@ def root():
         "endpoints": [
             "/api/v1/vacancies/parse-and-save",
             "/api/v1/vacancies/institutional-check",
+            "/api/v1/ai/smart-search/universal",
             "/api/v1/ai/smart-search/vacancies",
             "/api/v1/ai/smart-search/candidates",
             "/api/v1/ai/resume/analyze-and-advise",
             "/api/v1/ai/vacancies/recommend-for-candidate",
-            "/api/v1/ai/candidates/recommend-for-vacancy"
+            "/api/v1/ai/candidates/recommend-for-vacancy",
+            "/api/v1/ai/resume/match-vacancies",
+            "/api/v1/ai/resume/match-single-applicant",
+            "/api/v1/ai/resume/match-applicants-bulk"
         ],
         "docs_url": "/docs"
     }

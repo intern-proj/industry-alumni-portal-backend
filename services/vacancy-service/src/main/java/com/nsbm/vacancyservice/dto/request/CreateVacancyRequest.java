@@ -31,7 +31,6 @@ public class CreateVacancyRequest {
 
     private String location;
 
-    @NotNull(message = "Job type is required (INTERNSHIP, FULL_TIME, etc.)")
     private JobType jobType;
 
     private WorkplaceType workplaceType;
