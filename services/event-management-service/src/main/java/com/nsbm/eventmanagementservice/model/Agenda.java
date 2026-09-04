@@ -27,9 +27,17 @@ public class Agenda {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @OneToMany(mappedBy = "agenda", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<Lecture> lectures;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "speaker_id")
-    private GuestSpeaker speaker;
+    @JoinColumn(name = "venue_id")
+    private Venue venue;
+
+    private Integer capacity;
+
+    @Column(name = "poster_image")
+    private String posterImage;
 
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;

@@ -6,7 +6,7 @@ import com.nsbm.eventmanagementservice.dto.UpdateEventRequest;
 import com.nsbm.eventmanagementservice.model.Event;
 import org.mapstruct.*;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = {AgendaMapper.class})
 public interface EventMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "status", ignore = true)
@@ -16,6 +16,7 @@ public interface EventMapper {
     @Mapping(target = "coordinatorEmail", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "agendas", ignore = true)
     Event toEntity(CreateEventRequest request);
 
     @Mapping(target = "id", ignore = true)
@@ -26,9 +27,11 @@ public interface EventMapper {
     @Mapping(target = "coordinatorEmail", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "agendas", ignore = true)
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntityFromRequest(UpdateEventRequest request, @MappingTarget Event event);
 
     @Mapping(target = "venueId", source = "venue.id")
+    @Mapping(target = "sessions", source = "agendas")
     EventResponse toResponse(Event event);
 }

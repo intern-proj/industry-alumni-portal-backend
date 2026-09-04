@@ -12,4 +12,6 @@ public interface ManagementStaffRepository extends JpaRepository<ManagementStaff
     boolean existsByEmail(String email);
     Optional<ManagementStaff> findByUsername(String username);
     Optional<ManagementStaff> findByEmail(String email);
+    void deleteByUsername(String username);
+    void deleteByEmail(String email);
 }

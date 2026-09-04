@@ -15,15 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.core.ResponseBytes;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -34,9 +31,11 @@ import java.util.UUID;
 @Slf4j
 public class StorageServiceImpl implements StorageService {
 
-    private final S3Client s3Client;
     private final StorageProperties storageProperties;
     private final StoredFileRepository storedFileRepository;
+    
+    // Directory for local file storage mock instead of S3
+    private final Path storageDirectory = Paths.get(System.getProperty("java.io.tmpdir"), "icu-uploads");
 
     @Override
     @Transactional
@@ -47,6 +46,12 @@ public class StorageServiceImpl implements StorageService {
         if (!StringUtils.hasText(uploaderId)) {
             throw new IllegalArgumentException("uploaderId is required");
         }
+        
+        try {
+            Files.createDirectories(storageDirectory);
+        } catch (IOException e) {
+            throw new StorageException("Could not create storage directory", e);
+        }
 
         FileType resolvedType = fileType != null ? fileType : FileType.OTHER;
         String originalFilename = StringUtils.cleanPath(
@@ -56,18 +61,11 @@ public class StorageServiceImpl implements StorageService {
         String storageUrl = buildStorageUrl(storageKey);
 
         try {
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(storageProperties.getBucketName())
-                    .key(storageKey)
-                    .contentType(file.getContentType())
-                    .contentLength(file.getSize())
-                    .build();
-
-            s3Client.putObject(putObjectRequest, RequestBody.fromBytes(file.getBytes()));
+            // Write to local file system
+            Path targetLocation = storageDirectory.resolve(storageKey.replace("/", "_"));
+            Files.write(targetLocation, file.getBytes());
         } catch (IOException ex) {
-            throw new StorageException("Failed to read uploaded file bytes", ex);
-        } catch (Exception ex) {
-            throw new StorageException("Failed to upload file to object storage", ex);
+            throw new StorageException("Failed to upload file to local storage", ex);
         }
 
         int nextVersion = resolveNextVersion(uploaderId, resolvedType);
@@ -95,20 +93,19 @@ public class StorageServiceImpl implements StorageService {
         StoredFile storedFile = findStoredFile(fileId);
 
         try {
-            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                    .bucket(storageProperties.getBucketName())
-                    .key(storedFile.getStorageKey())
-                    .build();
-
-            ResponseBytes<GetObjectResponse> objectBytes = s3Client.getObjectAsBytes(getObjectRequest);
-            return new ByteArrayResource(objectBytes.asByteArray()) {
+            Path filePath = storageDirectory.resolve(storedFile.getStorageKey().replace("/", "_"));
+            if (!Files.exists(filePath)) {
+                throw new ResourceNotFoundException("File not found on local disk: " + storedFile.getStorageKey());
+            }
+            byte[] objectBytes = Files.readAllBytes(filePath);
+            return new ByteArrayResource(objectBytes) {
                 @Override
                 public String getFilename() {
                     return storedFile.getOriginalFilename();
                 }
             };
         } catch (Exception ex) {
-            throw new StorageException("Failed to download file from object storage: " + fileId, ex);
+            throw new StorageException("Failed to download file from local storage: " + fileId, ex);
         }
     }
 
@@ -132,13 +129,10 @@ public class StorageServiceImpl implements StorageService {
         StoredFile storedFile = findStoredFile(fileId);
 
         try {
-            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
-                    .bucket(storageProperties.getBucketName())
-                    .key(storedFile.getStorageKey())
-                    .build();
-            s3Client.deleteObject(deleteObjectRequest);
+            Path filePath = storageDirectory.resolve(storedFile.getStorageKey().replace("/", "_"));
+            Files.deleteIfExists(filePath);
         } catch (Exception ex) {
-            throw new StorageException("Failed to delete file from object storage: " + fileId, ex);
+            throw new StorageException("Failed to delete file from local storage: " + fileId, ex);
         }
 
         storedFileRepository.delete(storedFile);

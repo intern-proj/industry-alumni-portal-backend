@@ -21,7 +21,8 @@
     <modules>
         <module>api-gateway</module>
         <module>discovery-server</module>
-        <module>services/ai-service</module>
+<!--        <module>services/ai-service</module>-->
+        <module>services/common-security</module>
         <module>services/application-service</module>
         <module>services/audit-storage-service</module>
         <module>services/auth-service</module>
@@ -41,6 +42,8 @@
         <jjwt.version>0.12.7</jjwt.version>
         <spring.doc.version>3.1.0</spring.doc.version>
         <lombok.version>1.18.46</lombok.version>
+        <flyway.version>10.10.0</flyway.version>
+        <testcontainers.version>1.19.3</testcontainers.version>
     </properties>
 
     <dependencyManagement>
@@ -82,6 +85,41 @@
                 <version>5.1.0</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <!-- Flyway Database Migration -->
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-core</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-database-postgresql</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+
+            <!-- Testing Dependencies -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers</artifactId>
+                <version>${testcontainers.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${testcontainers.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${testcontainers.version}</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

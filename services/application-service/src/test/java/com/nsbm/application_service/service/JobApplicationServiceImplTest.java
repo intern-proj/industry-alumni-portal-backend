@@ -31,19 +31,22 @@ public class JobApplicationServiceImplTest {
     @Mock
     private RecruitmentStageRepository recruitmentStageRepository;
 
+    @Mock
+    private org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
+
     @InjectMocks
     private JobApplicationServiceImpl jobApplicationService;
 
     private JobApplication jobApplication;
     private JobApplicationRequest applicationRequest;
     private UUID applicationId;
-    private UUID vacancyId;
+    private Long vacancyId;
     private UUID alumniId;
 
     @BeforeEach
     void setUp() {
         applicationId = UUID.randomUUID();
-        vacancyId = UUID.randomUUID();
+        vacancyId = 1L;
         alumniId = UUID.randomUUID();
 
         jobApplication = JobApplication.builder()
@@ -59,7 +62,7 @@ public class JobApplicationServiceImplTest {
 
         applicationRequest = JobApplicationRequest.builder()
                 .vacancyId(vacancyId)
-                .alumniId(alumniId)
+                .alumniId(alumniId.toString())
                 .resumeUrl("http://example.com/resume.pdf")
                 .coverLetter("Here is my cover letter")
                 .build();

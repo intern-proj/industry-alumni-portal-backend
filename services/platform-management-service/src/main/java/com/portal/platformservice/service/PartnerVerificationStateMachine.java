@@ -22,7 +22,7 @@ public class PartnerVerificationStateMachine {
                 VerificationStatus.APPROVED, VerificationStatus.REJECTED, VerificationStatus.MORE_INFO_REQUIRED));
         TRANSITIONS.put(VerificationStatus.MORE_INFO_REQUIRED, EnumSet.of(VerificationStatus.PENDING_DOCUMENTS));
         TRANSITIONS.put(VerificationStatus.APPROVED, EnumSet.noneOf(VerificationStatus.class));
-        TRANSITIONS.put(VerificationStatus.REJECTED, EnumSet.noneOf(VerificationStatus.class));
+        TRANSITIONS.put(VerificationStatus.REJECTED, EnumSet.of(VerificationStatus.PENDING_DOCUMENTS));
     }
 
     public void validateTransition(VerificationStatus from, VerificationStatus to) {

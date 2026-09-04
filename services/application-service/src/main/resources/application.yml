@@ -39,3 +39,14 @@ management:
       show-details: always
       probes:
         enabled: true
+
+ai-service:
+  url: ${AI_SERVICE_URL:http://localhost:8000}
+
+user-service:
+  url: ${USER_SERVICE_URL:http://localhost:8081}
+
+vacancy-service:
+  url: ${VACANCY_SERVICE_URL:http://localhost:8087}
+
+

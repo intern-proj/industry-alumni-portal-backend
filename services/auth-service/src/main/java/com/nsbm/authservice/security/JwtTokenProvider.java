@@ -37,6 +37,7 @@ public class JwtTokenProvider {
                 .subject(username)
                 .claim("email", email)
                 .claim("role", role)
+                .claim("roles", java.util.List.of(role))
                 .claim("userType", userType)
                 .issuedAt(now)
                 .expiration(expiryDate)

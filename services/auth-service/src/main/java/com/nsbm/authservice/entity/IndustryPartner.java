@@ -51,6 +51,19 @@ public class IndustryPartner {
     @Column(name = "company_description", columnDefinition = "TEXT")
     private String companyDescription;
 
+    @Column(name = "logo_url", length = 500)
+    private String logoUrl;
+
+    @Column(name = "website", length = 255)
+    private String website;
+
+    @Column(name = "company_size", length = 100)
+    private String companySize;
+
+    @Column(name = "account_status", nullable = false, length = 20)
+    @Builder.Default
+    private String accountStatus = "ACTIVE";
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

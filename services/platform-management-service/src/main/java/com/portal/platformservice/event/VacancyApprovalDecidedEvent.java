@@ -6,7 +6,7 @@ import java.util.UUID;
 
 public record VacancyApprovalDecidedEvent(
         UUID approvalId,
-        UUID vacancyId,
+        String vacancyId,
         VacancyApprovalStatus outcome
 ) {
 }

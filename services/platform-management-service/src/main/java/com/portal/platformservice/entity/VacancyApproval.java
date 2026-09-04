@@ -54,13 +54,14 @@ public class VacancyApproval {
 
     /** Logical reference to the vacancy in Vacancy Service — no FK. */
     @Column(name = "vacancy_id", nullable = false, unique = true)
-    private UUID vacancyId;
+    private String vacancyId;
 
     /** Logical reference to the posting company's account in User Service — no FK. */
     @Column(name = "company_user_id", nullable = false)
     private UUID companyUserId;
 
-    @Column(name = "submitted_by_user_id")
+    /** User who actually clicked "submit" (could be a delegate). */
+    @Column(name = "submitted_by_user_id", nullable = false)
     private UUID submittedByUserId;
 
     @Column(name = "vacancy_title_snapshot", length = 255)
@@ -82,6 +83,7 @@ public class VacancyApproval {
     @Column(name = "reviewed_at")
     private Instant reviewedAt;
 
+    /** The staff member who actually made the final decision. */
     @Column(name = "reviewed_by_user_id")
     private UUID reviewedByUserId;
 

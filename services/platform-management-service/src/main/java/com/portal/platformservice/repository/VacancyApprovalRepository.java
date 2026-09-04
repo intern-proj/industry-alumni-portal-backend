@@ -13,7 +13,7 @@ import java.util.UUID;
 
 public interface VacancyApprovalRepository extends JpaRepository<VacancyApproval, UUID> {
 
-    Optional<VacancyApproval> findByVacancyId(UUID vacancyId);
+    Optional<VacancyApproval> findByVacancyId(String vacancyId);
 
     Page<VacancyApproval> findByStatus(VacancyApprovalStatus status, Pageable pageable);
 

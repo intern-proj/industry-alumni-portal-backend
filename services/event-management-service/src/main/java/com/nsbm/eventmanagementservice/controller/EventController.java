@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/v1/events")
@@ -18,6 +19,7 @@ public class EventController {
 
     private final EventService eventService;
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PostMapping
     public ResponseEntity<EventResponse> createEvent(@Valid @RequestBody CreateEventRequest request) {
         EventResponse response = eventService.createEvent(request);
@@ -47,6 +49,12 @@ public class EventController {
         return ResponseEntity.ok(eventService.getAllEvents());
     }
 
+    @GetMapping("/speaker/{speakerId}")
+    public ResponseEntity<List<EventResponse>> getEventsBySpeaker(@PathVariable Long speakerId) {
+        return ResponseEntity.ok(eventService.getEventsBySpeakerId(speakerId));
+    }
+
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PutMapping("/{id}")
     public ResponseEntity<EventResponse> updateEvent(
             @PathVariable Long id,
@@ -54,6 +62,7 @@ public class EventController {
         return ResponseEntity.ok(eventService.updateEvent(id, request));
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<EventResponse> updateStatus(
             @PathVariable Long id,
@@ -61,6 +70,7 @@ public class EventController {
         return ResponseEntity.ok(eventService.updateStatus(id, request));
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PatchMapping("/{id}/reschedule")
     public ResponseEntity<EventResponse> rescheduleEvent(
             @PathVariable Long id,
@@ -68,17 +78,20 @@ public class EventController {
         return ResponseEntity.ok(eventService.rescheduleEvent(id, request));
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<EventResponse> cancelEvent(@PathVariable Long id) {
         return ResponseEntity.ok(eventService.cancelEvent(id));
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteEvent(@PathVariable Long id) {
         eventService.deleteEvent(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PostMapping("/{id}/coordinator")
     public ResponseEntity<EventResponse> assignCoordinator(
             @PathVariable Long id,
@@ -86,6 +99,7 @@ public class EventController {
         return ResponseEntity.ok(eventService.assignCoordinator(id, request));
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @DeleteMapping("/{id}/coordinator")
     public ResponseEntity<EventResponse> removeCoordinator(@PathVariable Long id) {
         return ResponseEntity.ok(eventService.removeCoordinator(id));

@@ -1,4 +1,4 @@
-CREATE TABLE partner_verifications (
+CREATE TABLE IF NOT EXISTS partner_verifications (
     id                          UUID PRIMARY KEY,
     user_id                     UUID NOT NULL UNIQUE,
     organization_name_snapshot VARCHAR(255),
@@ -13,5 +13,5 @@ CREATE TABLE partner_verifications (
     version                      BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_partner_verifications_status ON partner_verifications (status);
-CREATE INDEX idx_partner_verifications_sync_status ON partner_verifications (sync_status);
+CREATE INDEX IF NOT EXISTS idx_partner_verifications_status ON partner_verifications (status);
+CREATE INDEX IF NOT EXISTS idx_partner_verifications_sync_status ON partner_verifications (sync_status);

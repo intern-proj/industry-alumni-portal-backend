@@ -1,7 +1,19 @@
 package com.nsbm.authservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nsbm.authservice.dto.*;
+import com.nsbm.authservice.dto.ApplyPartnerRegistrationRequest;
+import com.nsbm.authservice.dto.AuthResponse;
+import com.nsbm.authservice.dto.CompletePartnerRegistrationRequest;
+import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
+import com.nsbm.authservice.dto.CreateAdminRequest;
+import com.nsbm.authservice.dto.ForgotPasswordRequest;
+import com.nsbm.authservice.dto.LoginRequest;
+import com.nsbm.authservice.dto.LoginResponse;
+import com.nsbm.authservice.dto.OtpVerificationRequest;
+import com.nsbm.authservice.dto.ResetPasswordRequest;
+import com.nsbm.authservice.dto.StaffInvitationRequest;
+import com.nsbm.authservice.dto.Step1LoginResponse;
+import com.nsbm.authservice.dto.TokenValidationResponse;
 import com.nsbm.authservice.entity.Role;
 import com.nsbm.authservice.exception.GlobalExceptionHandler;
 import com.nsbm.authservice.exception.InvalidCredentialsException;
@@ -49,6 +61,25 @@ class AuthControllerTest {
     }
 
     @Nested
+    @DisplayName("POST /api/v1/auth/admin/create Tests")
+    class CreateAdminApiTests {
+
+        @Test
+        @DisplayName("Should return 201 Created for valid admin create request")
+        void createAdmin_Returns201Created() throws Exception {
+            CreateAdminRequest request = new CreateAdminRequest("new_admin", "admin@nsbm.ac.lk", "SecurePass123!");
+            doNothing().when(authService).createAdmin(any(CreateAdminRequest.class));
+
+            mockMvc.perform(post("/api/v1/auth/admin/create")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated());
+
+            verify(authService, times(1)).createAdmin(request);
+        }
+    }
+
+    @Nested
     @DisplayName("POST /api/v1/auth/staff/invite Tests")
     class InviteStaffApiTests {
 
@@ -56,7 +87,7 @@ class AuthControllerTest {
         @DisplayName("Should return 201 Created for valid staff invitation request")
         void inviteStaff_Returns201Created() throws Exception {
             // Arrange
-            StaffInvitationRequest request = new StaffInvitationRequest("lecturer@nsbm.ac.lk", Role.ACADEMIC_STAFF);
+            StaffInvitationRequest request = new StaffInvitationRequest("lecturer@nsbm.ac.lk", Role.EVENT_COORDINATOR);
             doNothing().when(authService).inviteStaff(any(StaffInvitationRequest.class));
 
             // Act & Assert
@@ -75,7 +106,7 @@ class AuthControllerTest {
             String invalidJson = """
                     {
                         "email": "not-an-email",
-                        "role": "ACADEMIC_STAFF"
+                        "role": "EVENT_COORDINATOR"
                     }
                     """;
 
@@ -92,7 +123,7 @@ class AuthControllerTest {
         @DisplayName("Should return 409 Conflict when staff already exists")
         void inviteStaff_Returns409Conflict_WhenStaffAlreadyExists() throws Exception {
             // Arrange
-            StaffInvitationRequest request = new StaffInvitationRequest("existing@nsbm.ac.lk", Role.ADMIN);
+            StaffInvitationRequest request = new StaffInvitationRequest("existing@nsbm.ac.lk", Role.SYSTEM_ADMIN);
             doThrow(new StaffAlreadyExistsException("Staff member with email existing@nsbm.ac.lk is already registered or invited."))
                     .when(authService).inviteStaff(any(StaffInvitationRequest.class));
 
@@ -117,7 +148,7 @@ class AuthControllerTest {
             CompleteStaffRegistrationRequest request = new CompleteStaffRegistrationRequest(
                     "token-uuid-1234", "john_doe", "SecurePassword123"
             );
-            doNothing().when(authService).completeStaffRegistration(any(CompleteStaffRegistrationRequest.class));
+            when(authService.completeStaffRegistration(any(CompleteStaffRegistrationRequest.class))).thenReturn("staff@nsbm.ac.lk");
 
             // Act & Assert
             mockMvc.perform(post("/api/v1/auth/staff/complete-registration")
@@ -260,7 +291,7 @@ class AuthControllerTest {
             CompletePartnerRegistrationRequest request = new CompletePartnerRegistrationRequest(
                     "partner-token-1234", "techcorp_admin", "PartnerPassword123"
             );
-            doNothing().when(authService).completePartnerRegistration(any(CompletePartnerRegistrationRequest.class));
+            when(authService.completePartnerRegistration(any(CompletePartnerRegistrationRequest.class))).thenReturn("partner@nsbm.ac.lk");
 
             // Act & Assert
             mockMvc.perform(post("/api/v1/auth/partner/complete-registration")
@@ -315,12 +346,13 @@ class AuthControllerTest {
     class LoginStudentOrPartnerApiTests {
 
         @Test
-        @DisplayName("Should return 200 OK with AuthResponse for student/partner login")
+        @DisplayName("Should return 200 OK with LoginResponse for student login")
         void loginStudentOrPartner_Returns200OK() throws Exception {
             // Arrange
             LoginRequest request = new LoginRequest("student_user", "password123");
-            AuthResponse response = new AuthResponse("mock-jwt-token", "student_user", "student@nsbm.ac.lk", "STUDENT", "STUDENT");
-            when(authService.loginStudentOrPartner(any(LoginRequest.class))).thenReturn(response);
+            AuthResponse auth = new AuthResponse("mock-jwt-token", "student_user", "student@nsbm.ac.lk", "STUDENT", "STUDENT");
+            LoginResponse response = LoginResponse.direct(auth);
+            when(authService.login(any(LoginRequest.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(post("/api/v1/auth/login")
@@ -343,7 +375,7 @@ class AuthControllerTest {
             // Arrange
             LoginRequest request = new LoginRequest("admin_staff", "password123");
             Step1LoginResponse response = new Step1LoginResponse("session-token-123", "admin_staff", "OTP sent", 300L);
-            when(authService.initiateStaffLogin(any(LoginRequest.class))).thenReturn(response);
+            when(authService.initiateAdminLogin(any(LoginRequest.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(post("/api/v1/auth/staff/login")
@@ -365,7 +397,7 @@ class AuthControllerTest {
             // Arrange
             OtpVerificationRequest request = new OtpVerificationRequest("session-token-123", "123456");
             AuthResponse response = new AuthResponse("staff-jwt-token", "admin_staff", "admin@nsbm.ac.lk", "ADMIN", "MANAGEMENT_STAFF");
-            when(authService.verifyStaffOtp(any(OtpVerificationRequest.class))).thenReturn(response);
+            when(authService.verifyOtp(any(OtpVerificationRequest.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(post("/api/v1/auth/staff/verify-otp")

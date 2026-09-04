@@ -1,0 +1,6 @@
+ALTER TABLE events ADD COLUMN cover_image VARCHAR(500);
+ALTER TABLE events ADD COLUMN target_faculties VARCHAR(255);
+
+ALTER TABLE agendas ADD COLUMN venue_id BIGINT REFERENCES venues(id) ON DELETE SET NULL;
+ALTER TABLE agendas ADD COLUMN capacity INTEGER;
+ALTER TABLE agendas ADD COLUMN poster_image VARCHAR(500);

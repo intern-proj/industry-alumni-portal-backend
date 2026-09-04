@@ -54,9 +54,31 @@ public class PartnerVerificationService {
     }
 
     @Transactional(readOnly = true)
+    public PartnerVerificationResponse getByUserId(UUID userId) {
+        PartnerVerification verification = verificationRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Partner verification not found for user: " + userId));
+        return PartnerVerificationMapper.toResponse(verification);
+    }
+
+    @Transactional(readOnly = true)
     public Page<PartnerVerificationSummaryResponse> listByStatus(VerificationStatus status, Pageable pageable) {
         return verificationRepository.findByStatus(status, pageable)
                 .map(PartnerVerificationMapper::toSummaryResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PartnerVerificationSummaryResponse> listAll(Pageable pageable) {
+        return verificationRepository.findAll(pageable)
+                .map(PartnerVerificationMapper::toSummaryResponse);
+    }
+
+    @Transactional
+    public PartnerVerificationResponse reapply(UUID id) {
+        PartnerVerification verification = findOrThrow(id);
+        transition(verification, VerificationStatus.PENDING_DOCUMENTS, verification.getUserId(), "Company re-applied after rejection");
+        verification.setRejectionReason(null);
+        verificationRepository.flush();
+        return PartnerVerificationMapper.toResponse(verification);
     }
 
     @Transactional
