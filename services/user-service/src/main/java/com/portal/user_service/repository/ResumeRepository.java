@@ -18,6 +18,8 @@ public interface ResumeRepository extends JpaRepository<Resume, String> {
 
     Optional<Resume> findByUserIdAndIsPrimaryTrue(String userId);
 
+    void deleteByUserId(String userId);
+
     @Modifying
     @Query("UPDATE Resume r SET r.isPrimary = false WHERE r.userId = :userId")
     void resetPrimaryResumes(@Param("userId") String userId);

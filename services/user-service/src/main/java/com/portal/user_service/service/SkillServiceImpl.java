@@ -28,12 +28,23 @@ public class SkillServiceImpl implements SkillService {
             throw new ResourceNotFoundException("User not found for ID: " + userId);
         }
 
+        String resolvedName = dto.getSkillName();
+        if (resolvedName == null || resolvedName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Skill name is required");
+        }
+
+        // Check if skill already exists for this user to avoid duplicates
+        java.util.Optional<Skill> existing = skillRepository.findFirstByUserIdAndSkillNameIgnoreCase(userId, resolvedName.trim());
+        if (existing.isPresent()) {
+            return mapToDto(existing.get());
+        }
+
         Skill skill = Skill.builder()
                 .skillId(UUID.randomUUID().toString())
                 .userId(userId)
-                .skillName(dto.getSkillName())
-                .skillLevel(dto.getSkillLevel())
-                .category(dto.getCategory())
+                .skillName(resolvedName.trim())
+                .skillLevel(dto.getSkillLevel() != null ? dto.getSkillLevel() : "INTERMEDIATE")
+                .category(dto.getCategory() != null ? dto.getCategory() : "TECHNICAL")
                 .build();
 
         Skill saved = skillRepository.save(skill);
@@ -50,15 +61,28 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     @Transactional
-    public void deleteSkill(String userId, String skillId) {
-        Skill skill = skillRepository.findById(skillId)
-                .orElseThrow(() -> new ResourceNotFoundException("Skill not found for ID: " + skillId));
-
-        if (!skill.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Skill does not belong to user ID: " + userId);
+    public void deleteSkill(String userId, String skillIdOrName) {
+        if (skillIdOrName == null || skillIdOrName.trim().isEmpty()) {
+            return;
         }
 
-        skillRepository.delete(skill);
+        // 1. Try finding by skillId
+        java.util.Optional<Skill> byId = skillRepository.findById(skillIdOrName.trim());
+        if (byId.isPresent()) {
+            if (byId.get().getUserId().equals(userId)) {
+                skillRepository.delete(byId.get());
+                return;
+            }
+        }
+
+        // 2. Try finding by skillName for this user
+        java.util.Optional<Skill> byName = skillRepository.findFirstByUserIdAndSkillNameIgnoreCase(userId, skillIdOrName.trim());
+        if (byName.isPresent()) {
+            skillRepository.delete(byName.get());
+            return;
+        }
+
+        // Idempotent: if skill was already deleted or doesn't exist, do not fail
     }
 
     private SkillResponseDto mapToDto(Skill skill) {

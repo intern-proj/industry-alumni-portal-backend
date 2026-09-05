@@ -22,6 +22,12 @@ public class VacancyEventPublisher {
     @Value("${app.rabbitmq.notification.exchange:notification.exchange}")
     private String notificationExchange;
 
+    @Value("${app.frontend.url:${FRONTEND_URL:https://wonderful-wave-0320abf00.3.azurestaticapps.net}}")
+    private String frontendUrl;
+
+    @Value("${app.backend.url:${API_GATEWAY_URL:${BACKEND_URL:https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io}}}")
+    private String backendUrl;
+
     public void publishVacancyDeleted(Long vacancyId) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("vacancyId", vacancyId);
@@ -36,7 +42,7 @@ public class VacancyEventPublisher {
         payload.put("recipientName", companyName != null ? companyName : "Corporate Partner");
         payload.put("updateType", "VACANCY_APPROVED");
         payload.put("updateBody", "Your vacancy for '" + title + "' has been approved by the Faculty Coordinator and published live to undergraduate students.\n\nYou can now review applications and discover matching candidates on your dashboard.");
-        payload.put("actionLink", "http://localhost:5173/partner/vacancies/" + vacancyId);
+        payload.put("actionLink", frontendUrl + "/partner/vacancies/" + vacancyId);
 
         log.info("Publishing VACANCY_APPROVED notification for vacancy ID: {} to {}", vacancyId, email);
         rabbitTemplate.convertAndSend(notificationExchange, "notification.update", payload);
@@ -50,7 +56,7 @@ public class VacancyEventPublisher {
         payload.put("updateBody", "The Faculty Coordinator requested modifications for your vacancy '" + title + "'.\n\nCoordinator Feedback:\n" 
                 + (modificationNotes != null ? modificationNotes : "Please review and adjust your submission.") 
                 + "\n\nPlease click the button below to edit your job post and resubmit for approval.");
-        payload.put("actionLink", "http://localhost:5173/partner/vacancies/" + vacancyId);
+        payload.put("actionLink", frontendUrl + "/partner/vacancies/" + vacancyId);
 
         log.info("Publishing VACANCY_CHANGES_REQUESTED notification for vacancy ID: {} to {}", vacancyId, email);
         rabbitTemplate.convertAndSend(notificationExchange, "notification.update", payload);
@@ -63,7 +69,7 @@ public class VacancyEventPublisher {
         payload.put("updateType", "VACANCY_REJECTED");
         payload.put("updateBody", "Your vacancy submission for '" + title + "' could not be approved at this time.\n\nReview Notes:\n" 
                 + (rejectionReason != null ? rejectionReason : "Does not meet university curriculum or posting criteria."));
-        payload.put("actionLink", "http://localhost:5173/partner/vacancies/" + vacancyId);
+        payload.put("actionLink", frontendUrl + "/partner/vacancies/" + vacancyId);
 
         log.info("Publishing VACANCY_REJECTED notification for vacancy ID: {} to {}", vacancyId, email);
         rabbitTemplate.convertAndSend(notificationExchange, "notification.update", payload);
@@ -74,9 +80,14 @@ public class VacancyEventPublisher {
         payload.put("vacancyId", vacancyId);
         payload.put("partnerId", partnerId);
         payload.put("storageFileId", storageFileId);
-        payload.put("fileUrl", fileUrl != null ? fileUrl : "http://localhost:8080/api/v1/storage/download/" + storageFileId);
+        
+        String resolvedUrl = fileUrl;
+        if (resolvedUrl == null || resolvedUrl.isBlank() || resolvedUrl.contains("localhost:8080")) {
+            resolvedUrl = backendUrl + "/api/v1/storage/download/" + storageFileId;
+        }
+        payload.put("fileUrl", resolvedUrl);
 
-        log.info("Publishing vacancy.flyer.process event for vacancy ID: {}, storageFileId: {}", vacancyId, storageFileId);
+        log.info("Publishing vacancy.flyer.process event for vacancy ID: {}, storageFileId: {}, url: {}", vacancyId, storageFileId, resolvedUrl);
         rabbitTemplate.convertAndSend(vacancyExchange, "vacancy.flyer.process", payload);
     }
 }

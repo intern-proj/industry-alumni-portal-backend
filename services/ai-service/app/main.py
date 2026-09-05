@@ -25,6 +25,16 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing database tables...")
     Base.metadata.create_all(bind=engine)
 
+    # 1.1 Seed default AI model presets if empty
+    try:
+        from app.database import SessionLocal
+        from app.seed_models import seed_ai_model_presets
+        db = SessionLocal()
+        seed_ai_model_presets(db)
+        db.close()
+    except Exception as e:
+        logger.warning(f"Note: Seed model presets deferred: {e}")
+
     # 2. Register with Eureka Server (for microservice discovery)
     await EurekaManager.start()
 

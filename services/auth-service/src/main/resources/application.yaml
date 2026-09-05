@@ -6,9 +6,11 @@ spring:
     name: auth-service
 #    database connection string
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/auth_db}
-    username: ${SPRING_DATASOURCE_USERNAME:user}
-    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:2}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${PGHOST:nicdbpgs.postgres.database.azure.com}:${PGPORT:5432}/${PGDATABASE:auth_db}?sslmode=require}
+    username: ${PGUSER:pguser}
+    password: ${PGPASSWORD:NicDB@123}
   jpa:
     hibernate:
       ddl-auto: update
@@ -18,10 +20,11 @@ spring:
   flyway:
     enabled: false
   rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
+    host: ${RABBITMQ_HOST:toucan.lmq.cloudamqp.com}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME:nnmhsfhw}
+    password: ${RABBITMQ_PASSWORD:cIpl_gm0K2QxsPS-bp51PHpD2aojyuS7}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:nnmhsfhw}
 
 app:
   jwt:
@@ -33,14 +36,16 @@ app:
     default-email: ${ADMIN_DEFAULT_EMAIL:prasadkvithana@gmail.com}
   otp:
     expiration-minutes: 5
+  frontend:
+    url: ${FRONTEND_URL:https://wonderful-wave-0320abf00.3.azurestaticapps.net}
   reset-password:
     expiration-minutes: 15
-    frontend-url: ${FRONTEND_RESET_PASSWORD_URL:http://localhost:3000/reset-password}
+    frontend-url: ${FRONTEND_RESET_PASSWORD_URL:${app.frontend.url}/reset-password}
   rabbitmq:
     exchange: ${RABBITMQ_EXCHANGE:notification.exchange}
     routing-key: ${RABBITMQ_ROUTING_KEY:notification.update}
   cors:
-    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,https://*.azurecontainerapps.io,https://*.azurestaticapps.net}
 
 eureka:
   instance:
@@ -63,4 +68,7 @@ management:
       show-details: always
       probes:
         enabled: true
+  health:
+    rabbit:
+      enabled: ${MANAGEMENT_HEALTH_RABBIT_ENABLED:false}
 

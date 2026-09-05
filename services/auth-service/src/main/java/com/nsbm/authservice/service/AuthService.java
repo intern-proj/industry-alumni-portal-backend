@@ -60,10 +60,10 @@ public class AuthService {
     @Value("${app.reset-password.expiration-minutes:15}")
     private long resetPasswordExpirationMinutes;
 
-    @Value("${app.reset-password.frontend-url:http://localhost:3000/reset-password}")
+    @Value("${app.reset-password.frontend-url:${app.frontend.url:https://wonderful-wave-0320abf00.3.azurestaticapps.net}/reset-password}")
     private String resetPasswordFrontendUrl;
 
-    @Value("${app.frontend.url:http://localhost:3000}")
+    @Value("${app.frontend.url:https://wonderful-wave-0320abf00.3.azurestaticapps.net}")
     private String frontendUrl;
 
     public AuthService(ManagementStaffRepository staffRepository,

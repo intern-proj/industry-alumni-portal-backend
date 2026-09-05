@@ -23,13 +23,13 @@ public class UserAccountSyncService implements CommandLineRunner {
 
     private final UserProfileRepository userProfileRepository;
 
-    @Value("${app.auth-db.url:jdbc:postgresql://localhost:5432/auth_db}")
+    @Value("${app.auth-db.url:jdbc:postgresql://${PGHOST:nicdbpgs.postgres.database.azure.com}:${PGPORT:5432}/auth_db?sslmode=require}")
     private String authDbUrl;
 
-    @Value("${app.auth-db.username:user}")
+    @Value("${app.auth-db.username:${PGUSER:pguser}}")
     private String authDbUsername;
 
-    @Value("${app.auth-db.password:root}")
+    @Value("${app.auth-db.password:${PGPASSWORD:NicDB@123}}")
     private String authDbPassword;
 
     @Override
@@ -67,14 +67,15 @@ public class UserAccountSyncService implements CommandLineRunner {
 
                 if (email == null || email.isBlank()) continue;
 
-                if (!userProfileRepository.existsByEmail(email)) {
+                String userId = username != null ? username : email;
+                if (!userProfileRepository.existsById(userId) && !userProfileRepository.existsByEmail(email)) {
                     UserRole role = UserRole.ADMINISTRATIVE_STAFF;
                     try {
                         role = UserRole.valueOf(roleStr);
                     } catch (Exception ignored) {}
 
                     UserProfile profile = UserProfile.builder()
-                            .userId(username != null ? username : email)
+                            .userId(userId)
                             .firstName(username != null ? username : "Staff")
                             .lastName("")
                             .email(email)
@@ -110,11 +111,12 @@ public class UserAccountSyncService implements CommandLineRunner {
 
                 if (email == null || email.isBlank()) continue;
 
-                if (!userProfileRepository.existsByEmail(email)) {
+                String userId = username != null ? username : email;
+                if (!userProfileRepository.existsById(userId) && !userProfileRepository.existsByEmail(email)) {
                     AccountStatus status = "INACTIVE".equalsIgnoreCase(statusStr) ? AccountStatus.INACTIVE : AccountStatus.ACTIVE;
 
                     UserProfile profile = UserProfile.builder()
-                            .userId(username != null ? username : email)
+                            .userId(userId)
                             .firstName(repName != null && !repName.isBlank() ? repName : (companyName != null ? companyName : "Partner"))
                             .lastName(companyName != null && !companyName.equals(repName) ? "(" + companyName + ")" : "")
                             .email(email)
@@ -145,9 +147,10 @@ public class UserAccountSyncService implements CommandLineRunner {
 
                 if (email == null || email.isBlank()) continue;
 
-                if (!userProfileRepository.existsByEmail(email)) {
+                String userId = username != null ? username : email;
+                if (!userProfileRepository.existsById(userId) && !userProfileRepository.existsByEmail(email)) {
                     UserProfile profile = UserProfile.builder()
-                            .userId(username != null ? username : email)
+                            .userId(userId)
                             .firstName(username != null ? username : "Student")
                             .lastName("")
                             .email(email)

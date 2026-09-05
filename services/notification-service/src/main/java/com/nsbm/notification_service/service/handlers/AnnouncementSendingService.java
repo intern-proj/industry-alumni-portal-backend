@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 public class AnnouncementSendingService {
 
     private final EmailDeliveryService emailDeliveryService;
+    private final com.nsbm.notification_service.util.DomainUrlResolver domainUrlResolver;
 
     /**
      * Processes an announcement and broadcasts it to all recipients.
@@ -51,7 +52,9 @@ public class AnnouncementSendingService {
 
 
     private String buildAnnouncementHtml(AnnouncementEmailDTO dto) {
-        String portalUrl = dto.getPortalUrl() != null ? dto.getPortalUrl() : "#";
+        String portalUrl = domainUrlResolver != null
+                ? domainUrlResolver.resolveFrontendUrl(dto.getPortalUrl())
+                : (dto.getPortalUrl() != null ? dto.getPortalUrl() : "#");
         return """
                 <!DOCTYPE html>
                 <html>

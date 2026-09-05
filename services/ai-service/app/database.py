@@ -15,8 +15,8 @@ else:
     # PostgreSQL connection pooling setup
     engine = create_engine(
         db_url,
-        pool_size=10,
-        max_overflow=20,
+        pool_size=2,
+        max_overflow=3,
         pool_pre_ping=True,
         pool_recycle=1800
     )

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 public class InvitationSendingService {
 
     private final EmailDeliveryService emailDeliveryService;
+    private final com.nsbm.notification_service.util.DomainUrlResolver domainUrlResolver;
 
     /**
      * Processes an event invitation and sends it to the specified recipient.
@@ -46,7 +47,9 @@ public class InvitationSendingService {
 
 
     private String buildInvitationHtml(InvitationEmailDTO dto) {
-        String rsvpLink = dto.getRsvpLink() != null ? dto.getRsvpLink() : "#";
+        String rsvpLink = domainUrlResolver != null
+                ? domainUrlResolver.resolveFrontendUrl(dto.getRsvpLink())
+                : (dto.getRsvpLink() != null ? dto.getRsvpLink() : "#");
         String location = dto.getEventLocation() != null ? dto.getEventLocation() : "To be announced";
         String description = dto.getEventDescription() != null
                 ? dto.getEventDescription().replace("\n", "<br>")

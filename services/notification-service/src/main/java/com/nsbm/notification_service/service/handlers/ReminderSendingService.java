@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 public class ReminderSendingService {
 
     private final EmailDeliveryService emailDeliveryService;
+    private final com.nsbm.notification_service.util.DomainUrlResolver domainUrlResolver;
 
     /**
      * Processes a reminder notification and sends it to the recipient.
@@ -65,8 +66,12 @@ public class ReminderSendingService {
                 ? "<p><strong>Date / Due Date:</strong> " + dto.getDueDate() + "</p>"
                 : "";
 
-        String actionBtn = (dto.getActionLink() != null && !dto.getActionLink().isBlank())
-                ? "<a href=\"" + dto.getActionLink() + "\" class=\"btn\">Take Action</a>"
+        String resolvedActionLink = domainUrlResolver != null
+                ? domainUrlResolver.resolveFrontendUrl(dto.getActionLink())
+                : dto.getActionLink();
+
+        String actionBtn = (resolvedActionLink != null && !resolvedActionLink.isBlank() && !"#".equals(resolvedActionLink))
+                ? "<a href=\"" + resolvedActionLink + "\" class=\"btn\">Take Action</a>"
                 : "";
 
         return """

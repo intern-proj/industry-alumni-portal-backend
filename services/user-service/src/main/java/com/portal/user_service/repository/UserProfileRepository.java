@@ -23,6 +23,8 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, String
 
     Page<UserProfile> findByUserRole(UserRole userRole, Pageable pageable);
 
+    boolean existsByUserRole(UserRole userRole);
+
     Page<UserProfile> findByAccountStatus(AccountStatus accountStatus, Pageable pageable);
 
     Page<UserProfile> findByFaculty(String faculty, Pageable pageable);

@@ -1,212 +1,325 @@
 import json
 import logging
+import re
 import threading
-from huggingface_hub import hf_hub_download
-from llama_cpp import Llama
+import urllib.request
+import urllib.error
+from typing import Optional, List, Dict, Any
+
 from app.config import settings
 from app.schemas import JobVacancySchema, CoverLetterRequest
 
 logger = logging.getLogger("ai_service.llm_engine")
 _llm_lock = threading.Lock()
 
+GEMINI_MODELS = [
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemini-3-flash-preview",
+    "gemini-flash-lite-latest",
+]
+
 
 class LLMEngine:
+    """
+    High-performance LLM Engine powered by Google Gemini API.
+    Replaces heavy local GGUF models on serverless / cloud deployments without GPU.
+    Provides full backwards-compatible callable interface: llm(prompt, ...) -> {"choices": [{"text": ...}]}
+    """
     _instance = None
     _active_config = None
+
+    def __init__(self):
+        self.api_key = getattr(settings, "GEMINI_API_KEY", "AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg")
+        self.default_model = getattr(settings, "GEMINI_MODEL", "gemini-3.1-flash-lite")
+        logger.info(f"[LLM Service] Initialized Gemini Cloud LLM Engine with default model '{self.default_model}'.")
+
+    def reset(self):
+        """No-op for compatibility with previous llama_cpp reset calls."""
+        pass
 
     @classmethod
     def reload_instance(cls):
         with _llm_lock:
             cls._instance = None
             cls._active_config = None
-            logger.info("[LLM Service] Engine instance cleared. Next call will reload active config.")
+            logger.info("[LLM Service] Engine instance reloaded.")
 
     @classmethod
     def get_instance(cls):
-        """Singleton pattern to keep LLM warm in memory across HTTP requests."""
+        """Singleton pattern for the LLM Engine."""
         if cls._instance is None:
-            # Query active configuration from database if available
-            repo_id = settings.LLM_REPO_ID
-            filename = settings.LLM_FILENAME
-            ctx_size = settings.LLM_CONTEXT_SIZE
-            threads = settings.LLM_THREADS
-            gpu_layers = 0
-
-            try:
-                from app.database import SessionLocal
-                from app.models import AiModelConfig
-                db = SessionLocal()
-                active = db.query(AiModelConfig).filter(AiModelConfig.is_active == True).first()
-                if active and active.provider == "LOCAL_GGUF":
-                    if active.repo_id: repo_id = active.repo_id
-                    if active.filename: filename = active.filename
-                    if active.context_size: ctx_size = active.context_size
-                    if active.threads: threads = active.threads
-                    if active.gpu_layers is not None: gpu_layers = active.gpu_layers
-                    logger.info(f"[LLM Service] Initializing model from active DB config: {active.config_name} (GPU layers: {gpu_layers})")
-                db.close()
-            except Exception as e:
-                logger.warning(f"[LLM Service] Could not fetch DB model config, falling back to defaults: {e}")
-
-            print(f"[LLM Service] Preloading model {repo_id}/{filename} (GPU layers: {gpu_layers})...")
-            try:
-                model_path = hf_hub_download(
-                    repo_id=repo_id,
-                    filename=filename,
-                    local_files_only=True
-                )
-            except Exception:
-                try:
-                    model_path = hf_hub_download(
-                        repo_id=repo_id,
-                        filename=filename
-                    )
-                except Exception as dl_err:
-                    logger.warning(f"[LLM Service] Could not download {repo_id}/{filename}: {dl_err}. Falling back to default system model.")
-                    model_path = hf_hub_download(
-                        repo_id=settings.LLM_REPO_ID,
-                        filename=settings.LLM_FILENAME,
-                        local_files_only=True
-                    )
-
-            kwargs = {
-                "model_path": model_path,
-                "n_ctx": ctx_size,
-                "n_batch": 512,
-                "n_threads": threads,
-                "verbose": False
-            }
-            if gpu_layers != 0:
-                kwargs["n_gpu_layers"] = gpu_layers
-
-            try:
-                cls._instance = Llama(**kwargs)
-            except Exception as llama_err:
-                if "n_gpu_layers" in kwargs:
-                    logger.warning(f"[LLM Service] GPU initialization failed ({llama_err}). Falling back to CPU execution.")
-                    kwargs.pop("n_gpu_layers", None)
-                    cls._instance = Llama(**kwargs)
-                else:
-                    raise llama_err
+            with _llm_lock:
+                if cls._instance is None:
+                    cls._instance = LLMEngine()
         return cls._instance
 
     @staticmethod
+    def _clean_prompt(prompt: str) -> str:
+        """Strips ChatML tokens (<|im_start|>, <|im_end|>) from prompts for clean Gemini processing."""
+        text = re.sub(r"<\|im_start\|>system\s*", "SYSTEM INSTRUCTION:\n", prompt)
+        text = re.sub(r"<\|im_start\|>user\s*", "\nUSER REQUEST:\n", text)
+        text = re.sub(r"<\|im_start\|>assistant\s*", "\nASSISTANT RESPONSE:\n", text)
+        text = text.replace("<|im_end|>", "\n")
+        return text.strip()
+
+    def _call_gemini_api(
+        self,
+        prompt: str,
+        json_mode: bool = False,
+        max_tokens: int = 3500,
+        temperature: float = 0.2,
+        stop_sequences: Optional[List[str]] = None
+    ) -> str:
+        """Dispatches prompt to Gemini API with automatic model failover and zero-thinking budget for fast JSON."""
+        clean_text = self._clean_prompt(prompt)
+        effective_max_tokens = max(max_tokens, 3500)
+
+        payload = {
+            "contents": [{"parts": [{"text": clean_text}]}],
+            "generationConfig": {
+                "temperature": temperature,
+                "maxOutputTokens": effective_max_tokens,
+                "thinkingConfig": {
+                    "thinkingBudget": 0
+                }
+            }
+        }
+
+        if json_mode:
+            payload["generationConfig"]["responseMimeType"] = "application/json"
+
+        if stop_sequences:
+            # Filter out ChatML markers or backticks if json mode is active
+            valid_stops = [s for s in stop_sequences if s and "<|" not in s and "```" not in s]
+            if valid_stops:
+                payload["generationConfig"]["stopSequences"] = valid_stops[:5]
+
+        models_to_try = [self.default_model] + [m for m in GEMINI_MODELS if m != self.default_model]
+
+        last_error = None
+        for model_name in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.api_key}"
+            
+            # First try with thinkingBudget: 0
+            body = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=body,
+                headers={"Content-Type": "application/json"}
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=12) as resp:
+                    resp_data = json.loads(resp.read().decode("utf-8"))
+                    candidates = resp_data.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        if parts:
+                            return parts[0].get("text", "").strip()
+            except urllib.error.HTTPError as http_err:
+                err_body = http_err.read().decode("utf-8", errors="ignore")
+                # If thinkingConfig was rejected with 400 Bad Request, retry without it
+                if http_err.code == 400 and "thinkingConfig" in payload["generationConfig"]:
+                    try:
+                        fallback_payload = dict(payload)
+                        fallback_gen = dict(payload["generationConfig"])
+                        fallback_gen.pop("thinkingConfig", None)
+                        fallback_payload["generationConfig"] = fallback_gen
+                        fallback_body = json.dumps(fallback_payload).encode("utf-8")
+                        fallback_req = urllib.request.Request(
+                            url,
+                            data=fallback_body,
+                            headers={"Content-Type": "application/json"}
+                        )
+                        with urllib.request.urlopen(fallback_req, timeout=12) as fb_resp:
+                            resp_data = json.loads(fb_resp.read().decode("utf-8"))
+                            candidates = resp_data.get("candidates", [])
+                            if candidates:
+                                parts = candidates[0].get("content", {}).get("parts", [])
+                                if parts:
+                                    return parts[0].get("text", "").strip()
+                    except Exception as fb_exc:
+                        logger.warning(f"[LLM Service] Retry without thinkingConfig on '{model_name}' failed: {fb_exc}")
+
+                logger.warning(f"[LLM Service] Gemini model '{model_name}' HTTP {http_err.code}: {err_body[:180]}")
+                last_error = http_err
+                continue
+            except Exception as exc:
+                logger.warning(f"[LLM Service] Gemini model '{model_name}' failed: {exc}")
+                last_error = exc
+                continue
+
+        raise RuntimeError(f"All Gemini endpoints failed. Last error: {last_error}")
+
+    def __call__(
+        self,
+        prompt: str,
+        max_tokens: int = 3500,
+        temperature: float = 0.2,
+        stop: Optional[List[str]] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Callable interface matching llama_cpp output schema."""
+        is_json = "json" in prompt.lower() or "```json" in prompt.lower()
+        result_text = self._call_gemini_api(
+            prompt=prompt,
+            json_mode=is_json,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stop_sequences=stop
+        )
+        return {"choices": [{"text": result_text}]}
+
+    @staticmethod
     def extract_structured_json(raw_text: str) -> JobVacancySchema:
-        llm = LLMEngine.get_instance()
+        """Extracts job vacancy details into strict JobVacancySchema JSON using advanced Gemini reasoning."""
         schema_json_str = json.dumps(JobVacancySchema.model_json_schema(), separators=(",", ":"))
 
         prompt = (
-            f"<|im_start|>system\n"
-            f"You are an expert HR data parsing engine that extracts structured information from job flyer text.\n"
-            f"Extract ALL information into a strict JSON object adhering to this schema:\n"
+            "SYSTEM INSTRUCTION:\n"
+            "You are a principal HR intelligence engine that extracts comprehensive, structured information from job flyer and recruitment document text.\n"
+            "Extract ALL details into a strict JSON object adhering to this schema:\n"
             f"{schema_json_str}\n\n"
-            f"EXTRACTION RULES (follow these precisely):\n"
-            f"1. `company_name`: Extract the primary hiring company name only (not sub-brands or sister companies).\n"
-            f"2. `job_title`: Extract the exact job role title (e.g., 'Junior Mobile App Developer').\n"
-            f"3. `seniority_level`: Infer from title or description — e.g., 'Junior', 'Mid', 'Senior', 'Lead', 'Intern'.\n"
-            f"4. `employment_type`: Extract ONLY if explicitly mentioned (e.g., 'Full-time', 'Part-time', 'Contract', 'Internship'). DO NOT guess or infer. Return null if not stated.\n"
-            f"5. `workplace_type`: Extract ONLY if explicitly mentioned (e.g., 'ON_SITE', 'REMOTE', 'HYBRID'). DO NOT guess. Return null if not stated.\n"
-            f"6. `locations`: Return as a list of SEPARATE address strings. Do NOT include phone numbers, emails, or website URLs as locations.\n"
-            f"7. `required_skills`: Break each technology/tool into individual strings. Do NOT combine them. Example: ['Ionic', 'Capacitor', 'React Native', 'Firebase'].\n"
-            f"8. `preferred_skills`: Skills that are nice-to-have but not mandatory.\n"
-            f"9. `responsibilities`: Extract each duty/responsibility as a separate string.\n"
-            f"10. `contact_emails`: Extract all email addresses found.\n"
-            f"11. `contact_phones`: Extract all phone numbers found (include country code if present).\n"
-            f"12. `application_urls`: Extract any website URLs for applications.\n"
-            f"13. `salary_raw`: Keep as the original text (e.g., 'Negotiable based on experience & skills').\n"
-            f"14. `min_experience_years`: Set to 0 if not mentioned or if role is junior/intern level.\n"
-            f"15. Return ONLY the valid JSON object inside a ```json code block. No commentary.<|im_end|>\n"
-            f"<|im_start|>user\n"
-            f"Job Vacancy Content:\n{raw_text}<|im_end|>\n"
-            f"<|im_start|>assistant\n```json\n"
+            "EXTRACTION & REASONING GUIDELINES:\n"
+            "1. `company_name`: Identify the primary hiring company or organization name. Deduce the company name from top header branding, logo text, company mission statements, or recruitment greetings.\n"
+            "   CRITICAL RULES FOR RECRUITMENT CONTACTS:\n"
+            "   - NEVER use raw email usernames or addresses (such as 'hrdcareers942', 'hrdcareers942@gmail.com', 'careers', 'info', 'jobs') as the company name!\n"
+            "   - If the flyer does not state the corporate name and only provides an anonymous email like 'hrdcareers942@gmail.com', look at how the organization describes itself (e.g., 'leading jewellery manufacturing company based in Colombo') and formulate a clean professional title like 'Leading Jewellery Manufacturing Company' or 'Jewellery Design Studio'.\n"
+            "   - If the email domain is corporate (e.g., '@synnext.com' or '@voguejewellers.com'), extract the brand name ('Synnext' or 'Vogue Jewellers').\n"
+            "   - NEVER output an ugly email username like 'hrdcareers942'.\n"
+            "2. `job_title`: Extract the exact official job title cleanly (e.g., 'Executive Jewellery Designer – CAD', 'Associate Software Engineer', 'Digital Marketing Specialist'). Do not include noise words like 'We are hiring' or 'Urgent Vacancy'.\n"
+            "3. `seniority_level`: Accurately infer seniority from the title and requirements: 'Intern', 'Trainee', 'Associate', 'Junior', 'Mid-Level', 'Senior', 'Lead', 'Executive', or 'Director'.\n"
+            "4. `employment_type`: Extract or infer: 'Full-time', 'Part-time', 'Contract', or 'Internship'. If not mentioned, infer reasonably from context or return null.\n"
+            "5. `workplace_type`: Extract or infer: 'ON_SITE', 'REMOTE', or 'HYBRID'. Look for office location mentions, remote flags, or work modes.\n"
+            "6. `locations`: Extract physical workplace locations, cities, or addresses as separate strings (e.g., ['Colombo', 'Kandy']). Exclude email addresses, web URLs, and phone numbers from locations.\n"
+            "7. `min_experience_years`: Minimum years of professional experience required as a float number. If the flyer says 'Freshers welcome', 'Intern', 'Trainee', or experience is not mentioned, set to 0.0.\n"
+            "8. `education_requirements`: Academic degrees, diplomas, or qualifications requested (e.g., ['Degree or Diploma in Jewellery Design / CAD', 'BSc in Computer Science']).\n"
+            "9. `required_skills`: Decompose all explicit technical competencies, tools, software packages, programming languages, and functional skills into individual strings (e.g., ['Rhino 3D', 'Matrix CAD', 'Jewellery Rendering', 'Photoshop'] or ['React', 'Spring Boot', 'PostgreSQL']).\n"
+            "10. `preferred_skills`: Bonus, nice-to-have skills or secondary proficiencies.\n"
+            "11. `responsibilities`: Extract each duty, task, and responsibility as an individual string.\n"
+            "12. `eligibility_criteria`: Specific qualification prerequisites, year of study, portfolio requirements, or certifications.\n"
+            "13. `salary_raw`: Any remuneration terms, salary figures, stipends, or allowances mentioned (e.g., 'Rs. 75,000 - 100,000 / month', 'Attractive Allowance', 'Negotiable').\n"
+            "14. `application_deadline`: Closing date for applications if mentioned. Standardize to YYYY-MM-DD if possible or extract text.\n"
+            "15. `contact_emails`: Extract all valid email addresses found.\n"
+            "16. `contact_phones`: Extract all phone numbers found.\n"
+            "17. `application_urls`: Extract all websites, application portal links, or registration URLs found.\n\n"
+            "USER REQUEST:\n"
+            f"Job Vacancy Flyer Text:\n{raw_text}\n"
         )
 
-        with _llm_lock:
-            try:
-                llm.reset()
-            except Exception:
-                pass
-            response = llm(
-                prompt,
-                max_tokens=1800,
-                temperature=0.0,
-                stop=["```", "<|im_end|>"]
+        try:
+            engine = LLMEngine.get_instance()
+            output_text = engine._call_gemini_api(
+                prompt=prompt,
+                json_mode=True,
+                max_tokens=3500,
+                temperature=0.0
             )
-            try:
-                llm.reset()
-            except Exception:
-                pass
+            output_text = output_text.strip()
+            if output_text.startswith("```json"):
+                output_text = output_text[7:]
+            if output_text.endswith("```"):
+                output_text = output_text[:-3]
 
-        output_text = response["choices"][0]["text"].strip()
-        if output_text.startswith("```json"):
-            output_text = output_text[7:]
-        if output_text.endswith("```"):
-            output_text = output_text[:-3]
+            parsed = json.loads(output_text.strip())
 
-        parsed = json.loads(output_text.strip())
-        return JobVacancySchema.model_validate(parsed)
+            # Post-processing: Guarantee company_name is never left as literal 'None', empty, or raw email username
+            comp = parsed.get("company_name")
+            bad_comp = False
+            if not comp or str(comp).strip().lower() in ["none", "null", "not specified", "n/a", "unknown"]:
+                bad_comp = True
+            elif "@" in str(comp) or any(term in str(comp).lower() for term in ["hrdcareers", "careers9", "jobs1", "recruitment@"]):
+                bad_comp = True
+            elif re.search(r'^(hr|hrd|careers|jobs|recruitment|admin|info)\d*$', str(comp).strip().lower()):
+                bad_comp = True
+
+            if bad_comp:
+                inferred_comp = None
+                emails = parsed.get("contact_emails") or []
+                for email in emails:
+                    if "@" in email:
+                        domain = email.split("@")[-1].lower()
+                        if not any(pub in domain for pub in ["gmail.", "yahoo.", "hotmail.", "outlook.", "live.", "icloud.", "mail."]):
+                            domain_name = domain.split(".")[0]
+                            if len(domain_name) > 2:
+                                inferred_comp = domain_name.title()
+                                break
+                if not inferred_comp:
+                    urls = parsed.get("application_urls") or []
+                    for u in urls:
+                        clean_u = re.sub(r'https?://(www\.)?', '', u.lower())
+                        domain_name = clean_u.split("/")[0].split(".")[0]
+                        if len(domain_name) > 2 and domain_name not in ["google", "forms", "linkedin", "facebook", "bit", "tinyurl"]:
+                            inferred_comp = domain_name.title()
+                            break
+                if not inferred_comp:
+                    # Synthesize from job title context
+                    title = parsed.get("job_title", "")
+                    if "jewel" in title.lower() or "cad" in title.lower():
+                        inferred_comp = "Leading Jewellery Manufacturing Company"
+                    elif "software" in title.lower() or "developer" in title.lower():
+                        inferred_comp = "Technology Partner Organization"
+                    else:
+                        inferred_comp = "Industry Placement Partner"
+                parsed["company_name"] = inferred_comp
+
+            # Normalize salary_raw
+            if parsed.get("salary_raw") and str(parsed.get("salary_raw")).strip().lower() in ["none", "null"]:
+                parsed["salary_raw"] = None
+
+            return JobVacancySchema.model_validate(parsed)
+        except Exception as e:
+            logger.error(f"[LLM Service] Structured extraction error: {e}")
+            raise e
 
     @staticmethod
     def generate_cover_letter(request: CoverLetterRequest) -> str:
-        skills_str = ", ".join(request.candidate_skills) if request.candidate_skills else "software engineering and modern technology frameworks"
+        """Generates a high-impact 3-paragraph executive cover letter in clean HTML."""
+        skills_str = ", ".join(request.candidate_skills) if request.candidate_skills else "software engineering, modern technical frameworks, and agile problem solving"
         prompt = (
-            f"<|im_start|>system\n"
-            f"You are a professional talent advocate and career counselor.\n"
-            f"Write a concise, high-impact 3-paragraph executive cover letter in HTML using <p> and <strong> tags only. Keep each paragraph to 1-2 clear, punchy sentences. Maximum 110 words.\n"
-            f"Paragraph 1: Express strong enthusiasm for the role and company, citing candidate background.\n"
-            f"Paragraph 2: Align core technical skills directly with the job requirements and projects.\n"
-            f"Paragraph 3: Reiterate value proposition, eagerness to contribute, and thank the hiring team.\n"
-            f"<|im_end|>\n"
-            f"<|im_start|>user\n"
-            f"Candidate: {request.candidate_name}\n"
-            f"Candidate Skills: {skills_str}\n"
-            f"Target Role: {request.vacancy_title}\n"
+            "SYSTEM INSTRUCTION:\n"
+            "You are an executive career strategist and placement director at NSBM Green University.\n"
+            "Compose a high-impact, professional, 3-paragraph executive cover letter in clean HTML using only <p> and <strong> tags.\n"
+            "Requirements:\n"
+            "- Paragraph 1: Express compelling enthusiasm for the specific vacancy at the target company, citing the candidate's rigorous academic training at NSBM Green University.\n"
+            "- Paragraph 2: Articulate verified technical competencies, hands-on software/system implementations, and direct alignment with the company's domain challenges.\n"
+            "- Paragraph 3: Reiterate value proposition, agile problem-solving readiness, commitment to excellence, and express eagerness for an interview.\n"
+            "- Tone: Confident, articulate, professional, and impact-driven. Maximum 130 words.\n\n"
+            "USER REQUEST:\n"
+            f"Candidate Name: {request.candidate_name or 'Undergraduate Applicant'}\n"
+            f"Candidate Verified Skills: {skills_str}\n"
+            f"Target Vacancy: {request.vacancy_title}\n"
             f"Target Company: {request.company_name}\n"
-            f"Job Requirements: {request.vacancy_requirements[:400]}\n"
-            f"<|im_end|>\n"
-            f"<|im_start|>assistant\n<p>Dear Hiring Team at <strong>{request.company_name}</strong>,</p>\n"
+            f"Vacancy Requirements: {request.vacancy_requirements[:500] if request.vacancy_requirements else 'Industry technical standards'}\n"
         )
-        
+
         try:
-            llm = LLMEngine.get_instance()
-            with _llm_lock:
-                try:
-                    llm.reset()
-                except Exception:
-                    pass
-                response = llm(
-                    prompt,
-                    max_tokens=160,
-                    temperature=0.1,
-                    stop=["<|im_end|>", "```"]
-                )
-                try:
-                    llm.reset()
-                except Exception:
-                    pass
-            
-            output_text = response["choices"][0]["text"].strip()
-            # If the model didn't start with the opening <p>, prepend it
-            if not output_text.startswith("<p>Dear"):
-                output_text = f"<p>Dear Hiring Team at <strong>{request.company_name}</strong>,</p>\n" + output_text
-                
-            if output_text.startswith("```html"):
-                output_text = output_text[7:]
-            if output_text.startswith("```"):
-                output_text = output_text[3:]
-            if output_text.endswith("```"):
-                output_text = output_text[:-3]
-                
+            engine = LLMEngine.get_instance()
+            output_text = engine._call_gemini_api(
+                prompt=prompt,
+                json_mode=False,
+                max_tokens=350,
+                temperature=0.2
+            )
             cleaned = output_text.strip()
-            # Normalize typographic characters for clean HTML rendering
-            cleaned = cleaned.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"').replace("—", " - ").replace("–", " - ")
+            if cleaned.startswith("```html"):
+                cleaned = cleaned[7:]
+            if cleaned.startswith("```"):
+                cleaned = cleaned[3:]
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3]
+            cleaned = cleaned.strip()
+
+            if not cleaned.startswith("<p>"):
+                cleaned = f"<p>Dear Hiring Team at <strong>{request.company_name}</strong>,</p>\n" + cleaned
+
+            cleaned = cleaned.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
             if len(cleaned) > 50:
                 return cleaned
         except Exception as e:
-            import logging
-            logging.getLogger("ai_service.llm_engine").warning(f"LLM cover letter inference fallback: {e}")
+            logger.warning(f"[LLM Service] Cover letter generation error: {e}. Using synthesis fallback.")
 
-        # High-quality fallback
+        # Fallback template
         name = request.candidate_name or "Applicant"
         comp = request.company_name or "your team"
         role = request.vacancy_title or "Open Position"
@@ -231,100 +344,51 @@ class LLMEngine:
         vacancy_requirements: str,
         vacancy_description: str
     ) -> dict:
-        """
-        Dynamically evaluates the candidate's profile, full resume, and cover letter
-        against the job vacancy requirements. Context and output token limits are dynamically 
-        calibrated according to the job complexity and seniority to maximize accuracy and analytical depth:
-        - Specialized/Senior/Lead/DevOps/Cloud roles: Deep architectural, toolchain, and leadership assessment (up to 650 tokens).
-        - Mid/Junior/Intern roles: Academic foundation, technical stack proficiency, and growth trajectory assessment (up to 500-550 tokens).
-        Full cover letter and comprehensive resume text are retained for maximum evaluation accuracy.
-        """
-        import re
-        import logging
-        logger = logging.getLogger("ai_service.llm_engine")
-
+        """Evaluates applicant profile, resume, and cover letter against vacancy requirements using Gemini intelligence."""
         skills_str = ", ".join(candidate_skills) if candidate_skills else "Not specified"
-        clean_cover_letter = cover_letter or ""
-        clean_cover_letter = re.sub(r'<[^>]+>', ' ', clean_cover_letter)
+        clean_cover_letter = re.sub(r'<[^>]+>', ' ', cover_letter or '')
         clean_cover_letter = ' '.join(clean_cover_letter.split())[:3500]
-        clean_resume_text = ' '.join((resume_text or "").split())[:4500]
+        clean_resume_text = ' '.join((resume_text or "").split())[:6000]
         clean_requirements = ' '.join((vacancy_requirements or "").split())[:2500]
         clean_description = ' '.join((vacancy_description or "").split())[:2500]
 
-        # Analyze job complexity and seniority level to tailor prompt depth and token budget
-        role_corpus = f"{vacancy_title} {clean_requirements}".lower()
-        is_senior_or_lead = any(term in role_corpus for term in ["senior", "lead", "principal", "architect", "manager", "head", "director"])
-        is_devops_or_infra = any(term in role_corpus for term in ["devops", "cloud", "sre", "infrastructure", "platform", "kubernetes", "security", "sysadmin"])
-        is_data_or_ai = any(term in role_corpus for term in ["data engineer", "data scientist", "machine learning", "ai engineer", "deep learning"])
-        is_intern_or_trainee = any(term in role_corpus for term in ["intern", "trainee", "associate", "junior", "entry", "fresh"])
-
-        if is_senior_or_lead or is_devops_or_infra or is_data_or_ai:
-            role_type = "Specialized Technical / Senior Role"
-            output_token_budget = 650
-            depth_instruction = (
-                "Conduct an in-depth technical analysis. Focus specifically on architectural competency, production toolchain mastery, "
-                "problem-solving capabilities, and readiness to handle complex workflows based on the resume and cover letter."
-            )
-        elif is_intern_or_trainee:
-            role_type = "Internship / Graduate Trainee Role"
-            output_token_budget = 500
-            depth_instruction = (
-                "Focus on academic grounding, core coursework mastery, speed of adaptation, practical project deliverables, "
-                "and proactive motivation articulated in the cover letter."
-            )
-        else:
-            role_type = "Standard Professional Role"
-            output_token_budget = 550
-            depth_instruction = (
-                "Focus on direct technical fit, hands-on framework competencies, project contributions, "
-                "and communication clarity evidenced in the cover letter."
-            )
-
         prompt = (
-            f"<|im_start|>system\n"
-            f"You are a principal talent assessor and technical evaluation intelligence engine for university recruitment partnerships.\n"
-            f"Evaluation Category: {role_type}.\n"
-            f"{depth_instruction}\n\n"
-            f"Output requirements:\n"
-            f"1. `summary`: A detailed, professional 2 to 4 sentence executive summary of the applicant. Accurately capture their degree background, technical specializations, key practical projects, and how their background qualifies them for this vacancy.\n"
-            f"2. `strong_fortes`: A list of 3 to 5 comprehensive, highly specific bullet points detailing the candidate's strongest advantages for this application. Directly cite technologies, project achievements, and motivations evidenced in their resume and cover letter.\n"
-            f"3. `match_percentage`: An accurate, calibrated integer percentage (0 to 100) reflecting overall competency alignment against the vacancy's mandatory and preferred requirements.\n\n"
-            f"Format response strictly as valid JSON within a ```json code block.\n"
-            f"<|im_end|>\n"
-            f"<|im_start|>user\n"
+            "SYSTEM INSTRUCTION:\n"
+            "You are the Principal Talent Assessor and AI Recruitment Intelligence Engine for university-corporate partnerships.\n"
+            "Perform a rigorous multi-dimensional technical evaluation of the applicant against the target vacancy requirements.\n\n"
+            "EVALUATION CRITERIA:\n"
+            "1. `summary`: A 2 to 4 sentence executive technical evaluation of the candidate. Detail their degree background at NSBM Green University, proven project engineering implementations, verified stack mastery, and readiness to deliver immediate value in this role.\n"
+            "2. `strong_fortes`: A list of 3 to 5 comprehensive, highly specific bullet points detailing the candidate's strongest competitive advantages. Cite actual technologies mastered, specific projects completed, and direct alignment with the vacancy's core responsibilities.\n"
+            "3. `match_percentage`: A calibrated, mathematically sound integer percentage (0 to 100) reflecting core competency alignment, project evidence, and role readiness.\n\n"
+            "Return ONLY a strict JSON object:\n"
+            "{\n"
+            '  "summary": "Executive technical summary...",\n'
+            '  "strong_fortes": ["Forte 1", "Forte 2", "Forte 3"],\n'
+            '  "match_percentage": 85\n'
+            "}\n\n"
+            "USER REQUEST:\n"
             f"[TARGET VACANCY]\n"
             f"Title: {vacancy_title}\n"
-            f"Requirements:\n{clean_requirements if clean_requirements else 'Industry standard technical requirements.'}\n\n"
-            f"Description & Responsibilities:\n{clean_description if clean_description else 'Standard engineering responsibilities.'}\n\n"
+            f"Requirements: {clean_requirements if clean_requirements else 'Industry standard technical requirements.'}\n"
+            f"Description: {clean_description if clean_description else 'Standard engineering responsibilities.'}\n\n"
             f"[APPLICANT PROFILE]\n"
-            f"Name: {candidate_name or 'Applicant'}\n"
+            f"Candidate Name: {candidate_name or 'Applicant'}\n"
             f"Verified Skills: {skills_str}\n\n"
-            f"[SUBMITTED COVER LETTER]\n"
+            f"[SUBMITTED COVER LETTER / PITCH]\n"
             f"{clean_cover_letter if clean_cover_letter else 'No cover letter provided.'}\n\n"
             f"[EXTRACTED RESUME DOSSIER]\n"
             f"{clean_resume_text if clean_resume_text else 'No resume text available.'}\n"
-            f"<|im_end|>\n"
-            f"<|im_start|>assistant\n```json\n"
         )
 
         try:
-            llm = LLMEngine.get_instance()
-            with _llm_lock:
-                try:
-                    llm.reset()
-                except Exception:
-                    pass
-                response = llm(
-                    prompt,
-                    max_tokens=output_token_budget,
-                    temperature=0.1,
-                    stop=["```", "<|im_end|>"]
-                )
-                try:
-                    llm.reset()
-                except Exception:
-                    pass
-            output_text = response["choices"][0]["text"].strip()
+            engine = LLMEngine.get_instance()
+            output_text = engine._call_gemini_api(
+                prompt=prompt,
+                json_mode=True,
+                max_tokens=1200,
+                temperature=0.1
+            )
+            output_text = output_text.strip()
             if output_text.startswith("```json"):
                 output_text = output_text[7:]
             if output_text.endswith("```"):
@@ -342,9 +406,9 @@ class LLMEngine:
                     "match_percentage": match_pct
                 }
         except Exception as e:
-            logger.warning(f"LLM applicant insights inference failed or skipped: {e}. Utilizing smart synthesis fallback.")
+            logger.warning(f"[LLM Service] Applicant insights generation error: {e}. Using synthesis fallback.")
 
-        # Context-aware fallback if LLM is offline or model fails
+        # Fallback synthesis
         name = candidate_name or 'The applicant'
         skills_sample = candidate_skills[:4] if candidate_skills else ['software engineering', 'modern development workflows']
         summary = (
@@ -355,16 +419,12 @@ class LLMEngine:
             summary += " Their submitted application cover letter articulates high initiative, agile readiness, and dedication to immediate contribution."
 
         fortes = [
-            f"Demonstrated technical proficiency in {', '.join(candidate_skills[:3]) if candidate_skills else 'core software engineering'}."
+            f"Demonstrated technical proficiency in {', '.join(candidate_skills[:3]) if candidate_skills else 'core software engineering'}.",
+            f"Strong academic foundation from NSBM Green University matching the degree profile of {vacancy_title}.",
+            "Demonstrated foundational problem solving and agile workflow readiness."
         ]
-        if is_senior_or_lead or is_devops_or_infra:
-            fortes.append(f"Demonstrated capability in systems architecture, scripting, and infrastructure automation relevant to {vacancy_title}.")
-        else:
-            fortes.append(f"Strong academic foundation from NSBM Green University matching the degree profile of {vacancy_title}.")
-            
         if clean_cover_letter and len(clean_cover_letter) > 40:
-            fortes.append("High motivation and role-specific career vision clearly articulated in their application pitch.")
-        fortes.append("Demonstrated foundational problem solving and agile workflow readiness.")
+            fortes.append("High motivation and role-specific career vision clearly articulated in application pitch.")
 
         return {
             "summary": summary,
@@ -383,14 +443,13 @@ class LLMEngine:
         resume_text: str = None,
         projects: list = None
     ) -> str:
-        llm = LLMEngine.get_instance()
-        skills_str = ", ".join(skills[:8]) if skills else "software engineering, modern technical workflows"
+        """Synthesizes candidate academic record, skills, and projects into a 2-3 sentence executive profile."""
+        skills_str = ", ".join(skills[:10]) if skills else "software engineering, modern technical workflows"
         gpa_str = f"with a cumulative GPA of {gpa}" if gpa else ""
         deg_str = f"pursuing {degree_program}" if degree_program else "undergraduate student"
         fac_str = f"at {faculty}" if faculty else "at NSBM Green University"
-        bio_clean = bio[:250].strip() if bio else ""
+        bio_clean = bio[:350].strip() if bio else ""
 
-        # Format candidate projects for logical evidence synthesis
         proj_str = ""
         if projects and isinstance(projects, list):
             proj_items = []
@@ -400,49 +459,39 @@ class LLMEngine:
                 if p_title:
                     proj_items.append(f"'{p_title}' ({p_tech})" if p_tech else f"'{p_title}'")
             if proj_items:
-                proj_str = f"Key Projects Done: {'; '.join(proj_items)}\n"
+                proj_str = f"Verified Completed Projects: {'; '.join(proj_items)}\n"
 
         prompt = (
-            f"<|im_start|>system\n"
-            f"You are an AI talent evaluator for NSBM Green University.\n"
-            f"Write a professional 2-3 sentence executive profile summary of the following candidate for corporate partners.\n"
-            f"Highlight their verified competencies, actual projects built, and industry readiness based strictly on provided data.\n"
-            f"Do not invent unprovided credentials. Write in third person.<|im_end|>\n"
-            f"<|im_start|>user\n"
-            f"Candidate: {candidate_name}\n"
-            f"Academic Record: {deg_str} {fac_str} {gpa_str}\n"
-            f"Technical Skills: {skills_str}\n"
+            "SYSTEM INSTRUCTION:\n"
+            "You are the Senior Talent Evaluation Intelligence Engine for NSBM Green University.\n"
+            "Synthesize a compelling 2 to 3 sentence executive profile summary of the undergraduate candidate for industry recruiters and enterprise partners.\n"
+            "Requirements:\n"
+            "- Emphasize verified technical capabilities, specific real-world projects engineered, and academic excellence.\n"
+            "- Strict adherence to provided data; do not invent credentials. Write in third person with executive punch.\n\n"
+            "USER REQUEST:\n"
+            f"Candidate Name: {candidate_name}\n"
+            f"Academic Program: {deg_str} {fac_str} {gpa_str}\n"
+            f"Verified Competencies: {skills_str}\n"
             f"{proj_str}"
-            f"Bio / Statement: {bio_clean}\n<|im_end|>\n"
-            f"<|im_start|>assistant\n"
+            f"Statement / Bio: {bio_clean}\n"
         )
+
         try:
-            with _llm_lock:
-                try:
-                    llm.reset()
-                except Exception:
-                    pass
-                response = llm(
-                    prompt,
-                    max_tokens=150,
-                    temperature=0.2,
-                    stop=["<|im_end|>", "\n\n", "```"]
-                )
-                try:
-                    llm.reset()
-                except Exception:
-                    pass
-            summary = response["choices"][0]["text"].strip()
+            engine = LLMEngine.get_instance()
+            output_text = engine._call_gemini_api(
+                prompt=prompt,
+                json_mode=False,
+                max_tokens=300,
+                temperature=0.2
+            )
+            summary = output_text.strip()
             if summary and len(summary) > 25:
                 return summary
         except Exception as e:
-            logger.warning(f"LLM candidate summary inference failed: {e}")
+            logger.warning(f"[LLM Service] Candidate summary generation error: {e}. Using fallback.")
 
-        # Fallback if model fails or times out
         return (
             f"{candidate_name} is an undergraduate student {deg_str} {fac_str} {gpa_str}. "
             f"Demonstrates verified competencies in {skills_str}. "
             f"Equipped for technical placement contributions and collaborative software engineering roles."
         )
-
-

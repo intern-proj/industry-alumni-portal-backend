@@ -5,9 +5,11 @@ spring:
   application:
     name: application-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/application_service_db}
-    username: ${SPRING_DATASOURCE_USERNAME:user}
-    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:2}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${PGHOST:nicdbpgs.postgres.database.azure.com}:${PGPORT:5432}/${PGDATABASE:application_service_db}?sslmode=require}
+    username: ${PGUSER:pguser}
+    password: ${PGPASSWORD:NicDB@123}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -17,10 +19,11 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
+    host: ${RABBITMQ_HOST:toucan.lmq.cloudamqp.com}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME:nnmhsfhw}
+    password: ${RABBITMQ_PASSWORD:cIpl_gm0K2QxsPS-bp51PHpD2aojyuS7}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:nnmhsfhw}
 
 eureka:
   client:
@@ -39,6 +42,9 @@ management:
       show-details: always
       probes:
         enabled: true
+  health:
+    rabbit:
+      enabled: ${MANAGEMENT_HEALTH_RABBIT_ENABLED:false}
 
 ai-service:
   url: ${AI_SERVICE_URL:http://localhost:8000}

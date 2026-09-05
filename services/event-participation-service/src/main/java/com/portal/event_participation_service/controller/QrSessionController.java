@@ -22,12 +22,32 @@ public class QrSessionController {
 
     private final QrSessionService qrSessionService;
 
+    @org.springframework.beans.factory.annotation.Value("${app.backend.url:${API_GATEWAY_URL:https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io}}")
+    private String defaultBackendUrl;
+
+    private String resolveBaseUrl(HttpServletRequest request) {
+        if (request == null) {
+            return defaultBackendUrl;
+        }
+        String forwardedHost = request.getHeader("X-Forwarded-Host");
+        String forwardedProto = request.getHeader("X-Forwarded-Proto");
+        if (forwardedHost != null && !forwardedHost.isBlank() && !forwardedHost.contains("event-participation-service") && !forwardedHost.contains("localhost")) {
+            String proto = (forwardedProto != null && !forwardedProto.isBlank()) ? forwardedProto : "https";
+            return proto + "://" + forwardedHost;
+        }
+        String origin = request.getHeader("Origin");
+        if (origin != null && !origin.isBlank() && !origin.contains("localhost")) {
+            return origin;
+        }
+        return defaultBackendUrl;
+    }
+
     @PostMapping("/api/v1/events/{eventId}/qr-sessions")
     public ResponseEntity<QrSessionResponse> generate(@PathVariable UUID eventId,
                                                         @Valid @RequestBody QrSessionRequest request,
                                                         HttpServletRequest httpRequest) {
         QrSession created = qrSessionService.generate(eventId, request);
-        String baseUrl = httpRequest.getScheme() + "://" + httpRequest.getServerName() + ":" + httpRequest.getServerPort();
+        String baseUrl = resolveBaseUrl(httpRequest);
         QrSessionResponse response = QrSessionResponse.from(created, baseUrl);
         return ResponseEntity.created(URI.create("/api/v1/qr-sessions/" + created.getQrId())).body(response);
     }
@@ -35,13 +55,13 @@ public class QrSessionController {
     @GetMapping("/api/v1/qr-sessions/{qrId}")
     public ResponseEntity<QrSessionResponse> getById(@PathVariable UUID qrId, HttpServletRequest httpRequest) {
         QrSession session = qrSessionService.getById(qrId);
-        String baseUrl = httpRequest.getScheme() + "://" + httpRequest.getServerName() + ":" + httpRequest.getServerPort();
+        String baseUrl = resolveBaseUrl(httpRequest);
         return ResponseEntity.ok(QrSessionResponse.from(session, baseUrl));
     }
 
     @GetMapping("/api/v1/events/{eventId}/qr-sessions")
     public ResponseEntity<List<QrSessionResponse>> getByEvent(@PathVariable UUID eventId, HttpServletRequest httpRequest) {
-        String baseUrl = httpRequest.getScheme() + "://" + httpRequest.getServerName() + ":" + httpRequest.getServerPort();
+        String baseUrl = resolveBaseUrl(httpRequest);
         List<QrSessionResponse> responses = qrSessionService.getByEvent(eventId).stream()
                 .map(s -> QrSessionResponse.from(s, baseUrl))
                 .collect(Collectors.toList());

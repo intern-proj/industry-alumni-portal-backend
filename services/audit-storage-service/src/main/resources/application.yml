@@ -9,9 +9,11 @@ spring:
       max-file-size: 50MB
       max-request-size: 55MB
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/audit_storage_db}
-    username: ${SPRING_DATASOURCE_USERNAME:user}
-    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:2}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${PGHOST:nicdbpgs.postgres.database.azure.com}:${PGPORT:5432}/${PGDATABASE:audit_storage_db}?sslmode=require}
+    username: ${PGUSER:pguser}
+    password: ${PGPASSWORD:NicDB@123}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -22,10 +24,11 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
   rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
+    host: ${RABBITMQ_HOST:toucan.lmq.cloudamqp.com}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME:nnmhsfhw}
+    password: ${RABBITMQ_PASSWORD:cIpl_gm0K2QxsPS-bp51PHpD2aojyuS7}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:nnmhsfhw}
 
 # S3-compatible object storage (AWS S3 or MinIO)
 storage:
@@ -35,6 +38,7 @@ storage:
   access-key: ${STORAGE_ACCESS_KEY:minioadmin}
   secret-key: ${STORAGE_SECRET_KEY:minioadmin}
   path-style-access: ${STORAGE_PATH_STYLE_ACCESS:true}
+  download-base-url: ${STORAGE_DOWNLOAD_BASE_URL:}
 
 eureka:
   client:
@@ -53,6 +57,9 @@ management:
       show-details: always
       probes:
         enabled: true
+  health:
+    rabbit:
+      enabled: ${MANAGEMENT_HEALTH_RABBIT_ENABLED:false}
 
 logging:
   level:

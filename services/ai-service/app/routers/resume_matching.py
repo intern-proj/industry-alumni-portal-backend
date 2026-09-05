@@ -260,6 +260,14 @@ async def enhance_candidate_profile_from_resume(
     print("=" * 80 + "\n")
 
     clean_url = (request.resume_url or "").strip()
+    if clean_url:
+        if clean_url.startswith("/api/v1") and settings.BACKEND_API_BASE_URL:
+            clean_url = f"{settings.BACKEND_API_BASE_URL}{clean_url[7:]}"
+        elif "localhost:8080/api/v1" in clean_url and settings.BACKEND_API_BASE_URL:
+            clean_url = clean_url.replace("http://localhost:8080/api/v1", settings.BACKEND_API_BASE_URL)
+        elif "127.0.0.1:8080/api/v1" in clean_url and settings.BACKEND_API_BASE_URL:
+            clean_url = clean_url.replace("http://127.0.0.1:8080/api/v1", settings.BACKEND_API_BASE_URL)
+
     extracted_text = ""
 
     if clean_url and (clean_url.startswith("http://") or clean_url.startswith("https://")):

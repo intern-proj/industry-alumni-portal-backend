@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 public class UpdateSendingService {
 
     private final EmailDeliveryService emailDeliveryService;
+    private final com.nsbm.notification_service.util.DomainUrlResolver domainUrlResolver;
 
     /**
      * Processes a portal update notification and sends it to the recipient.
@@ -91,8 +92,12 @@ public class UpdateSendingService {
             default -> "View Details";
         };
 
-        String actionBtn = (dto.getActionLink() != null && !dto.getActionLink().isBlank())
-                ? "<a href=\"" + dto.getActionLink() + "\" class=\"btn\" style=\"background-color: " + headerColor + ";\">" + actionBtnText + "</a>"
+        String resolvedActionLink = domainUrlResolver != null
+                ? domainUrlResolver.resolveFrontendUrl(dto.getActionLink())
+                : dto.getActionLink();
+
+        String actionBtn = (resolvedActionLink != null && !resolvedActionLink.isBlank() && !"#".equals(resolvedActionLink))
+                ? "<a href=\"" + resolvedActionLink + "\" class=\"btn\" style=\"background-color: " + headerColor + ";\">" + actionBtnText + "</a>"
                 : "";
 
         return """

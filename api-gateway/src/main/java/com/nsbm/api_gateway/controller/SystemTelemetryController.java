@@ -1,5 +1,7 @@
 package com.nsbm.api_gateway.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.client.discovery.ReactiveDiscoveryClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,23 +24,26 @@ import java.util.*;
 public class SystemTelemetryController {
 
     private final WebClient webClient;
+    private final ReactiveDiscoveryClient discoveryClient;
 
     private static final List<ServiceTarget> SERVICES = List.of(
             new ServiceTarget("api-gateway", "API Gateway & Routing", 8080, "http://localhost:8080/actuator/health"),
             new ServiceTarget("auth-service", "Auth & Identity (2FA/JWT)", 8081, "http://localhost:8081/actuator/health"),
             new ServiceTarget("user-service", "User Profile & Academic Config", 8082, "http://localhost:8082/actuator/health"),
-            new ServiceTarget("vacancy-service", "Placement & Vacancies", 8083, "http://localhost:8083/actuator/health"),
+            new ServiceTarget("vacancy-service", "Placement & Vacancies", 8087, "http://localhost:8087/actuator/health"),
             new ServiceTarget("application-service", "Candidate Application Pipeline", 8084, "http://localhost:8084/actuator/health"),
             new ServiceTarget("event-management-service", "Events, Venues & Speakers", 8085, "http://localhost:8085/actuator/health"),
             new ServiceTarget("event-participation-service", "Event Check-in & QR Attendance", 8086, "http://localhost:8086/actuator/health"),
-            new ServiceTarget("certificate-service", "Digital Badges & Certificate Registry", 8087, "http://localhost:8087/actuator/health"),
+            new ServiceTarget("certificate-service", "Digital Badges & Certificate Registry", 8083, "http://localhost:8083/actuator/health"),
             new ServiceTarget("platform-management-service", "Institutional Approvals & Verifications", 8088, "http://localhost:8088/actuator/health"),
             new ServiceTarget("audit-storage-service", "Immutable Audit & Security Storage", 8089, "http://localhost:8089/actuator/health"),
-            new ServiceTarget("ai-service", "AI Vector Search & Flyer OCR", 8090, "http://localhost:8090/actuator/health")
+            new ServiceTarget("ai-service", "AI Vector Search & Flyer OCR", 8000, "http://localhost:8000/health")
     );
 
-    public SystemTelemetryController() {
+    @Autowired
+    public SystemTelemetryController(@Autowired(required = false) ReactiveDiscoveryClient discoveryClient) {
         this.webClient = WebClient.builder().build();
+        this.discoveryClient = discoveryClient;
     }
 
     @GetMapping("/telemetry")
@@ -92,9 +97,30 @@ public class SystemTelemetryController {
     }
 
     private Mono<Map<String, Object>> pingService(ServiceTarget target) {
+        if ("api-gateway".equals(target.id())) {
+            return pingUrl(target, "http://localhost:8080/actuator/health");
+        }
+
+        if (discoveryClient != null) {
+            return discoveryClient.getInstances(target.id())
+                    .next()
+                    .flatMap(instance -> {
+                        String base = instance.getUri().toString();
+                        String healthUrl = "ai-service".equalsIgnoreCase(target.id()) 
+                                ? base + "/health" 
+                                : base + "/actuator/health";
+                        return pingUrl(target, healthUrl);
+                    })
+                    .switchIfEmpty(Mono.defer(() -> pingUrl(target, target.url())));
+        }
+
+        return pingUrl(target, target.url());
+    }
+
+    private Mono<Map<String, Object>> pingUrl(ServiceTarget target, String pingUrl) {
         long start = System.currentTimeMillis();
         return webClient.get()
-                .uri(target.url())
+                .uri(pingUrl)
                 .retrieve()
                 .bodyToMono(Map.class)
                 .timeout(Duration.ofMillis(3000))

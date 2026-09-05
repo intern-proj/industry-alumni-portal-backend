@@ -26,7 +26,10 @@ public class UserProfileRequestDto {
     private String email;
 
     private String phone;
+    private String headline;
     private String bio;
+    private String linkedinUrl;
+    private String githubUrl;
     private String profilePicUrl;
     private UserRole userRole;
     private String faculty;

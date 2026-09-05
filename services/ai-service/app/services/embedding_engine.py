@@ -1,54 +1,40 @@
 import hashlib
+import json
 import logging
 import re
+import urllib.request
+import urllib.error
 from typing import List, Tuple, Union
 import numpy as np
+
+from app.config import settings
 
 logger = logging.getLogger("ai_service.embedding_engine")
 
 
 class EmbeddingEngine:
-    _bi_encoder = None
-    _cross_encoder = None
-    _bi_encoder_failed = False
-    _cross_encoder_failed = False
-
-    BI_ENCODER_MODEL = "BAAI/bge-small-en-v1.5"
-    CROSS_ENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    """
+    High-performance, lightweight Embedding Engine powered by Google Gemini API.
+    Eliminates heavy local PyTorch (550+ MB) and sentence-transformers dependencies.
+    Provides fast, cloud-based dense vector embeddings with deterministic fallback.
+    """
+    EMBEDDING_MODEL = "models/gemini-embedding-001"
 
     @classmethod
     def get_bi_encoder(cls):
-        """Loads or returns singleton bi-encoder for dense semantic embeddings."""
-        if cls._bi_encoder is None and not cls._bi_encoder_failed:
-            try:
-                from sentence_transformers import SentenceTransformer
-                logger.info(f"Loading Bi-Encoder embedding model: {cls.BI_ENCODER_MODEL}...")
-                cls._bi_encoder = SentenceTransformer(cls.BI_ENCODER_MODEL)
-                logger.info("Bi-Encoder model loaded successfully into memory.")
-            except Exception as e:
-                logger.warning(f"Could not load Bi-Encoder {cls.BI_ENCODER_MODEL}: {e}. Activating deterministic semantic fallback.")
-                cls._bi_encoder_failed = True
-        return cls._bi_encoder
+        """No-op compatibility method for Gemini Cloud Embedding API."""
+        return cls
 
     @classmethod
     def get_cross_encoder(cls):
-        """Loads or returns singleton cross-encoder for deep pairwise reranking."""
-        if cls._cross_encoder is None and not cls._cross_encoder_failed:
-            try:
-                from sentence_transformers import CrossEncoder
-                logger.info(f"Loading Cross-Encoder reranker model: {cls.CROSS_ENCODER_MODEL}...")
-                cls._cross_encoder = CrossEncoder(cls.CROSS_ENCODER_MODEL)
-                logger.info("Cross-Encoder model loaded successfully into memory.")
-            except Exception as e:
-                logger.warning(f"Could not load Cross-Encoder {cls.CROSS_ENCODER_MODEL}: {e}. Activating fallback scoring.")
-                cls._cross_encoder_failed = True
-        return cls._cross_encoder
+        """No-op compatibility method for Gemini Cloud Embedding API."""
+        return cls
 
     @classmethod
-    def _compute_fallback_vector(cls, text: str, dim: int = 384) -> List[float]:
+    def _compute_fallback_vector(cls, text: str, dim: int = 768) -> List[float]:
         """
         Deterministic, section-weighted semantic hash vector fallback.
-        Ensures the system never crashes even if model downloads are in progress or offline.
+        Ensures the system never crashes even if offline or rate limited.
         """
         vec = np.zeros(dim, dtype=np.float32)
         words = re.findall(r'\w+', text.lower())
@@ -56,7 +42,6 @@ class EmbeddingEngine:
             return vec.tolist()
 
         for word in words:
-            # Word hashing trick
             h = int(hashlib.md5(word.encode('utf-8')).hexdigest(), 16)
             idx = h % dim
             sign = 1.0 if ((h >> 8) & 1) else -1.0
@@ -69,33 +54,90 @@ class EmbeddingEngine:
 
     @classmethod
     def encode_text(cls, text: str) -> List[float]:
-        """Encodes single text into normalized 384-dim dense vector."""
+        """Encodes single text into normalized dense vector using Google Gemini Cloud API."""
         if not text or not text.strip():
-            return [0.0] * 384
+            return [0.0] * 768
+
+        clean_text = text.strip()
+        api_key = getattr(settings, "GEMINI_API_KEY", "AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg")
+        if not api_key:
+            return cls._compute_fallback_vector(clean_text)
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/{cls.EMBEDDING_MODEL}:embedContent?key={api_key}"
+        payload = {
+            "model": cls.EMBEDDING_MODEL,
+            "content": {"parts": [{"text": clean_text[:4000]}]}
+        }
 
         try:
-            model = cls.get_bi_encoder()
-            if model is not None:
-                vec = model.encode(text.strip(), normalize_embeddings=True)
-                return vec.tolist()
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode('utf-8'),
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+                values = data.get("embedding", {}).get("values")
+                if values:
+                    arr = np.array(values, dtype=np.float32)
+                    norm = np.linalg.norm(arr)
+                    if norm > 0:
+                        arr = arr / norm
+                    return arr.tolist()
         except Exception as e:
-            logger.warning(f"Bi-encoder encode failed: {e}. Using deterministic fallback vector.")
+            logger.warning(f"[EmbeddingEngine] Gemini API embedding call failed: {e}. Using deterministic fallback.")
 
-        return cls._compute_fallback_vector(text)
+        return cls._compute_fallback_vector(clean_text)
 
     @classmethod
     def encode_batch(cls, texts: List[str]) -> List[List[float]]:
-        """Batch encodes multiple texts into normalized vectors."""
-        clean_texts = [t.strip() if (t and t.strip()) else "empty" for t in texts]
-        try:
-            model = cls.get_bi_encoder()
-            if model is not None:
-                vecs = model.encode(clean_texts, normalize_embeddings=True, batch_size=16)
-                return vecs.tolist()
-        except Exception as e:
-            logger.warning(f"Bi-encoder batch encode failed: {e}. Using deterministic fallback.")
+        """Batch encodes multiple texts using Gemini batchEmbedContents API."""
+        if not texts:
+            return []
 
-        return [cls._compute_fallback_vector(t) for t in clean_texts]
+        clean_texts = [t.strip()[:4000] if (t and t.strip()) else "empty" for t in texts]
+        api_key = getattr(settings, "GEMINI_API_KEY", "AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg")
+        if not api_key:
+            return [cls._compute_fallback_vector(t) for t in clean_texts]
+
+        results = []
+        batch_size = 16
+        for i in range(0, len(clean_texts), batch_size):
+            chunk = clean_texts[i:i + batch_size]
+            url = f"https://generativelanguage.googleapis.com/v1beta/{cls.EMBEDDING_MODEL}:batchEmbedContents?key={api_key}"
+            payload = {
+                "requests": [
+                    {"model": cls.EMBEDDING_MODEL, "content": {"parts": [{"text": c}]}}
+                    for c in chunk
+                ]
+            }
+            try:
+                req = urllib.request.Request(
+                    url,
+                    data=json.dumps(payload).encode('utf-8'),
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    data = json.loads(resp.read().decode('utf-8'))
+                    embeddings = data.get("embeddings", [])
+                    for item in embeddings:
+                        vals = item.get("values", [])
+                        if vals:
+                            arr = np.array(vals, dtype=np.float32)
+                            norm = np.linalg.norm(arr)
+                            if norm > 0:
+                                arr = arr / norm
+                            results.append(arr.tolist())
+                        else:
+                            results.append(cls._compute_fallback_vector(chunk[len(results) % len(chunk)]))
+                    continue
+            except Exception as e:
+                logger.warning(f"[EmbeddingEngine] Gemini batchEmbedContents error: {e}. Using fallback.")
+
+            for c in chunk:
+                results.append(cls._compute_fallback_vector(c))
+
+        return results
 
     @classmethod
     def compute_cosine_similarity(cls, vec1: Union[List[float], np.ndarray], vec2: Union[List[float], np.ndarray]) -> float:
@@ -111,24 +153,14 @@ class EmbeddingEngine:
 
     @classmethod
     def compute_cross_scores(cls, pairs: List[Tuple[str, str]]) -> List[float]:
-        """Pairwise scoring using cross-encoder with batch limit of 15 pairs."""
+        """Pairwise scoring using semantic similarity between candidate and vacancy."""
         if not pairs:
             return []
 
-        # Cap batch size to top 15 pairs to preserve CPU responsiveness
         eval_pairs = pairs[:15]
-
-        try:
-            model = cls.get_cross_encoder()
-            if model is not None:
-                scores = model.predict(eval_pairs)
-                normalized = []
-                for s in scores:
-                    val = float(s)
-                    prob = 1.0 / (1.0 + np.exp(-val))
-                    normalized.append(float(prob))
-                return normalized
-        except Exception as e:
-            logger.warning(f"Cross-encoder scoring error: {e}. Falling back to 0.6.")
-
-        return [0.6] * len(eval_pairs)
+        scores = []
+        for text1, text2 in eval_pairs:
+            v1 = cls.encode_text(text1)
+            v2 = cls.encode_text(text2)
+            scores.append(cls.compute_cosine_similarity(v1, v2))
+        return scores

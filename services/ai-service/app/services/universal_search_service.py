@@ -28,24 +28,21 @@ class UniversalSearchService:
 
     @staticmethod
     def classify_domain_intent(query: str) -> DomainIntentEnum:
-        """Use LLM for intent classification, fallback to regex."""
+        """Use Gemini LLM for domain intent classification with regex fallback."""
         try:
             llm = LLMEngine.get_instance()
             prompt = (
-                f"<|im_start|>system\n"
-                f"You are a search intent classifier for a university industry portal.\n"
-                f"Classify the user's search query into exactly one category:\n"
-                f"- \"vacancies\" — job listings, internships, placements, roles, salaries\n"
-                f"- \"companies\" — partner organizations, corporate collaborators, firms, industries\n"
-                f"- \"students\" — candidates, graduates, alumni, people with skills\n"
-                f"Respond with ONLY the category name, nothing else.\n"
-                f"<|im_end|>\n"
-                f"<|im_start|>user\n"
+                "SYSTEM INSTRUCTION:\n"
+                "You are an intelligent search domain classifier for the NSBM Green University Industry & Alumni Portal.\n"
+                "Classify the user's search query into exactly one domain category:\n"
+                "- 'vacancies' — Job postings, internships, placements, employment roles, salary queries, career openings\n"
+                "- 'companies' — Partner organizations, hiring employers, corporate collaborators, industries, firms\n"
+                "- 'students' — Candidates, undergraduates, fresh graduates, alumni, candidate profiles, talent with skills\n\n"
+                "Respond with ONLY the category name ('vacancies', 'companies', or 'students'), nothing else.\n\n"
+                "USER REQUEST:\n"
                 f"{query}\n"
-                f"<|im_end|>\n"
-                f"<|im_start|>assistant\n"
             )
-            response = llm(prompt, max_tokens=10, temperature=0.0, stop=["<|im_end|>"])
+            response = llm(prompt, max_tokens=60, temperature=0.0)
             output = response["choices"][0]["text"].strip().lower()
 
             if "vacanc" in output:
@@ -55,7 +52,7 @@ class UniversalSearchService:
             elif "student" in output or "candidate" in output:
                 return DomainIntentEnum.STUDENTS
             
-            # fallback if LLM gave weird output
+            # fallback if LLM gave unexpected output
             return UniversalSearchService._classify_intent_regex(query)
             
         except Exception as e:

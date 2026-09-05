@@ -18,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -27,6 +28,9 @@ public class VacancyServiceImpl implements VacancyService {
 
     private final VacancyRepository vacancyRepository;
     private final VacancyEventPublisher vacancyEventPublisher;
+
+    @Value("${services.user-service.url:http://localhost:8081}")
+    private String userServiceUrl;
 
     @Override
     @Transactional
@@ -213,7 +217,7 @@ public class VacancyServiceImpl implements VacancyService {
             return partnerId;
         }
         try {
-            String url = "http://localhost:8081/api/v1/user-profiles/" + partnerId;
+            String url = userServiceUrl + "/api/v1/user-profiles/" + partnerId;
             org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
             java.util.Map response = restTemplate.getForObject(url, java.util.Map.class);
             if (response != null && response.containsKey("data")) {

@@ -22,44 +22,42 @@ class ResumeExtractor:
         if not raw_text or len(raw_text.strip()) < 20:
             return StructuredResumeSchema(skills=baseline_skills)
 
-        # 2. Extract structured projects and bio via local LLM
+        # 2. Extract structured projects, verified competencies, and bio via Gemini
         prompt = (
-            f"<|im_start|>system\n"
-            f"You are an expert HR AI assistant. Extract structured candidate portfolio data from the resume text into strict JSON adhering to this structure:\n"
-            f'{{"candidate_name": "Full Name", "target_roles": ["Target Role"], "skills": ["Skill1", "Skill2"], "projects": [{{"title": "Project Title", "tech_stack": ["SkillUsed"], "description": "1 concise sentence description"}}], "bio": "2 sentence professional bio"}}\n'
-            f"CRITICAL EXTRACTION RULES:\n"
-            f"1. Extract ONLY projects and work samples explicitly documented in the candidate resume text.\n"
-            f"2. If the resume does NOT contain any projects, return an empty array: \"projects\": []. DO NOT invent, fabricate, or hallucinate project names.\n"
-            f"3. Return ONLY valid JSON inside ```json. Keep descriptions strictly 1 concise sentence.<|im_end|>\n"
-            f"<|im_start|>user\n"
-            f"Resume Content:\n{raw_text[:2500]}<|im_end|>\n"
-            f"<|im_start|>assistant\n```json\n"
+            "SYSTEM INSTRUCTION:\n"
+            "You are an expert technical talent assessor and resume parser for NSBM Green University.\n"
+            "Extract the candidate's portfolio, verified technical skills, projects built, and professional background from the resume into a strict JSON object.\n\n"
+            "REQUIRED JSON SCHEMA:\n"
+            "{\n"
+            '  "candidate_name": "Full Name",\n'
+            '  "target_roles": ["Primary Role / Specialization"],\n'
+            '  "skills": ["Skill1", "Skill2", "Skill3"],\n'
+            '  "projects": [\n'
+            '    {\n'
+            '      "title": "Project Name",\n'
+            '      "tech_stack": ["Tech1", "Tech2"],\n'
+            '      "description": "1 concise sentence explaining what was engineered and its measurable impact."\n'
+            '    }\n'
+            '  ],\n'
+            '  "bio": "A professional 2-3 sentence executive bio highlighting university background, core competencies, and career focus."\n'
+            "}\n\n"
+            "EXTRACTION RULES:\n"
+            "1. Extract real software systems, hardware labs, course capstones, or work implementations explicitly documented.\n"
+            "2. Ensure skills include both programming languages, frameworks, developer tools, and domain specializations.\n"
+            "3. Return ONLY the strict JSON object.\n\n"
+            "USER REQUEST:\n"
+            f"Candidate Resume Content:\n{raw_text[:15000]}\n"
         )
 
         try:
             llm = LLMEngine.get_instance()
-            with _llm_lock:
-                try:
-                    llm.reset()
-                except Exception:
-                    pass
-                response = llm(
-                    prompt,
-                    max_tokens=750,
-                    temperature=0.1,
-                    stop=["```", "<|im_end|>", "\n\n\n"]
-                )
-                try:
-                    llm.reset()
-                except Exception:
-                    pass
+            response = llm(
+                prompt,
+                max_tokens=3500,
+                temperature=0.1
+            )
 
             output_text = response["choices"][0]["text"].strip()
-            if output_text.startswith("```json"):
-                output_text = output_text[7:]
-            if output_text.endswith("```"):
-                output_text = output_text[:-3]
-
             parsed = ResumeExtractor._repair_and_parse_json(output_text)
             structured = StructuredResumeSchema.model_validate(parsed)
             # Merge with baseline skills
@@ -72,8 +70,22 @@ class ResumeExtractor:
 
     @staticmethod
     def _repair_and_parse_json(text: str) -> dict:
-        """Repairs truncated JSON if the LLM output was cut off at the token boundary."""
+        """Repairs truncated or markdown-wrapped JSON."""
         cleaned = text.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        elif cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+
+        # Locate the outermost JSON braces
+        start_idx = cleaned.find('{')
+        end_idx = cleaned.rfind('}')
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            cleaned = cleaned[start_idx:end_idx + 1]
+
         try:
             return json.loads(cleaned)
         except Exception:

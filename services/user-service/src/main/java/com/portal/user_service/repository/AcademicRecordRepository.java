@@ -9,5 +9,6 @@ import java.util.Optional;
 @Repository
 public interface AcademicRecordRepository extends JpaRepository<AcademicRecord, String> {
     Optional<AcademicRecord> findByUserId(String userId);
+    boolean existsByUserId(String userId);
     void deleteByUserId(String userId);
 }

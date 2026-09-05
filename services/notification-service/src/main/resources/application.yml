@@ -6,24 +6,26 @@ spring:
     name: notification-service
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/notification}
-    username: ${SPRING_DATASOURCE_USERNAME:user}
-    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:2}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${PGHOST:nicdbpgs.postgres.database.azure.com}:${PGPORT:5432}/${PGDATABASE:notification}?sslmode=require}
+    username: ${PGUSER:pguser}
+    password: ${PGPASSWORD:NicDB@123}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
 
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}
     username: ${SPRING_MAIL_USERNAME:otakuslimesgeneration@gmail.com}
-    password: ${SPRING_MAIL_PASSWORD:gzes urwv wnpy tixo}
+    password: ${SPRING_MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -32,10 +34,11 @@ spring:
             enable: true
 
   rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
+    host: ${RABBITMQ_HOST:toucan.lmq.cloudamqp.com}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME:nnmhsfhw}
+    password: ${RABBITMQ_PASSWORD:cIpl_gm0K2QxsPS-bp51PHpD2aojyuS7}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:nnmhsfhw}
 
 eureka:
   instance:
@@ -54,7 +57,14 @@ management:
       show-details: always
       probes:
         enabled: true
+  health:
+    rabbit:
+      enabled: ${MANAGEMENT_HEALTH_RABBIT_ENABLED:false}
 
 app:
   mail:
-    mock-sending: true
+    mock-sending: ${APP_MAIL_MOCK_SENDING:false}
+  frontend:
+    url: ${FRONTEND_URL:https://wonderful-wave-0320abf00.3.azurestaticapps.net}
+  backend:
+    url: ${API_GATEWAY_URL:${BACKEND_URL:https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io}}

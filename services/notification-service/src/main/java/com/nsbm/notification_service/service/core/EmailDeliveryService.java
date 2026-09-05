@@ -27,6 +27,7 @@ public class EmailDeliveryService {
     private final JavaMailSender javaMailSender;
     private final com.nsbm.notification_service.repository.SmtpConfigurationRepository smtpRepository;
     private final com.nsbm.notification_service.service.SmtpConfigService smtpConfigService;
+    private final com.nsbm.notification_service.util.DomainUrlResolver domainUrlResolver;
 
     private JavaMailSender resolveMailSender() {
         return smtpRepository.findFirstByIsActiveTrueOrderByIdDesc()
@@ -55,8 +56,10 @@ public class EmailDeliveryService {
     public void sendEmail(String to, String subject, String body) {
         validateEmailParams(to, subject);
 
+        String sanitizedBody = domainUrlResolver != null ? domainUrlResolver.sanitizeText(body) : body;
+
         if (mockSending) {
-            log.info("\n========== MOCK EMAIL SENT ==========\nTo: {}\nSubject: {}\n\nBody:\n{}\n=======================================\n", to, subject, body);
+            log.info("\n========== MOCK EMAIL SENT ==========\nTo: {}\nSubject: {}\n\nBody:\n{}\n=======================================\n", to, subject, sanitizedBody);
             return;
         }
 
@@ -66,7 +69,7 @@ public class EmailDeliveryService {
             mail.setFrom(resolveFromEmail());
             mail.setTo(to);
             mail.setSubject(subject);
-            mail.setText(body);
+            mail.setText(sanitizedBody);
 
             resolveMailSender().send(mail);
 
@@ -87,8 +90,10 @@ public class EmailDeliveryService {
     public void sendHtmlEmail(String to, String subject, String htmlBody) {
         validateEmailParams(to, subject);
 
+        String sanitizedHtml = domainUrlResolver != null ? domainUrlResolver.sanitizeHtml(htmlBody) : htmlBody;
+
         if (mockSending) {
-            log.info("\n========== MOCK HTML EMAIL SENT ==========\nTo: {}\nSubject: {}\n\nHTML Body:\n{}\n============================================\n", to, subject, htmlBody);
+            log.info("\n========== MOCK HTML EMAIL SENT ==========\nTo: {}\nSubject: {}\n\nHTML Body:\n{}\n============================================\n", to, subject, sanitizedHtml);
             return;
         }
 
@@ -100,7 +105,7 @@ public class EmailDeliveryService {
             helper.setFrom(resolveFromEmail(), resolveFromName());
             helper.setTo(to);
             helper.setSubject(subject);
-            helper.setText(htmlBody, true);
+            helper.setText(sanitizedHtml, true);
 
             activeSender.send(message);
 

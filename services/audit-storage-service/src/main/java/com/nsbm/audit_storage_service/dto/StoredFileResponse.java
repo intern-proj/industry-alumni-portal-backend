@@ -22,6 +22,7 @@ public class StoredFileResponse {
     private String contentType;
     private Long fileSizeBytes;
     private String storageUrl;
+    private String downloadUrl;
     private String uploaderId;
     private Instant uploadTimestamp;
     private FileType fileType;

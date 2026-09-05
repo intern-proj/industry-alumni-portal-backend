@@ -7,9 +7,11 @@ spring:
   profiles:
     active: h2
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:industry_alumni_portal_certificate_db}}
-    username: ${POSTGRES_USER:${SPRING_DATASOURCE_USERNAME:user}}
-    password: ${POSTGRES_PASSWORD:${SPRING_DATASOURCE_PASSWORD:root}}
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:2}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${PGHOST:nicdbpgs.postgres.database.azure.com}:${PGPORT:5432}/${PGDATABASE:industry_alumni_portal_certificate_db}?sslmode=require}
+    username: ${PGUSER:pguser}
+    password: ${PGPASSWORD:NicDB@123}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -23,18 +25,26 @@ spring:
     baseline-on-migrate: true
     locations: classpath:db/migration
   rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
+    host: ${RABBITMQ_HOST:toucan.lmq.cloudamqp.com}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME:nnmhsfhw}
+    password: ${RABBITMQ_PASSWORD:cIpl_gm0K2QxsPS-bp51PHpD2aojyuS7}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:nnmhsfhw}
     listener:
       simple:
         auto-startup: false
 
+app:
+  frontend:
+    url: ${FRONTEND_URL:https://wonderful-wave-0320abf00.3.azurestaticapps.net}
+  backend:
+    url: ${API_GATEWAY_URL:${BACKEND_URL:https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io}}
+
 certificate:
   storage:
     path: ./uploads/certificates
-  baseUrl: https://portal.nsbm.ac.lk
+  baseUrl: ${CERTIFICATE_BASE_URL:${API_GATEWAY_URL:${BACKEND_URL:https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io}}}
+  frontendUrl: ${FRONTEND_URL:https://wonderful-wave-0320abf00.3.azurestaticapps.net}
 
 management:
   endpoints:
@@ -48,6 +58,9 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    rabbit:
+      enabled: ${MANAGEMENT_HEALTH_RABBIT_ENABLED:false}
 
 eureka:
   instance:
@@ -62,6 +75,8 @@ spring:
     activate:
       on-profile: h2
   datasource:
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:2}
     url: jdbc:h2:mem:certificatedb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
     username: sa

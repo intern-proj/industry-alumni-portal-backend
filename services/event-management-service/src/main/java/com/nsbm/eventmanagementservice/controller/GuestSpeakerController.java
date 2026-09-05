@@ -28,7 +28,7 @@ public class GuestSpeakerController {
     private final JwtTokenProvider jwtTokenProvider;
     private final RabbitTemplate rabbitTemplate;
 
-    @Value("${app.frontend.url:http://localhost:5173}")
+    @Value("${app.frontend.url:${FRONTEND_URL:https://wonderful-wave-0320abf00.3.azurestaticapps.net}}")
     private String frontendUrl;
 
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
@@ -52,10 +52,20 @@ public class GuestSpeakerController {
         String token = jwtTokenProvider.generateToken(speaker.getId().toString(), speaker.getEmail(), "GUEST_SPEAKER", "GUEST");
         
         String origin = httpRequest.getHeader("Origin");
-        if (origin == null || origin.isEmpty()) {
-            origin = frontendUrl; // fallback
+        if (origin == null || origin.isBlank() || origin.contains("localhost")) {
+            String referer = httpRequest.getHeader("Referer");
+            if (referer != null && !referer.isBlank() && !referer.contains("localhost")) {
+                try {
+                    java.net.URI uri = java.net.URI.create(referer);
+                    origin = uri.getScheme() + "://" + uri.getAuthority();
+                } catch (Exception ignored) {
+                    origin = frontendUrl;
+                }
+            } else {
+                origin = frontendUrl;
+            }
         }
-        String inviteLink = origin + "/?token=" + token;
+        String inviteLink = origin + "/verify-speaker?token=" + token;
         
         UpdateEmailDTO message = new UpdateEmailDTO(
                 speaker.getEmail(),

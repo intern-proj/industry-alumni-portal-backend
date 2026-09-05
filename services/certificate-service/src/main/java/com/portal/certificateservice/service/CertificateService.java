@@ -30,7 +30,7 @@ public class CertificateService {
     private final PdfGeneratorService pdfGeneratorService;
     private final NotificationEventPublisher notificationEventPublisher;
 
-    @Value("${certificate.baseUrl:https://portal.nsbm.ac.lk}")
+    @Value("${certificate.baseUrl:${app.backend.url:${API_GATEWAY_URL:https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io}}}")
     private String baseUrl;
 
     public CertificateService(CertificateRepository certificateRepository,

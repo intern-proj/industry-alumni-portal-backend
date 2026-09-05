@@ -205,12 +205,11 @@ def test_ai_inference(req: TestModelRequest = None, db: Session = Depends(get_db
         llm = LLMEngine.get_instance()
         
         # Test prompt execution
-        formatted_prompt = f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+        formatted_prompt = f"USER REQUEST:\n{prompt}\nASSISTANT RESPONSE:\n"
         output = llm(
             formatted_prompt,
             max_tokens=64,
-            temperature=0.2,
-            stop=["<|im_end|>", "\n\n"]
+            temperature=0.2
         )
 
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 1)

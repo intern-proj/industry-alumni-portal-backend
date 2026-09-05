@@ -5,9 +5,11 @@ spring:
   application:
     name: vacancy-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/industry_portal_vacancy}
-    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:user}}
-    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:root}}
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:2}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${PGHOST:nicdbpgs.postgres.database.azure.com}:${PGPORT:5432}/${PGDATABASE:vacancy_db}?sslmode=require}
+    username: ${PGUSER:pguser}
+    password: ${PGPASSWORD:NicDB@123}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -17,6 +19,12 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  rabbitmq:
+    host: ${RABBITMQ_HOST:toucan.lmq.cloudamqp.com}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:nnmhsfhw}
+    password: ${RABBITMQ_PASSWORD:cIpl_gm0K2QxsPS-bp51PHpD2aojyuS7}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:nnmhsfhw}
 
 eureka:
   client:
@@ -46,6 +54,16 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    rabbit:
+      enabled: ${MANAGEMENT_HEALTH_RABBIT_ENABLED:false}
 
+app:
+  frontend:
+    url: ${FRONTEND_URL:https://wonderful-wave-0320abf00.3.azurestaticapps.net}
+  backend:
+    url: ${BACKEND_URL:${API_GATEWAY_URL:https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io}}
 
-
+services:
+  user-service:
+    url: ${USER_SERVICE_URL:http://localhost:8081}

@@ -15,6 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,6 +37,9 @@ public class StorageServiceImpl implements StorageService {
 
     private final StorageProperties storageProperties;
     private final StoredFileRepository storedFileRepository;
+
+    @Value("${storage.download-base-url:}")
+    private String configuredDownloadBaseUrl;
     
     // Directory for local file storage mock instead of S3
     private final Path storageDirectory = Paths.get(System.getProperty("java.io.tmpdir"), "icu-uploads");
@@ -172,6 +179,40 @@ public class StorageServiceImpl implements StorageService {
         return endpoint + "/" + storageProperties.getBucketName() + "/" + storageKey;
     }
 
+    private String buildDownloadUrl(UUID fileId) {
+        if (StringUtils.hasText(configuredDownloadBaseUrl)) {
+            String base = configuredDownloadBaseUrl.trim();
+            if (base.endsWith("/")) {
+                base = base.substring(0, base.length() - 1);
+            }
+            return base + "/" + fileId + "?inline=true";
+        }
+        try {
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                HttpServletRequest request = attrs.getRequest();
+                String scheme = request.getHeader("X-Forwarded-Proto");
+                if (!StringUtils.hasText(scheme)) {
+                    scheme = request.getScheme();
+                }
+                String host = request.getHeader("X-Forwarded-Host");
+                if (!StringUtils.hasText(host)) {
+                    host = request.getHeader("Host");
+                    if (!StringUtils.hasText(host)) {
+                        host = request.getServerName() + (request.getServerPort() == 80 || request.getServerPort() == 443 ? "" : ":" + request.getServerPort());
+                    }
+                }
+                String prefix = request.getHeader("X-Forwarded-Prefix");
+                String basePath = StringUtils.hasText(prefix) ? prefix.trim() : "";
+                if (basePath.endsWith("/")) {
+                    basePath = basePath.substring(0, basePath.length() - 1);
+                }
+                return scheme + "://" + host + basePath + "/api/v1/storage/download/" + fileId + "?inline=true";
+            }
+        } catch (Exception ignored) {}
+        return "/api/v1/storage/download/" + fileId + "?inline=true";
+    }
+
     private StoredFileResponse toResponse(StoredFile storedFile) {
         return StoredFileResponse.builder()
                 .fileId(storedFile.getFileId())
@@ -179,6 +220,7 @@ public class StorageServiceImpl implements StorageService {
                 .contentType(storedFile.getContentType())
                 .fileSizeBytes(storedFile.getFileSizeBytes())
                 .storageUrl(storedFile.getStorageUrl())
+                .downloadUrl(buildDownloadUrl(storedFile.getFileId()))
                 .uploaderId(storedFile.getUploaderId())
                 .uploadTimestamp(storedFile.getUploadTimestamp())
                 .fileType(storedFile.getFileType())

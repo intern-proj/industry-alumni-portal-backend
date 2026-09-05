@@ -1,0 +1,80 @@
+# ==============================================================================
+# Docker Ignore Rules for Industry Alumni Portal Backend
+# Ensures only source code is uploaded to ACR, keeping build context ~1.5 MB
+# ==============================================================================
+
+# Frontend - Exclude entire frontend from backend container builds
+frontend/
+frontend/**
+**/frontend/**
+
+# Git & IDEs
+.git/
+.git/**
+.github/
+.github/**
+.idea/
+.idea/**
+.vscode/
+.vscode/**
+*.iml
+.DS_Store
+
+# Java Build Artifacts & Caches (Exclude intermediate compiler caches, ALLOW runnable jars)
+**/target/classes/
+**/target/classes/**
+**/target/generated-sources/
+**/target/generated-sources/**
+**/target/maven-status/
+**/target/maven-status/**
+**/target/test-classes/
+**/target/test-classes/**
+**/target/*.original
+
+# Node & JavaScript
+**/node_modules/
+**/node_modules/**
+node_modules/
+node_modules/**
+**/dist/
+**/dist/**
+
+# Python / Virtual Environments / AI Service
+**/.venv*/
+**/.venv*/**
+**/venv*/
+**/venv*/**
+services/ai-service/.venv310/
+services/ai-service/.venv310/**
+services/ai-service/.venv/
+services/ai-service/.venv/**
+services/ai-service/venv/
+services/ai-service/venv/**
+**/__pycache__/
+**/__pycache__/**
+*.py[cod]
+*$py.class
+*.so
+.env
+.env.*
+services/ai-service/*.gguf
+services/ai-service/models/
+services/ai-service/models/**
+
+# Databases & Runtime Data
+*.db
+*.sqlite
+*.sqlite3
+database.db
+*.log
+**/logs/
+**/logs/**
+
+# Documentation, Scratches & Local Scripts
+docs/
+docs/**
+scratch/
+scratch/**
+scripts/
+scripts/**
+out.json

@@ -28,8 +28,17 @@ public class UserProfile {
 
     private String phone;
 
+    @Column(name = "headline")
+    private String headline;
+
     @Column(name = "bio", columnDefinition = "TEXT")
     private String bio;
+
+    @Column(name = "linkedin_url")
+    private String linkedinUrl;
+
+    @Column(name = "github_url")
+    private String githubUrl;
 
     @Column(name = "profile_pic_url", columnDefinition = "TEXT")
     private String profilePicUrl;
@@ -52,7 +61,7 @@ public class UserProfile {
     @Column(name = "projects", columnDefinition = "TEXT")
     private String projects;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)

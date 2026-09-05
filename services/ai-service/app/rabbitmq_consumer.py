@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 import threading
 import time
 
@@ -27,8 +28,8 @@ from app.services.pipeline import VacancyPipelineService
 
 logger = logging.getLogger("ai_service.rabbitmq")
 
-# Vacancy-service base URL (direct, not through API gateway)
-VACANCY_SERVICE_BASE_URL = "http://localhost:8087/api/v1/vacancies/partner"
+# Vacancy-service base URL
+VACANCY_SERVICE_BASE_URL = settings.VACANCY_SERVICE_BASE_URL
 
 
 class RabbitMQConsumer:
@@ -70,6 +71,7 @@ class RabbitMQConsumer:
         parameters = pika.ConnectionParameters(
             host=settings.RABBITMQ_HOST,
             port=settings.RABBITMQ_PORT,
+            virtual_host=settings.RABBITMQ_VIRTUAL_HOST,
             credentials=credentials,
             heartbeat=600,
             blocked_connection_timeout=300
@@ -153,7 +155,11 @@ class RabbitMQConsumer:
             storage_file_id = payload.get("storageFileId")
 
             if not file_url and storage_file_id:
-                file_url = f"http://localhost:8080/api/v1/storage/download/{storage_file_id}"
+                file_url = f"{settings.BACKEND_API_BASE_URL}/storage/download/{storage_file_id}"
+            elif file_url and "localhost:8080" in file_url and "localhost:8080" not in settings.BACKEND_API_BASE_URL:
+                file_url = file_url.replace("http://localhost:8080/api/v1", settings.BACKEND_API_BASE_URL)
+                if not file_url.startswith("http"):
+                    file_url = f"{settings.BACKEND_API_BASE_URL}/storage/download/{storage_file_id}"
 
             if not file_url:
                 logger.error(f"Message missing fileUrl/storageFileId: {payload}")
@@ -327,13 +333,27 @@ class RabbitMQConsumer:
         if extracted.salary_raw:
             update_payload["salaryRange"] = extracted.salary_raw
 
-        # Tags from required + preferred skills
-        all_skills = (extracted.required_skills or []) + (extracted.preferred_skills or [])
+        # Application deadline mapping (standard YYYY-MM-DD for Spring Boot LocalDate)
+        if extracted.application_deadline:
+            deadline_match = re.search(r'\b(\d{4}-\d{2}-\d{2})\b', str(extracted.application_deadline))
+            if deadline_match:
+                update_payload["applicationDeadline"] = deadline_match.group(1)
+
+        # Tags from unique required + preferred skills without crude string chopping
+        all_skills = list(dict.fromkeys((extracted.required_skills or []) + (extracted.preferred_skills or [])))
         if all_skills:
-            tags_str = ", ".join(all_skills[:15])  # Limit to 15 tags
-            if len(tags_str) > 300:
-                tags_str = tags_str[:297] + "..."
-            update_payload["tags"] = tags_str
+            selected_tags = []
+            curr_len = 0
+            for skill in all_skills[:15]:
+                skill_clean = skill.strip()
+                if not skill_clean:
+                    continue
+                if curr_len + len(skill_clean) + 2 > 290:
+                    break
+                selected_tags.append(skill_clean)
+                curr_len += len(skill_clean) + 2
+            if selected_tags:
+                update_payload["tags"] = ", ".join(selected_tags)
 
         # Target faculty from institutional analysis
         if institutional.target_faculty:
@@ -341,6 +361,7 @@ class RabbitMQConsumer:
 
         # AI missing fields as JSON for admin review
         ai_analysis = {
+            "companyName": extracted.company_name,
             "missingFields": [],
             "institutionalMatchScore": institutional.institutional_match_score,
             "approvalRecommendation": institutional.approval_recommendation,
@@ -369,30 +390,57 @@ class RabbitMQConsumer:
             logger.info("No fields to update on vacancy-service.")
             return
 
-        # Send PUT request to vacancy-service
-        url = f"{VACANCY_SERVICE_BASE_URL}/{vacancy_id}"
-        try:
-            with httpx.Client(timeout=30.0) as client:
-                resp = client.put(url, json=update_payload)
+        # Candidate URLs to update vacancy-service (direct service or via API gateway)
+        target_urls = []
+        if settings.VACANCY_SERVICE_BASE_URL and ("localhost" not in settings.VACANCY_SERVICE_BASE_URL or "azurecontainerapps.io" not in settings.EUREKA_SERVER_URL):
+            target_urls.append(f"{settings.VACANCY_SERVICE_BASE_URL.rstrip('/')}/{vacancy_id}")
+        if settings.BACKEND_API_BASE_URL and ("localhost" not in settings.BACKEND_API_BASE_URL or "azurecontainerapps.io" not in settings.EUREKA_SERVER_URL):
+            target_urls.append(f"{settings.BACKEND_API_BASE_URL.rstrip('/')}/vacancies/partner/{vacancy_id}")
 
-            if resp.status_code == 200:
-                print(f"\n✅ [AI SERVICE] Vacancy #{vacancy_id} updated in vacancy-service DB successfully!")
-                print(f"   Updated fields: {', '.join(update_payload.keys())}")
-                logger.info(f"Vacancy {vacancy_id} updated in vacancy-service. Status: {resp.status_code}")
-            else:
-                logger.error(
-                    f"Failed to update vacancy {vacancy_id} in vacancy-service. "
-                    f"Status: {resp.status_code}, Response: {resp.text}"
-                )
-                print(f"\n❌ [AI SERVICE] Failed to update vacancy #{vacancy_id} in DB. Status: {resp.status_code}")
-                print(f"   Response: {resp.text[:200]}")
+        # Cloud auto-discovery fallbacks
+        if "azurecontainerapps.io" in settings.EUREKA_SERVER_URL:
+            env_domain = settings.EUREKA_SERVER_URL.split("discovery-server.")[-1].split("/")[0]
+            target_urls.append(f"https://api-gateway.{env_domain}/api/v1/vacancies/partner/{vacancy_id}")
+            target_urls.append(f"https://vacancy-service.internal.{env_domain}/api/v1/vacancies/partner/{vacancy_id}")
+            target_urls.append(f"http://vacancy-service/api/v1/vacancies/partner/{vacancy_id}")
+        
+        # Local development fallback
+        if not target_urls:
+            target_urls = [
+                f"http://localhost:8087/api/v1/vacancies/partner/{vacancy_id}",
+                f"http://localhost:8080/api/v1/vacancies/partner/{vacancy_id}"
+            ]
+        
+        seen_urls = set()
+        updated_successfully = False
 
-        except httpx.ConnectError:
-            logger.error(f"Cannot connect to vacancy-service at {url}. Is it running?")
-            print(f"\n❌ [AI SERVICE] Cannot connect to vacancy-service at {url}. Is it running?")
-        except Exception as e:
-            logger.error(f"Error updating vacancy-service for vacancy {vacancy_id}: {e}", exc_info=True)
-            print(f"\n❌ [AI SERVICE] Error updating vacancy #{vacancy_id}: {e}")
+        for url in target_urls:
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            try:
+                with httpx.Client(timeout=30.0) as client:
+                    resp = client.put(url, json=update_payload)
+
+                if resp.status_code == 200:
+                    print(f"\n[AI SERVICE] Vacancy #{vacancy_id} updated in vacancy-service successfully via {url}!")
+                    print(f"   Updated fields: {', '.join(update_payload.keys())}")
+                    logger.info(f"Vacancy {vacancy_id} updated in vacancy-service. Status: {resp.status_code}")
+                    updated_successfully = True
+                    break
+                else:
+                    logger.warning(
+                        f"Attempted to update vacancy {vacancy_id} at {url}. "
+                        f"Status: {resp.status_code}, Response: {resp.text[:200]}"
+                    )
+            except httpx.ConnectError:
+                logger.warning(f"Cannot connect to vacancy endpoint at {url}.")
+            except Exception as e:
+                logger.warning(f"Error updating vacancy {vacancy_id} at {url}: {e}")
+
+        if not updated_successfully:
+            logger.error(f"Failed to update vacancy #{vacancy_id} across all configured endpoints.")
+            print(f"\n[AI SERVICE] Failed to update vacancy #{vacancy_id} across all endpoints.")
 
     def _on_application_match_message(self, ch, method, properties, body):
         """Callback invoked when a candidate job application is queued for async AI matching."""
@@ -473,11 +521,29 @@ class RabbitMQConsumer:
                     "scoreBreakdown": breakdown_str
                 }
 
-                saved_to_backend = False
-                for target_url in [
-                    f"http://localhost:8084/api/v1/applications/{app_id}/ai-insights",
-                    f"http://localhost:8080/api/v1/applications/{app_id}/ai-insights"
-                ]:
+                candidate_urls = []
+                if settings.APPLICATION_SERVICE_BASE_URL and ("localhost" not in settings.APPLICATION_SERVICE_BASE_URL or "azurecontainerapps.io" not in settings.EUREKA_SERVER_URL):
+                    candidate_urls.append(f"{settings.APPLICATION_SERVICE_BASE_URL.rstrip('/')}/{app_id}/ai-insights")
+                if settings.BACKEND_API_BASE_URL and ("localhost" not in settings.BACKEND_API_BASE_URL or "azurecontainerapps.io" not in settings.EUREKA_SERVER_URL):
+                    candidate_urls.append(f"{settings.BACKEND_API_BASE_URL.rstrip('/')}/applications/{app_id}/ai-insights")
+
+                # Cloud auto-discovery fallbacks
+                if "azurecontainerapps.io" in settings.EUREKA_SERVER_URL:
+                    env_domain = settings.EUREKA_SERVER_URL.split("discovery-server.")[-1].split("/")[0]
+                    candidate_urls.append(f"https://api-gateway.{env_domain}/api/v1/applications/{app_id}/ai-insights")
+                    candidate_urls.append(f"https://application-service.internal.{env_domain}/api/v1/applications/{app_id}/ai-insights")
+                    candidate_urls.append(f"http://application-service/api/v1/applications/{app_id}/ai-insights")
+
+                if not candidate_urls:
+                    candidate_urls = [
+                        f"http://localhost:8084/api/v1/applications/{app_id}/ai-insights",
+                        f"http://localhost:8080/api/v1/applications/{app_id}/ai-insights"
+                    ]
+                seen_target_urls = set()
+                for target_url in candidate_urls:
+                    if not target_url or target_url in seen_target_urls:
+                        continue
+                    seen_target_urls.add(target_url)
                     try:
                         with httpx.Client(timeout=10.0) as client:
                             resp = client.put(target_url, json=insights_payload)

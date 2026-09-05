@@ -74,7 +74,10 @@ public class UserProfileServiceImpl implements UserProfileService {
         existing.setFirstName(dto.getFirstName());
         existing.setLastName(dto.getLastName());
         existing.setPhone(dto.getPhone());
+        if (dto.getHeadline() != null) existing.setHeadline(dto.getHeadline());
         existing.setBio(dto.getBio());
+        if (dto.getLinkedinUrl() != null) existing.setLinkedinUrl(dto.getLinkedinUrl());
+        if (dto.getGithubUrl() != null) existing.setGithubUrl(dto.getGithubUrl());
         existing.setProfilePicUrl(dto.getProfilePicUrl());
         if (dto.getFaculty() != null) existing.setFaculty(dto.getFaculty());
         if (dto.getDepartment() != null) existing.setDepartment(dto.getDepartment());
@@ -211,7 +214,10 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .lastName(profile.getLastName())
                 .email(profile.getEmail())
                 .phone(profile.getPhone())
+                .headline(profile.getHeadline())
                 .bio(profile.getBio())
+                .linkedinUrl(profile.getLinkedinUrl())
+                .githubUrl(profile.getGithubUrl())
                 .profilePicUrl(profile.getProfilePicUrl())
                 .userRole(profile.getUserRole())
                 .accountStatus(profile.getAccountStatus())

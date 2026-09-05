@@ -25,7 +25,7 @@ public class EventAttendanceController {
     private final AgendaRepository agendaRepository;
     private final JwtTokenProvider jwtTokenProvider;
 
-    @Value("${app.frontend.url:http://localhost:5173}")
+    @Value("${app.frontend.url:${FRONTEND_URL:https://wonderful-wave-0320abf00.3.azurestaticapps.net}}")
     private String frontendUrl;
 
     @GetMapping("/agendas/{agendaId}/qr-token")
@@ -39,8 +39,18 @@ public class EventAttendanceController {
         String token = jwtTokenProvider.generateToken(agendaId.toString(), "session-attendance@nsbm.lk", "SESSION_ATTENDANCE", "SYSTEM");
 
         String origin = httpRequest.getHeader("Origin");
-        if (origin == null || origin.isEmpty()) {
-            origin = frontendUrl; // fallback
+        if (origin == null || origin.isBlank() || origin.contains("localhost")) {
+            String referer = httpRequest.getHeader("Referer");
+            if (referer != null && !referer.isBlank() && !referer.contains("localhost")) {
+                try {
+                    java.net.URI uri = java.net.URI.create(referer);
+                    origin = uri.getScheme() + "://" + uri.getAuthority();
+                } catch (Exception ignored) {
+                    origin = frontendUrl;
+                }
+            } else {
+                origin = frontendUrl;
+            }
         }
         
         // The QR code will point to our frontend route

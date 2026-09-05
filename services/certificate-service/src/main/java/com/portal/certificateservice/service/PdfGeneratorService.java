@@ -26,7 +26,10 @@ public class PdfGeneratorService {
     @Value("${certificate.storage.path:./uploads/certificates}")
     private String storagePath;
 
-    @Value("${certificate.baseUrl:https://portal.nsbm.ac.lk}")
+    @Value("${certificate.frontendUrl:${app.frontend.url:https://wonderful-wave-0320abf00.3.azurestaticapps.net}}")
+    private String frontendUrl;
+
+    @Value("${certificate.baseUrl:${app.backend.url:https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io}}")
     private String baseUrl;
 
     public String generatePdfCertificate(UUID certificateId, String verificationCode, String studentName, String eventTitle, LocalDateTime issuedAt) {
@@ -106,7 +109,7 @@ public class PdfGeneratorService {
             document.add(issueDate);
 
             // Generate Unique Verification QR Code Image
-            String verifyUrl = baseUrl + "/api/v1/certificates/verify/" + verificationCode;
+            String verifyUrl = frontendUrl + "/verify/" + verificationCode;
             byte[] qrCodeImageBytes = generateQrCodeImage(verifyUrl, 120, 120);
             Image qrCodeImage = Image.getInstance(qrCodeImageBytes);
             qrCodeImage.setAlignment(Element.ALIGN_CENTER);

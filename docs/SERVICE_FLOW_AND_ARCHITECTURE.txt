@@ -1,0 +1,590 @@
+================================================================================
+NSBM INDUSTRY & ALUMNI COLLABORATION PORTAL
+COMPLETE SYSTEM ARCHITECTURE, SERVICE FLOW & SERVICE-BY-SERVICE REFERENCE
+================================================================================
+
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. High-Level Architectural Overview
+2. How Services Work Together (Communication & Topology)
+3. End-to-End Website Workflows
+   3.1 Student Registration & Profile Setup
+   3.2 AI-Powered Resume Enhancement Flow
+   3.3 Industry Partner Onboarding & Verification Flow
+   3.4 Vacancy Creation, Flyer OCR & Gemini Processing Flow
+   3.5 Job Application & AI Match Scoring Flow
+   3.6 Events, QR Attendance & Certificate Generation Flow
+4. Detailed Breakdown Divided By Service
+   - Service 1:  Frontend Client (React + Vite)
+   - Service 2:  API Gateway (Spring Cloud Gateway)
+   - Service 3:  Discovery Server (Netflix Eureka)
+   - Service 4:  Auth Service
+   - Service 5:  User Service
+   - Service 6:  Vacancy Service
+   - Service 7:  AI Service (Python FastAPI + Google Gemini)
+   - Service 8:  Application Service
+   - Service 9:  Event Management Service
+   - Service 10: Event Participation Service
+   - Service 11: Certificate Service
+   - Service 12: Notification Service
+   - Service 13: Platform Management Service
+   - Service 14: Audit & Storage Service
+   - Service 15: Common Security Library
+5. Service Port, Database & API Mapping Summary
+6. Student Login Credentials & Passwords
+7. Administrative & Partner Login Credentials
+
+
+================================================================================
+1. HIGH-LEVEL ARCHITECTURAL OVERVIEW
+================================================================================
+
+The NSBM Industry & Alumni Collaboration Portal is built on an enterprise
+microservices architecture utilizing Spring Boot 3 (Java 17), Python 3.10
+(FastAPI for AI workloads), React 18 (Vite SPA frontend), RabbitMQ (event
+broker), and PostgreSQL (per-service isolated relational databases).
+
+Architectural Topology:
+
+     [ Browser / Mobile Client (React 18 SPA) ]
+                         │
+                         ▼ HTTPS
+      [ API GATEWAY (Spring Cloud Gateway - Port 8080) ]
+        - Single ingress reverse proxy
+        - Dynamic routing via Eureka Service Registry
+        - Global CORS and security boundary
+                         │
+        ┌────────────────┴────────────────────────┬────────────────────────┐
+        │ Dynamic Routing                         │ Asynchronous Events    │ Identity
+        ▼                                         ▼                        ▼
+ [ EUREKA REGISTRY ]                     [ RABBITMQ BROKER ]       [ AUTH SERVICE ]
+    (Port 8761)                       (Topic Exchanges/Queues)       (Port 8081)
+        │                                         │                        │
+        ├─────────────────────────────────────────┼────────────────────────┘
+        ▼ Synchronous REST                        ▼ Asynchronous Listeners
+ ┌─────────────────────────┐             ┌─────────────────────────┐
+ │  CORE BUSINESS SERVICES │             │  SUPPORTING SERVICES    │
+ │ - User Service (8085)   │             │ - AI Service (8000)     │
+ │ - Vacancy Service (8087)│             │ - Notification (8088)   │
+ │ - Application (8084)    │             │ - Audit/Storage (8089)  │
+ │ - Event Mgmt (8082)     │             │ - Certificate (8090)    │
+ │ - Event Part. (8083)    │             │ - Platform Mgmt (8086)  │
+ └───────────┬─────────────┘             └───────────┬─────────────┘
+             │                                       │
+             ▼                                       ▼
+    [ Dedicated PostgreSQL Schemas / Databases for Every Service ]
+
+
+================================================================================
+2. HOW SERVICES WORK TOGETHER (COMMUNICATION & TOPOLOGY)
+================================================================================
+
+The services interact through three fundamental communication paradigms:
+
+1. Unified Ingress (API Gateway + Eureka):
+   The frontend never communicates with individual microservices directly. All
+   calls target the API Gateway (port 8080 or the Azure Container App domain).
+   The Gateway discovers service locations dynamically via Netflix Eureka
+   Discovery Server (port 8761). As services scale or restart, their ephemeral
+   ports and network IPs are tracked automatically.
+
+2. Stateless Authentication & Authorization (Auth Service + Common Security):
+   When a user logs in, the Auth Service issues a cryptographically signed
+   JSON Web Token (JWT). The token carries the user's ID, username, email, and
+   assigned roles (STUDENT, INDUSTRY_PARTNER, STAFF, SYSTEM_ADMIN).
+   Every microservice imports the Common Security library to validate the JWT
+   statelessly without making repetitive database queries back to the Auth Service.
+
+3. Event-Driven Asynchronous Processing (RabbitMQ Topic Exchange):
+   Long-running or background tasks do not block HTTP request/response cycles:
+   - When a job flyer is uploaded: Vacancy Service publishes an event. The AI
+     Service consumes it, runs OCR and Google Gemini extraction, and calls
+     Vacancy Service back with structured fields.
+   - When a student applies for a job: Application Service publishes an event.
+     The AI Service analyzes the candidate's resume against job requirements
+     and calculates a match percentage (0-100%) and key fortes.
+   - When an event attendee scans their QR code: Event Participation marks
+     attendance and publishes an event. Certificate Service listens and generates
+     a cryptographically verifiable PDF certificate.
+   - When any system event triggers an alert: Notification Service consumes the
+     event and dispatches an HTML email with dynamic portal links.
+
+4. Database-Per-Service Isolation:
+   Each microservice owns its own database schema. No microservice directly queries
+   or writes to another service's database tables, guaranteeing loose coupling and
+   independent maintainability.
+
+
+================================================================================
+3. END-TO-END WEBSITE WORKFLOWS
+================================================================================
+
+--------------------------------------------------------------------------------
+3.1 STUDENT REGISTRATION & PROFILE SETUP
+--------------------------------------------------------------------------------
+1. Student registers on the frontend (/register) choosing the STUDENT role.
+2. Frontend sends registration payload to API Gateway -> Auth Service.
+3. Auth Service encrypts the password (BCrypt) and creates the user credentials.
+4. User Service (via account sync listener or background sync) automatically
+   provisions a blank student profile shell associated with the new userId.
+5. Student logs in (/login). Auth Service verifies password and returns JWT token.
+6. Frontend stores token in localStorage and loads the Student Dashboard (/student).
+7. Student fills in academic information: GPA, degree program, faculty, department,
+   expected graduation year, and technical skills. User Service persists data.
+
+--------------------------------------------------------------------------------
+3.2 AI-POWERED RESUME ENHANCEMENT FLOW
+--------------------------------------------------------------------------------
+1. Student navigates to the Profile page and uploads their resume PDF.
+2. File is uploaded to Audit & Storage Service (POST /api/v1/storage/upload),
+   which stores the binary file and returns a unique storageFileId.
+3. Student clicks "Enhance Profile with AI" on the frontend.
+4. User Service calls AI Service:
+   POST /api/v1/ai/resume/enhance-profile
+   Payload: { userId: "student1", resumeUrl: "http://.../storage/download/{id}" }
+5. AI Service downloads the PDF, extracts text via PyMuPDF, and uses Google Gemini
+   to parse verified technical skills, tools, and completed projects.
+6. AI Service returns structured JSON to User Service.
+7. User Service updates the student profile with extracted skills and project cards.
+8. Frontend refreshes and displays enriched skills and project showcase.
+
+--------------------------------------------------------------------------------
+3.3 INDUSTRY PARTNER ONBOARDING & VERIFICATION FLOW
+--------------------------------------------------------------------------------
+1. Company representative registers on the portal selecting INDUSTRY_PARTNER.
+2. Auth Service creates credentials; Platform Management Service sets account
+   status to PENDING_VERIFICATION.
+3. Partner uploads company registration documents and company profile details.
+4. University Placement Staff logs into the Admin Dashboard (/staff).
+5. Platform Management Service presents pending partner verification requests.
+6. Staff reviews company details, verifies accreditation, and clicks "Approve".
+7. Platform Management Service marks the partner as VERIFIED.
+8. Notification Service sends an automated approval email to the partner.
+9. Partner can now log in, post job vacancies, and review student applicants.
+
+--------------------------------------------------------------------------------
+3.4 VACANCY CREATION, FLYER OCR & GEMINI PROCESSING FLOW
+--------------------------------------------------------------------------------
+1. Verified Industry Partner logs in and navigates to "Post Vacancy" (/partner/jobs).
+2. Partner uploads a job recruitment flyer (PNG, JPG, or PDF).
+3. Audit & Storage Service saves the flyer image and returns storageFileId.
+4. Vacancy Service creates a preliminary vacancy record with status PENDING.
+5. Vacancy Service publishes an event to RabbitMQ:
+   Routing Key: vacancy.flyer.process
+   Payload: { vacancyId: 10, storageFileId: "...", partnerId: "synnext" }
+6. AI Service consumes the event:
+   a. Downloads flyer image from Audit & Storage Service.
+   b. Runs OCR via Gemini Vision to extract raw flyer text.
+   c. Prompts Google Gemini (gemini-3.1-flash-lite) to parse title, job role,
+      seniority level, workplace type, required skills, preferred skills,
+      salary range, and application deadlines.
+   d. Anonymous Recruiter Correction: If the recruiter uses an anonymous
+      generic email (e.g. hrdcareers942@gmail.com), Gemini deduces a
+      professional company brand name rather than raw email username.
+   e. Institutional Curriculum Check: AI Service compares job requirements
+      against the official curriculum of all 4 NSBM faculties (Computing,
+      Business, Engineering, Science), computes faculty fit scores, and flags
+      compliance issues (e.g. missing deadlines, unaccredited requirements).
+7. AI Service issues a callback to Vacancy Service:
+   PUT /api/v1/vacancies/partner/{id}
+   With parsed structured metadata, institutional suitability notes, and match score.
+8. Staff member reviews the AI-extracted details on the Staff Dashboard (/staff/vacancies).
+9. Staff clicks "Approve". Vacancy status transitions to APPROVED.
+10. Vacancy is now publicly visible on the Student Job Board (/student/jobs).
+11. Notification Service dispatches alert emails to students in matching faculties.
+
+--------------------------------------------------------------------------------
+3.5 JOB APPLICATION & AI MATCH SCORING FLOW
+--------------------------------------------------------------------------------
+1. Student browses vacancies, selects a position, and clicks "Apply".
+2. Student can click "Generate AI Cover Letter":
+   Frontend calls AI Service (POST /api/v1/ai/cover-letter/generate) with
+   student profile data and job description. AI returns a tailored cover letter.
+3. Student confirms application with resume and cover letter.
+4. Application Service creates application record (status: SUBMITTED).
+5. Application Service publishes application.submitted.match event to RabbitMQ.
+6. AI Service consumes event:
+   a. Extracts student project achievements and verified skills.
+   b. Computes semantic match against job requirements using sentence embeddings.
+   c. Generates fit tier (HIGH_MATCH, GOOD_MATCH, GROWTH_OPPORTUNITY), fit score
+      (0-100%), and list of key strengths/missing proficiencies.
+7. AI Service updates Application Service with calculated match insights.
+8. Recruiter visits Partner Portal (/partner/applicants) and sees applicants
+   ranked by AI match percentage with detailed suitability breakdowns.
+9. Recruiter can update status: SHORTLISTED -> INTERVIEW_SCHEDULED -> OFFERED.
+10. Notification Service sends status update emails to the student at each step.
+
+--------------------------------------------------------------------------------
+3.6 EVENTS, QR ATTENDANCE & CERTIFICATE GENERATION FLOW
+--------------------------------------------------------------------------------
+1. Staff or verified partner creates an event (career fair, workshop, hackathon)
+   in Event Management Service with capacity limits and target faculties.
+2. Student views event on calendar (/student/events) and clicks "Register".
+3. Event Participation Service reserves a slot and creates a registration record.
+4. Event Participation Service generates a unique QR code ticket containing a
+   secure signed payload and displays it on the student's ticket screen.
+5. On the event day, the student presents their QR code on their phone.
+6. Event organizer opens the scanner tool on the portal and scans the QR code.
+7. Event Participation Service verifies QR validity and updates status to ATTENDED.
+8. Event Participation Service publishes event.attendance.marked to RabbitMQ.
+9. Certificate Service consumes event:
+   a. Retrieves student details from User Service and event details from Event Mgmt.
+   b. Generates an authentic PDF certificate with NSBM branding, issue date,
+      and unique verification code (e.g. CERT-2026-XXXX).
+   c. Embeds a verification QR code pointing to /verify-certificate/{code}.
+   d. Saves PDF to storage and records certificate metadata in certificate_db.
+10. Student receives an email notification with download link and certificate appears
+    in their student profile under "Certificates".
+11. External employers can visit the public verification page to confirm certificate
+    authenticity without needing an account.
+
+
+================================================================================
+4. DETAILED BREAKDOWN DIVIDED BY SERVICE
+================================================================================
+
+--------------------------------------------------------------------------------
+SERVICE 1: FRONTEND CLIENT APPLICATION (`frontend`)
+--------------------------------------------------------------------------------
+- Technology: React 18, Vite, React Router DOM, TailwindCSS, Lucide Icons, Axios
+- Role:
+  Provides the single-page application (SPA) user interface for all four roles:
+  * Student Portal: Profile management, AI resume enhancement, job search,
+    AI cover letter builder, event calendar, QR ticket wallet, digital certificates.
+  * Partner Portal: Company profile, job posting dropzone with AI status tracker,
+    candidate ranking table with AI match scoring.
+  * Staff Portal: Vacancy review queue with AI compliance notes, partner verification,
+    student talent search, event creation, certificate generation.
+  * Public Portal: Authentication, public job listings, public certificate verification.
+- Inter-Service Collaboration:
+  Communicates exclusively through API Gateway at /api/v1/*. Attaches JWT Bearer
+  token on all authenticated requests.
+
+--------------------------------------------------------------------------------
+SERVICE 2: API GATEWAY (`api-gateway`)
+--------------------------------------------------------------------------------
+- Technology: Spring Boot 3, Spring Cloud Gateway (Reactive Netty), Eureka Client
+- Port: 8080 (and Cloud Ingress FQDN)
+- Role:
+  Central ingress reverse proxy for all traffic. Performs:
+  * Dynamic route resolution using Eureka service discovery (lb://service-name).
+  * URL rewriting: maps external /api/v1/{service}/** to downstream microservices.
+  * Centralized Cross-Origin Resource Sharing (CORS) handling.
+  * SSL termination and request header propagation.
+- Route Mapping:
+  - /api/v1/auth/**            -> lb://auth-service
+  - /api/v1/user-profiles/**    -> lb://user-service
+  - /api/v1/vacancies/**        -> lb://vacancy-service
+  - /api/v1/ai/**               -> lb://ai-service
+  - /api/v1/applications/**     -> lb://application-service
+  - /api/v1/events/**           -> lb://event-management-service
+  - /api/v1/participations/**   -> lb://event-participation-service
+  - /api/v1/certificates/**     -> lb://certificate-service
+  - /api/v1/notifications/**    -> lb://notification-service
+  - /api/v1/admin/**            -> lb://platform-management-service
+  - /api/v1/storage/**          -> lb://audit-storage-service
+
+--------------------------------------------------------------------------------
+SERVICE 3: DISCOVERY SERVER (`discovery-server`)
+--------------------------------------------------------------------------------
+- Technology: Spring Cloud Netflix Eureka Server
+- Port: 8761
+- Role:
+  Maintains real-time registry of all active microservice instances, container IPs,
+  ports, and health heartbeats. Enables dynamic load balancing and zero-downtime
+  rolling deployments on cloud container environments.
+
+--------------------------------------------------------------------------------
+SERVICE 4: AUTH SERVICE (`services/auth-service`)
+--------------------------------------------------------------------------------
+- Technology: Spring Boot 3, Spring Security 6, JJWT, Spring Data JPA, PostgreSQL
+- Port: 8081 | Database: auth_db
+- Role:
+  Handles user identity, registration, password hashing (BCrypt), role assignment,
+  and JWT token issuance.
+- Core Features:
+  * Issues 24-hour signed JWT access tokens containing userId, username, email, roles.
+  * Supports STUDENT, INDUSTRY_PARTNER, STAFF, SYSTEM_ADMIN roles.
+  * AuthDataInitializer seeds default admin, staff, partner, and student accounts.
+- Collaborates With:
+  * User Service: Coordinates user creation and sync.
+  * All Services: Token verified statelessly via Common Security.
+
+--------------------------------------------------------------------------------
+SERVICE 5: USER SERVICE (`services/user-service`)
+--------------------------------------------------------------------------------
+- Technology: Spring Boot 3, Spring Data JPA, PostgreSQL
+- Port: 8085 | Database: user_db
+- Role:
+  Manages rich student portfolios, academic history, skills, and project showcases.
+- Core Features:
+  * Academic profiles: GPA, faculty, department, degree program, graduation year.
+  * Skill repository: Technical skills, soft skills, proficiency tiers, verification flags.
+  * Project portfolio: Real-world projects, GitHub links, live URLs, technology tags.
+  * Account sync service: Syncs missing profile shells from auth_db.
+  * Pre-seeded data: Comprehensive authentic profiles pre-loaded for all 10 students.
+- Collaborates With:
+  * Auth Service: Links profile records to auth user credentials.
+  * AI Service: Receives parsed resume skills/projects to enrich student profiles.
+  * Application Service: Supplies candidate profile data for job applications.
+
+--------------------------------------------------------------------------------
+SERVICE 6: VACANCY SERVICE (`services/vacancy-service`)
+--------------------------------------------------------------------------------
+- Technology: Spring Boot 3, Spring Data JPA, RabbitMQ Event Publisher, PostgreSQL
+- Port: 8087 | Database: vacancy_db
+- Role:
+  Manages corporate internship and job vacancies from submission to closure.
+- Core Features:
+  * Flyer upload intake (PDF, PNG, JPG).
+  * Emits vacancy.flyer.process event to RabbitMQ for AI parsing.
+  * Receives callback from AI Service with extracted title, skills, faculty suitability.
+  * Workflow states: PENDING -> APPROVED / REJECTED -> CLOSED.
+  * Public job search and filtering by faculty, skills, workplace type, and location.
+- Collaborates With:
+  * Audit & Storage Service: Stores flyer images and documents.
+  * AI Service: Asynchronous OCR and Gemini structured data extraction.
+  * Notification Service: Alerts matching students when a vacancy is approved.
+
+--------------------------------------------------------------------------------
+SERVICE 7: AI SERVICE (`services/ai-service`)
+--------------------------------------------------------------------------------
+- Technology: Python 3.10, FastAPI, Google Gemini API, PyMuPDF, Sentence Transformers
+- Port: 8000 | Database: Internal SQLite / PostgreSQL
+- Role:
+  Cognitive intelligence engine powering automated document extraction, candidate
+  scoring, institutional compliance checking, and content generation.
+- Core Capabilities:
+  1. Flyer OCR & Gemini Extraction:
+     Downloads flyer files, runs Gemini Vision OCR, and parses raw text into
+     structured JobVacancySchema using gemini-3.1-flash-lite (with multi-model
+     automatic failover across gemini-3.5-flash-lite, gemini-3-flash-preview,
+     and gemini-flash-lite-latest).
+  2. Anonymous Recruiter Branding:
+     Detects generic email usernames (e.g. hrdcareers942) and synthesizes clean,
+     professional enterprise branding.
+  3. Institutional Curriculum Checker:
+     Cross-references job requirements against all 4 NSBM university faculties
+     (Computing, Business, Engineering, Science), scoring curriculum alignment
+     and flagging compliance anomalies.
+  4. Resume Profile Enhancer:
+     Extracts verified technical skills, libraries, and completed project achievements
+     from uploaded student CVs directly into student profiles.
+  5. Semantic Candidate Matching:
+     Calculates 0-100% suitability match scores and candidate fortes for job applicants.
+  6. AI Cover Letter Generator:
+     Synthesizes bespoke, highly tailored cover letters matching student history
+     to job requirements.
+- Collaborates With:
+  * Vacancy Service: Consumes flyer events and updates vacancies.
+  * User Service: Receives enhancement requests and auto-populates skills.
+  * Application Service: Consumes application matching events and outputs scores.
+  * Audit & Storage Service: Downloads uploaded resumes and flyers.
+
+--------------------------------------------------------------------------------
+SERVICE 8: APPLICATION SERVICE (`services/application-service`)
+--------------------------------------------------------------------------------
+- Technology: Spring Boot 3, Spring Data JPA, RabbitMQ Publisher, PostgreSQL
+- Port: 8084 | Database: application_service_db
+- Role:
+  Tracks job applications submitted by students to corporate vacancies.
+- Core Features:
+  * Application submission with resume attachment and cover letter.
+  * Emits application.submitted.match event to RabbitMQ for AI scoring.
+  * Stores AI match score (0-100%), match tier, and strengths summary.
+  * Recruiter workflow tracking: SUBMITTED -> SHORTLISTED -> INTERVIEW -> OFFERED -> REJECTED.
+- Collaborates With:
+  * Vacancy Service: Validates vacancy status and requirements.
+  * User Service: Pulls student data for recruiter preview.
+  * AI Service: Computes AI candidate ranking scores.
+  * Notification Service: Alerts students when application status changes.
+
+--------------------------------------------------------------------------------
+SERVICE 9: EVENT MANAGEMENT SERVICE (`services/event-management-service`)
+--------------------------------------------------------------------------------
+- Technology: Spring Boot 3, Spring Data JPA, RabbitMQ Publisher, PostgreSQL
+- Port: 8082 | Database: event_management_db
+- Role:
+  Maintains university event schedule: career fairs, company hackathons, tech talks.
+- Core Features:
+  * Event creation with target faculty tags, venue location, capacity, dates.
+  * Partner-submitted event review and approval workflow by university staff.
+  * Emits event.approved to notify interested students.
+- Collaborates With:
+  * Event Participation Service: Supplies event metadata for registrations.
+  * Platform Management Service: Verifies staff and partner organizer roles.
+
+--------------------------------------------------------------------------------
+SERVICE 10: EVENT PARTICIPATION SERVICE (`services/event-participation-service`)
+--------------------------------------------------------------------------------
+- Technology: Spring Boot 3, Spring Data JPA, ZXing QR Code Engine, PostgreSQL
+- Port: 8083 | Database: event_participation_db
+- Role:
+  Manages student registrations and real-time physical event check-in via QR codes.
+- Core Features:
+  * Capacity-checked event registration.
+  * Unique cryptographically signed QR code ticket generation per participant.
+  * Mobile/web QR scanner endpoint for organizers at the event venue.
+  * Emits event.attendance.marked to RabbitMQ when student check-in is confirmed.
+- Collaborates With:
+  * Event Management Service: Checks remaining seat capacity.
+  * Certificate Service: Triggers certificate generation upon verified attendance.
+  * Notification Service: Sends registration confirmation with QR ticket image.
+
+--------------------------------------------------------------------------------
+SERVICE 11: CERTIFICATE SERVICE (`services/certificate-service`)
+--------------------------------------------------------------------------------
+- Technology: Spring Boot 3, Spring Data JPA, iText / PDFBox PDF Engine, PostgreSQL
+- Port: 8090 | Database: certificate_db
+- Role:
+  Generates and verifies tamper-proof digital certificates of completion/participation.
+- Core Features:
+  * Listens for event.attendance.marked on RabbitMQ.
+  * Generates branded PDF certificate with NSBM emblem, student name, and date.
+  * Issues unique verification code (e.g. CERT-2026-XXXX).
+  * Embeds verification QR code linking to public verification endpoint.
+  * Public certificate verification API accessible by external employers without login.
+- Collaborates With:
+  * Event Participation Service: Listens for completed attendance.
+  * User Service & Event Management: Resolves student name and event title.
+  * Audit & Storage Service: Archives generated PDF certificate files.
+
+--------------------------------------------------------------------------------
+SERVICE 12: NOTIFICATION SERVICE (`services/notification-service`)
+--------------------------------------------------------------------------------
+- Technology: Spring Boot 3, Spring Mail (JavaMailSender), RabbitMQ Listener, PostgreSQL
+- Port: 8088 | Database: notification
+- Role:
+  Asynchronous email and alert distribution system.
+- Core Features:
+  * Listens to notification topics on RabbitMQ.
+  * Dispatches responsive, branded HTML emails for:
+    - Welcome and registration verification.
+    - Password reset tokens.
+    - Vacancy alert matches.
+    - Application status updates (Interview scheduled, shortlisted).
+    - Event registration tickets with QR codes.
+    - Certificate issuance notifications.
+  * Dynamic Domain Engine: Generates URLs using the active cloud environment domain,
+    ensuring email links work seamlessly in production without localhost fallbacks.
+
+--------------------------------------------------------------------------------
+SERVICE 13: PLATFORM MANAGEMENT SERVICE (`services/platform-management-service`)
+--------------------------------------------------------------------------------
+- Technology: Spring Boot 3, Spring Data JPA, PostgreSQL
+- Port: 8086 | Database: platform_management_db
+- Role:
+  Administrative governance and platform audit command center.
+- Core Features:
+  * Partner verification review: Evaluates uploaded business registration docs.
+  * Faculty catalog management: Maintains accredited faculties, departments, degrees.
+  * System audit trails: Logs administrative actions, approvals, and user status changes.
+  * Analytics dashboard: Aggregates student placement statistics and partner activity.
+- Collaborates With:
+  * Auth Service: Enables partner account privileges upon approval.
+  * All Services: Central audit logging and policy enforcement.
+
+--------------------------------------------------------------------------------
+SERVICE 14: AUDIT & STORAGE SERVICE (`services/audit-storage-service`)
+--------------------------------------------------------------------------------
+- Technology: Spring Boot 3, Spring Data JPA, Cloud/Local Storage Engine, PostgreSQL
+- Port: 8089 | Database: audit_storage_db
+- Role:
+  Centralized binary asset and file storage service.
+- Core Features:
+  * File upload endpoint (multipart/form-data) returning unique storageFileId GUID.
+  * File download streaming with inline rendering option (?inline=true).
+  * Stores resumes, vacancy flyers, company logos, and event banner media.
+  * File metadata tracking (file size, MIME type, upload timestamp, uploader ID).
+- Collaborates With:
+  * Vacancy Service: Stores job flyer posters.
+  * User Service: Stores student resumes.
+  * AI Service: Delivers raw files for OCR and resume parsing.
+  * Certificate Service: Archives generated PDF certificates.
+
+--------------------------------------------------------------------------------
+SERVICE 15: COMMON SECURITY LIBRARY (`services/common-security`)
+--------------------------------------------------------------------------------
+- Technology: Spring Security 6, JJWT, Shared Maven Module
+- Role:
+  Shared internal library bundled across all Spring Boot microservices.
+- Core Features:
+  * Standardized JWT authentication filter and token verification.
+  * Custom SecurityContext holder for current authenticated user and roles.
+  * Unified method-level security annotations (@PreAuthorize("hasRole('...')")).
+  * Uniform error responses (401 Unauthorized, 403 Forbidden).
+
+
+================================================================================
+5. SERVICE PORT, DATABASE & API MAPPING SUMMARY
+================================================================================
+
+Service Name                 Port   Database               Key Base Endpoint
+--------------------------------------------------------------------------------
+API Gateway                  8080   (None - Netty Proxy)   /api/v1/*
+Eureka Discovery Server      8761   (In-Memory Registry)   /eureka/*
+Auth Service                 8081   auth_db                /api/v1/auth
+Event Management Service     8082   event_management_db    /api/v1/events
+Event Participation Service  8083   event_participation_db /api/v1/participations
+Application Service          8084   application_service_db /api/v1/applications
+User Service                 8085   user_db                /api/v1/user-profiles
+Platform Management Service  8086   platform_management_db /api/v1/admin
+Vacancy Service              8087   vacancy_db             /api/v1/vacancies
+Notification Service         8088   notification           /api/v1/notifications
+Audit & Storage Service      8089   audit_storage_db       /api/v1/storage
+Certificate Service          8090   certificate_db         /api/v1/certificates
+AI Service                   8000   (SQLite / Postgres)    /api/v1/ai
+--------------------------------------------------------------------------------
+
+
+================================================================================
+6. STUDENT LOGIN CREDENTIALS & PASSWORDS
+================================================================================
+
+All 10 student accounts have been initialized with official university email
+addresses, authentic academic records, and populated project portfolios.
+
+Below is the complete list of student usernames, emails, passwords, and degree programs:
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+Username    Full Name          Email Address                   Password     Faculty & Degree Program                             GPA   Spec.
+-------------------------------------------------------------------------------------------------------------------------------------------
+student1    John Smith         student1@students.nsbm.ac.lk    Student@1    Computing - BSc (Hons) in Software Engineering       3.82  Full-Stack
+student2    Emma Johnson       student2@students.nsbm.ac.lk    Student@2    Computing - BSc (Hons) in Computer Networks          3.75  Cloud/DevOps
+student3    Michael Brown      student3@students.nsbm.ac.lk    Student@3    Computing - BSc (Hons) in Software Engineering       3.91  Backend/Sys
+student4    Sophia Taylor      student4@students.nsbm.ac.lk    Student@4    Computing - BSc (Hons) in Multimedia & Web           3.84  Frontend/UX
+student5    William Anderson   student5@students.nsbm.ac.lk    Student@5    Computing - BSc (Hons) in Data Science               3.88  AI/ML Data
+student6    Olivia Thomas      student6@students.nsbm.ac.lk    Student@6    Computing - BSc (Hons) in Software Engineering       3.68  Mobile Dev
+student7    James Jackson      student7@students.nsbm.ac.lk    Student@7    Computing - BSc (Hons) in Computer Security          3.70  Cybersecurity
+student8    Ava White          student8@students.nsbm.ac.lk    Student@8    Engineering - BSc (Hons) in Computer Systems Eng.    3.78  Enterprise C#
+student9    Alexander Harris   student9@students.nsbm.ac.lk    Student@9    Computing - BSc (Hons) in Data Science               3.65  Data Platform
+student10   Mia Martin         student10@students.nsbm.ac.lk   Student@10   Engineering - BSc (Hons) in Computer Systems Eng.    3.95  SRE & Infra
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Summary of Student Passwords Pattern:
+- student1  ->  Student@1
+- student2  ->  Student@2
+- student3  ->  Student@3
+- student4  ->  Student@4
+- student5  ->  Student@5
+- student6  ->  Student@6
+- student7  ->  Student@7
+- student8  ->  Student@8
+- student9  ->  Student@9
+- student10 ->  Student@10
+
+
+================================================================================
+7. ADMINISTRATIVE & PARTNER LOGIN CREDENTIALS
+================================================================================
+
+Role                  Username    Email Address              Password     Purpose
+-------------------------------------------------------------------------------------------------------------------------------------------
+System Administrator  admin       prasadkvithana@gmail.com   Admin@123    Super-admin access, partner verification, system config
+Staff Member          staff       staff@nsbm.ac.lk           Staff@123    Career guidance coordinator, vacancy & event approvals
+Industry Partner      synnext     contact@synnext.com        Partner@123  Verified recruitment partner, post vacancies & hire
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+================================================================================
+END OF REFERENCE DOCUMENT
+================================================================================

@@ -61,25 +61,32 @@ class SmartSearchService:
                 keywords=tokens
             )
 
-        # Fallback to concise LLM parsing for ambiguous natural language
+        # Advanced LLM query intent parsing for natural language understanding
         try:
             from app.services.llm_engine import LLMEngine
             import json
 
             llm = LLMEngine.get_instance()
             prompt = (
-                f"<|im_start|>system\n"
-                f"Extract search intent as strict JSON with keys: required_skills (list), locations (list), workplace_type (REMOTE/HYBRID/ON_SITE or null), keywords (list).\n"
-                f"<|im_end|>\n"
-                f"<|im_start|>user\n"
-                f"{query}<|im_end|>\n"
-                f"<|im_start|>assistant\n```json\n"
+                "SYSTEM INSTRUCTION:\n"
+                "You are an advanced search query understanding engine for NSBM Green University career portal.\n"
+                "Parse the natural language query into a structured search intent JSON object with these keys:\n"
+                "- target_role: string or null (e.g., 'Software Engineer', 'CAD Designer', 'Marketing Executive')\n"
+                "- required_skills: list of specific technical or functional skills mentioned (e.g., ['React', 'Python'])\n"
+                "- locations: list of physical locations or cities mentioned (e.g., ['Colombo', 'Kandy'])\n"
+                "- workplace_type: 'REMOTE', 'HYBRID', 'ON_SITE', or null\n"
+                "- min_salary: float or null (minimum salary amount if specified, e.g., 100000)\n"
+                "- currency: string or null (e.g., 'LKR', 'USD')\n"
+                "- experience_level: 'Intern', 'Junior', 'Mid', 'Senior', or null\n"
+                "- faculty: 'Faculty of Computing', 'Faculty of Business', 'Faculty of Engineering', 'Faculty of Science', or null\n"
+                "- keywords: list of remaining meaningful search terms\n\n"
+                "USER REQUEST:\n"
+                f"{query}\n"
             )
 
             response = llm(
                 prompt,
-                max_tokens=90,
-                stop=["<|im_end|>", "```"],
+                max_tokens=500,
                 temperature=0.1
             )
             raw_output = response["choices"][0]["text"].strip()
@@ -95,7 +102,7 @@ class SmartSearchService:
 
             return SmartSearchParsedIntent(**parsed_dict)
         except Exception as e:
-            logger.warning(f"Fast search intent parsing fallback used: {e}")
+            logger.warning(f"Search intent parsing fallback used: {e}")
             return SmartSearchParsedIntent(
                 raw_query=query,
                 required_skills=extracted_skills,

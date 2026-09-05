@@ -48,9 +48,9 @@ public class AcademicRecordServiceImpl implements AcademicRecordService {
     @Override
     @Transactional(readOnly = true)
     public AcademicRecordResponseDto getAcademicRecordByUserId(String userId) {
-        AcademicRecord record = academicRecordRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Academic record not found for user ID: " + userId));
-        return mapToDto(record);
+        return academicRecordRepository.findByUserId(userId)
+                .map(this::mapToDto)
+                .orElse(null);
     }
 
     @Override
