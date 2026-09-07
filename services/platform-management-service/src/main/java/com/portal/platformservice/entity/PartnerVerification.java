@@ -24,22 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Governance record for an industry partner's onboarding approval.
- *
- * This entity deliberately does NOT duplicate the partner's business
- * profile (address, website, industry, logo, etc.) — that data is owned
- * and persisted by User Service. Only the fields needed to run the review
- * workflow are stored here, plus two *_snapshot columns used purely to
- * render the review queue without a Feign call per row. Snapshot columns
- * are write-once at submission time and are never treated as the source
- * of truth for anything beyond that list view.
- *
- * userId, reviewedByUserId are plain UUID columns with no foreign key —
- * each microservice owns a separate database, so no cross-service FK is
- * possible. Referential correctness for these is enforced in the service
- * layer via UserServiceClient, not by the database.
- */
 @Entity
 @Table(name = "partner_verifications")
 @Getter

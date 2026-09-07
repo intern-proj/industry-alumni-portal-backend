@@ -21,16 +21,6 @@ import org.hibernate.annotations.UuidGenerator;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Reference to a single verification document belonging to one
- * PartnerVerification. File bytes are never stored here or anywhere in
- * this service — storageFileId is a logical reference to the object held
- * by Audit & Storage Service, resolved to a signed download URL via
- * StorageServiceClient when a coordinator opens the detail view.
- *
- * partnerVerificationId is a real foreign key (both tables live in this
- * service's own database), unlike the cross-service references above.
- */
 @Entity
 @Table(name = "partner_documents")
 @Getter
@@ -54,7 +44,6 @@ public class PartnerDocument {
     @Column(name = "document_type", nullable = false, length = 40)
     private DocumentType documentType;
 
-    /** Logical reference to the file object in Audit & Storage Service — no FK. */
     @Column(name = "storage_file_id", nullable = false)
     private UUID storageFileId;
 
