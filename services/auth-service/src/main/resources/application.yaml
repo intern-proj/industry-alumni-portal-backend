@@ -28,9 +28,9 @@ app:
     secret: ${JWT_SECRET_KEY:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
     expiration-milliseconds: 86400000
   admin:
-    default-username: ${ADMIN_DEFAULT_USER:admin001}
-    default-password: ${ADMIN_DEFAULT_PASS:Admin@123}
-    default-email: ${ADMIN_DEFAULT_EMAIL:kgamadushika@students.nsbm.ac.lk}
+    default-username: ${ADMIN_DEFAULT_USER:admin}
+    default-password: ${ADMIN_DEFAULT_PASS:admin@123}
+    default-email: ${ADMIN_DEFAULT_EMAIL:prasadkvithana@gmail.com}
   otp:
     expiration-minutes: 5
   reset-password:
@@ -38,7 +38,7 @@ app:
     frontend-url: ${FRONTEND_RESET_PASSWORD_URL:http://localhost:3000/reset-password}
   rabbitmq:
     exchange: ${RABBITMQ_EXCHANGE:notification.exchange}
-    routing-key: ${RABBITMQ_ROUTING_KEY:notification.invitation}
+    routing-key: ${RABBITMQ_ROUTING_KEY:notification.update}
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
 

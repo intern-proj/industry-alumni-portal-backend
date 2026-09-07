@@ -8,6 +8,4 @@ import java.util.List;
 @Repository
 public interface AgendaRepository extends JpaRepository<Agenda, Long> {
     List<Agenda> findByEventIdOrderBySequenceOrderAsc(Long eventId);
-
-    List<Agenda> findBySpeakerId(Long speakerId);
 }

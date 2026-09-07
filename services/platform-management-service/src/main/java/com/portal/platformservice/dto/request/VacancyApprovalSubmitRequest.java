@@ -18,7 +18,7 @@ import java.util.UUID;
 public class VacancyApprovalSubmitRequest {
 
     @NotNull
-    private UUID vacancyId;
+    private String vacancyId;
 
     @NotNull
     private UUID companyUserId;

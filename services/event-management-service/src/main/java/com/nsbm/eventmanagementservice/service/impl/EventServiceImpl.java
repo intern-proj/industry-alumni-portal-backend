@@ -14,6 +14,12 @@ import com.nsbm.eventmanagementservice.service.EventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.nsbm.eventmanagementservice.mapper.AgendaMapper;
+import com.nsbm.eventmanagementservice.model.Agenda;
+import com.nsbm.eventmanagementservice.repository.GuestSpeakerRepository;
+import com.nsbm.eventmanagementservice.exception.ResourceNotFoundException;
+import com.nsbm.eventmanagementservice.model.Lecture;
+import java.util.ArrayList;
 
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -27,7 +33,9 @@ import java.util.Set;
 public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final VenueRepository venueRepository;
+    private final GuestSpeakerRepository guestSpeakerRepository;
     private final EventMapper eventMapper;
+    private final AgendaMapper agendaMapper;
 
     private static final Map<EventStatus, Set<EventStatus>> ALLOWED_TRANSITIONS = new EnumMap<>(EventStatus.class);
 
@@ -51,6 +59,43 @@ public class EventServiceImpl implements EventService {
         }
 
         event.setStatus(EventStatus.DRAFT);
+
+        if (request.getSessions() != null && !request.getSessions().isEmpty()) {
+            List<Agenda> agendas = new ArrayList<>();
+            for (AgendaRequest sessionReq : request.getSessions()) {
+                Agenda agenda = agendaMapper.toEntity(sessionReq);
+                agenda.setEvent(event);
+                if (sessionReq.getVenueId() != null) {
+                    Venue agendaVenue = venueRepository.findById(sessionReq.getVenueId())
+                            .orElseThrow(() -> new VenueNotFoundException(sessionReq.getVenueId()));
+                    agenda.setVenue(agendaVenue);
+                }
+                
+                if (sessionReq.getLectures() != null && !sessionReq.getLectures().isEmpty()) {
+                    List<Lecture> lectures = new ArrayList<>();
+                    for (LectureRequest lectureReq : sessionReq.getLectures()) {
+                        Lecture lecture = Lecture.builder()
+                                .agenda(agenda)
+                                .title(lectureReq.getTitle())
+                                .description(lectureReq.getDescription())
+                                .startTime(lectureReq.getStartTime())
+                                .endTime(lectureReq.getEndTime())
+                                .sequenceOrder(lectureReq.getSequenceOrder())
+                                .build();
+                                
+                        if (lectureReq.getSpeakerId() != null) {
+                            lecture.setSpeaker(guestSpeakerRepository.findById(lectureReq.getSpeakerId())
+                                    .orElseThrow(() -> new ResourceNotFoundException("Speaker not found with id " + lectureReq.getSpeakerId())));
+                        }
+                        lectures.add(lecture);
+                    }
+                    agenda.setLectures(lectures);
+                }
+                
+                agendas.add(agenda);
+            }
+            event.setAgendas(agendas);
+        }
 
         Event saved = eventRepository.save(event);
         return eventMapper.toResponse(saved);
@@ -91,6 +136,14 @@ public class EventServiceImpl implements EventService {
     @Transactional(readOnly = true)
     public List<EventResponse> getEventsByCoordinator(Long coordinatorUserId) {
         return eventRepository.findByCoordinatorUserId(coordinatorUserId).stream()
+                .map(eventMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventResponse> getEventsBySpeakerId(Long speakerId) {
+        return eventRepository.findDistinctByAgendasSpeakerId(speakerId).stream()
                 .map(eventMapper::toResponse)
                 .toList();
     }

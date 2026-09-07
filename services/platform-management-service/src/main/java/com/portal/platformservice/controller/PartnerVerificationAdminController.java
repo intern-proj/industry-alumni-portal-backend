@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.UUID;
@@ -33,33 +34,42 @@ public class PartnerVerificationAdminController {
     private final PartnerVerificationService partnerVerificationService;
     private final ApprovalHistoryService approvalHistoryService;
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT')")
     @GetMapping
     public Page<PartnerVerificationSummaryResponse> list(
-            @RequestParam VerificationStatus status, Pageable pageable) {
+            @RequestParam(required = false) VerificationStatus status, Pageable pageable) {
+        if (status == null) {
+            return partnerVerificationService.listAll(pageable);
+        }
         return partnerVerificationService.listByStatus(status, pageable);
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT')")
     @GetMapping("/{id}")
     public PartnerVerificationResponse getById(@PathVariable UUID id) {
         return partnerVerificationService.getById(id);
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT')")
     @GetMapping("/{id}/history")
     public List<ApprovalHistoryResponse> getHistory(@PathVariable UUID id) {
         return approvalHistoryService.getHistory(ApprovalType.PARTNER_VERIFICATION, id);
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PostMapping("/{id}/claim")
     public PartnerVerificationResponse claim(@PathVariable UUID id, @RequestParam UUID reviewerId) {
         return partnerVerificationService.claim(id, reviewerId);
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PostMapping("/{id}/decision")
     public PartnerVerificationResponse decide(
             @PathVariable UUID id, @Valid @RequestBody PartnerVerificationDecisionRequest request) {
         return partnerVerificationService.decide(id, request);
     }
 
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @PatchMapping("/{id}")
     public PartnerVerificationResponse adminEdit(
             @PathVariable UUID id, @Valid @RequestBody PartnerVerificationAdminEditRequest request) {

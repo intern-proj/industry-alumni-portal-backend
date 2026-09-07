@@ -1,4 +1,4 @@
 ALTER TABLE events
-    ADD COLUMN coordinator_user_id BIGINT,
-    ADD COLUMN coordinator_name VARCHAR(255),
-    ADD COLUMN coordinator_email VARCHAR(255);
+    ADD COLUMN IF NOT EXISTS coordinator_user_id BIGINT,
+    ADD COLUMN IF NOT EXISTS coordinator_name VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS coordinator_email VARCHAR(255);

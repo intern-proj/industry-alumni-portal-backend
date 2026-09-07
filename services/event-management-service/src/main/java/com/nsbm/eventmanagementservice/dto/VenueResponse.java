@@ -1,6 +1,5 @@
 package com.nsbm.eventmanagementservice.dto;
 
-import com.nsbm.eventmanagementservice.model.VenueType;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -15,7 +14,7 @@ public class VenueResponse {
     private String name;
     private String address;
     private Integer capacity;
-    private VenueType venueType;
+
     private String contactInfo;
     private String onlineMeetingLink;
     private LocalDateTime createdAt;

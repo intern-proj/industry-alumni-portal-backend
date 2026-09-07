@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 public class OtpSendingService {
 
     private final EmailDeliveryService emailDeliveryService;
+    private final com.nsbm.notification_service.repository.NotificationTemplateRepository templateRepository;
 
     public boolean OtpProcessing(OtpEmailDTO otp) {
         if (otp == null) {
@@ -28,9 +29,15 @@ public class OtpSendingService {
 
         log.info("Processing OTP for {}", otp.getToEmail());
 
-        String subject = "OTP Code For Verification";
+        String subject = "🔒 OTP Code For Verification: " + otp.getOtpCode();
+        String htmlBody;
 
-        String htmlBody = """
+        var customTpl = templateRepository != null ? templateRepository.findByTemplateCode("AUTH_OTP_CODE") : java.util.Optional.<com.nsbm.notification_service.model.NotificationTemplate>empty();
+        if (customTpl.isPresent()) {
+            subject = customTpl.get().getSubject().replace("{{otpCode}}", otp.getOtpCode());
+            htmlBody = customTpl.get().getBody().replace("{{otpCode}}", otp.getOtpCode());
+        } else {
+            htmlBody = """
                 <!DOCTYPE html>
                 <html>
                 <head>
@@ -64,6 +71,7 @@ public class OtpSendingService {
                 </body>
                 </html>
                 """.formatted(otp.getOtpCode());
+        }
 
         try {
             emailDeliveryService.sendHtmlEmail(otp.getToEmail(), subject, htmlBody);

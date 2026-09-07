@@ -1,4 +1,4 @@
-CREATE TABLE user_profiles (
+CREATE TABLE IF NOT EXISTS user_profiles (
   user_id VARCHAR(50) PRIMARY KEY,
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE user_profiles (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE academic_records (
+CREATE TABLE IF NOT EXISTS academic_records (
   record_id VARCHAR(50) PRIMARY KEY,
   user_id VARCHAR(50) NOT NULL,
   faculty VARCHAR(100),
@@ -29,7 +29,7 @@ CREATE TABLE academic_records (
   CONSTRAINT fk_academic_user FOREIGN KEY (user_id) REFERENCES user_profiles(user_id) ON DELETE CASCADE
 );
 
-CREATE TABLE skills (
+CREATE TABLE IF NOT EXISTS skills (
   skill_id VARCHAR(50) PRIMARY KEY,
   user_id VARCHAR(50) NOT NULL,
   skill_name VARCHAR(100) NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE skills (
   CONSTRAINT fk_skills_user FOREIGN KEY (user_id) REFERENCES user_profiles(user_id) ON DELETE CASCADE
 );
 
-CREATE TABLE resumes (
+CREATE TABLE IF NOT EXISTS resumes (
   resume_id VARCHAR(50) PRIMARY KEY,
   user_id VARCHAR(50) NOT NULL,
   file_url VARCHAR(255) NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE resumes (
   CONSTRAINT fk_resumes_user FOREIGN KEY (user_id) REFERENCES user_profiles(user_id) ON DELETE CASCADE
 );
 
-CREATE TABLE job_preferences (
+CREATE TABLE IF NOT EXISTS job_preferences (
   preference_id VARCHAR(50) PRIMARY KEY,
   user_id VARCHAR(50) NOT NULL,
   job_role VARCHAR(100),
@@ -57,7 +57,7 @@ CREATE TABLE job_preferences (
   CONSTRAINT fk_preferences_user FOREIGN KEY (user_id) REFERENCES user_profiles(user_id) ON DELETE CASCADE
 );
 
-CREATE TABLE speaker_profiles (
+CREATE TABLE IF NOT EXISTS speaker_profiles (
   speaker_id VARCHAR(50) PRIMARY KEY,
   user_id VARCHAR(50),
   name VARCHAR(100) NOT NULL,
@@ -73,14 +73,14 @@ CREATE TABLE speaker_profiles (
   CONSTRAINT fk_speaker_user FOREIGN KEY (user_id) REFERENCES user_profiles(user_id) ON DELETE SET NULL
 );
 
-CREATE TABLE faculties (
+CREATE TABLE IF NOT EXISTS faculties (
   faculty_id VARCHAR(50) PRIMARY KEY,
   name VARCHAR(100) NOT NULL UNIQUE,
   code VARCHAR(20) UNIQUE,
   description TEXT
 );
 
-CREATE TABLE departments (
+CREATE TABLE IF NOT EXISTS departments (
   department_id VARCHAR(50) PRIMARY KEY,
   faculty_id VARCHAR(50) NOT NULL,
   name VARCHAR(100) NOT NULL,

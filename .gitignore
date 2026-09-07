@@ -1,31 +1,71 @@
+# ==========================================
+# Comprehensive Git Ignore for Polyglot Monorepo
+# ==========================================
 
-# Maven
+# ── Maven & Java ──
+**/target/
 target/
-*.jar
-*.war
-*.ear
+**/*.jar
+**/*.war
+**/*.ear
+**/*.class
 
-# IntelliJ
+# ── Python & Virtual Environments ──
+**/.venv/
+.venv/
+**/.venv*/
+.venv*/
+**/venv/
+venv/
+**/env/
+env/
+**/ENV/
+ENV/
+**/__pycache__/
+__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache/
+**/.mypy_cache/
+**/*.egg-info/
+**/.ruff_cache/
+
+# ── Node & Frontend ──
+**/node_modules/
+node_modules/
+**/dist/
+dist/
+**/build/
+build/
+.npm/
+.eslintcache
+
+# ── Embedded Repositories / Submodules ──
+frontend/
+
+# ── IDEs & Editors ──
+**/.idea/
 .idea/
-*.iml
-
-# Eclipse
-.classpath
-.project
-.settings/
-
-# VS Code
+**/*.iml
+**/.vscode/
 .vscode/
+**/.classpath
+**/.project
+**/.settings/
 
-# Logs
+# ── Logs & Temporary Files ──
+**/*.log
 *.log
+**/.tempmediaStorage/
+**/.DS_Store
+**/Thumbs.db
 
-# Environment files
+# ── Environment & Secrets ──
+**/.env
 .env
+**/.env.*
+!.env.example
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# Claude code
+# ── AI & Scratch ──
 CLAUDE.md

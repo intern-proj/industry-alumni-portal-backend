@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import java.util.List;
 
 import java.time.LocalDateTime;
 
@@ -20,8 +21,13 @@ public class CreateEventRequest {
 
     private String eventType;
 
+    private String coverImage;
+
+    private String targetFaculties;
+
+    private List<AgendaRequest> sessions;
+
     @NotNull(message = "Start date/time is required")
-    @Future(message = "Start date/time must be in the future")
     private LocalDateTime startDateTime;
 
     private LocalDateTime endDateTime;
@@ -29,4 +35,6 @@ public class CreateEventRequest {
     private Long venueId;
 
     private Long organizationId;
+
+    private Integer requiredAttendanceRate;
 }

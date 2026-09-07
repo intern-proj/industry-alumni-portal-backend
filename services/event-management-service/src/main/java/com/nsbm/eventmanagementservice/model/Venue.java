@@ -24,9 +24,6 @@ public class Venue {
 
     private Integer capacity;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "venue_type", nullable = false)
-    private VenueType venueType;
 
     @Column(name = "contact_info")
     private String contactInfo;

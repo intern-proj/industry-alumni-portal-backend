@@ -22,6 +22,8 @@ public class GuestSpeaker {
 
     private String title;
 
+    private String company;
+
     @Column(columnDefinition = "TEXT")
     private String bio;
 
