@@ -140,6 +140,16 @@ public class VacancyApprovalService {
         return VacancyApprovalMapper.toResponse(approval);
     }
 
+    @Transactional
+    public void delete(UUID id) {
+        approvalRepository.findById(id).ifPresent(approvalRepository::delete);
+    }
+
+    @Transactional
+    public void deleteByVacancyId(String vacancyId) {
+        approvalRepository.findByVacancyId(vacancyId).ifPresent(approvalRepository::delete);
+    }
+
     private void transition(VacancyApproval approval, VacancyApprovalStatus target,
                              UUID changedByUserId, String remarks) {
         VacancyApprovalStatus current = approval.getStatus();

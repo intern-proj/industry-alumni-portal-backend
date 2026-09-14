@@ -18,4 +18,6 @@ public interface VacancyApprovalRepository extends JpaRepository<VacancyApproval
     Page<VacancyApproval> findByStatus(VacancyApprovalStatus status, Pageable pageable);
 
     List<VacancyApproval> findBySyncStatus(SyncStatus syncStatus);
+
+    void deleteByVacancyId(String vacancyId);
 }
