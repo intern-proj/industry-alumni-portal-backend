@@ -22,6 +22,7 @@ public class EventResponse {
     private LocalDateTime startDateTime;
     private LocalDateTime endDateTime;
     private Long venueId;
+    private String venueName;
     private Long organizationId;
     private Integer requiredAttendanceRate;
     private Long coordinatorUserId;

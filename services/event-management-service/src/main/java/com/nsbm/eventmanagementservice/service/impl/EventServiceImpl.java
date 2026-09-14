@@ -69,6 +69,9 @@ public class EventServiceImpl implements EventService {
                     Venue agendaVenue = venueRepository.findById(sessionReq.getVenueId())
                             .orElseThrow(() -> new VenueNotFoundException(sessionReq.getVenueId()));
                     agenda.setVenue(agendaVenue);
+                    if (event.getVenue() == null) {
+                        event.setVenue(agendaVenue);
+                    }
                 }
                 
                 if (sessionReq.getLectures() != null && !sessionReq.getLectures().isEmpty()) {
@@ -98,21 +101,21 @@ public class EventServiceImpl implements EventService {
         }
 
         Event saved = eventRepository.save(event);
-        return eventMapper.toResponse(saved);
+        return toEventResponse(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
     public EventResponse getEventById(Long id) {
         Event event = findEventOrThrow(id);
-        return eventMapper.toResponse(event);
+        return toEventResponse(event);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<EventResponse> getAllEvents() {
         return eventRepository.findAll().stream()
-                .map(eventMapper::toResponse)
+                .map(this::toEventResponse)
                 .toList();
     }
 
@@ -120,7 +123,7 @@ public class EventServiceImpl implements EventService {
     @Transactional(readOnly = true)
     public List<EventResponse> getEventsByStatus(EventStatus status) {
         return eventRepository.findByStatus(status).stream()
-                .map(eventMapper::toResponse)
+                .map(this::toEventResponse)
                 .toList();
     }
 
@@ -128,7 +131,7 @@ public class EventServiceImpl implements EventService {
     @Transactional(readOnly = true)
     public List<EventResponse> getEventsByVenue(Long venueId) {
         return eventRepository.findByVenueId(venueId).stream()
-                .map(eventMapper::toResponse)
+                .map(this::toEventResponse)
                 .toList();
     }
 
@@ -136,7 +139,7 @@ public class EventServiceImpl implements EventService {
     @Transactional(readOnly = true)
     public List<EventResponse> getEventsByCoordinator(Long coordinatorUserId) {
         return eventRepository.findByCoordinatorUserId(coordinatorUserId).stream()
-                .map(eventMapper::toResponse)
+                .map(this::toEventResponse)
                 .toList();
     }
 
@@ -144,7 +147,7 @@ public class EventServiceImpl implements EventService {
     @Transactional(readOnly = true)
     public List<EventResponse> getEventsBySpeakerId(Long speakerId) {
         return eventRepository.findDistinctByAgendasSpeakerId(speakerId).stream()
-                .map(eventMapper::toResponse)
+                .map(this::toEventResponse)
                 .toList();
     }
 
@@ -153,6 +156,10 @@ public class EventServiceImpl implements EventService {
         Event event = findEventOrThrow(id);
 
         eventMapper.updateEntityFromRequest(request, event);
+
+        if (request.getRequiredAttendanceRate() != null) {
+            event.setRequiredAttendanceRate(request.getRequiredAttendanceRate());
+        }
 
         if (request.getStatus() != null) {
             event.setStatus(request.getStatus());
@@ -164,8 +171,51 @@ public class EventServiceImpl implements EventService {
             event.setVenue(venue);
         }
 
+        if (request.getSessions() != null) {
+            if (event.getAgendas() == null) {
+                event.setAgendas(new ArrayList<>());
+            } else {
+                event.getAgendas().clear();
+            }
+
+            for (AgendaRequest sessionReq : request.getSessions()) {
+                Agenda agenda = agendaMapper.toEntity(sessionReq);
+                agenda.setEvent(event);
+                if (sessionReq.getVenueId() != null) {
+                    Venue agendaVenue = venueRepository.findById(sessionReq.getVenueId())
+                            .orElseThrow(() -> new VenueNotFoundException(sessionReq.getVenueId()));
+                    agenda.setVenue(agendaVenue);
+                    if (event.getVenue() == null) {
+                        event.setVenue(agendaVenue);
+                    }
+                }
+                
+                if (sessionReq.getLectures() != null && !sessionReq.getLectures().isEmpty()) {
+                    List<Lecture> lectures = new ArrayList<>();
+                    for (LectureRequest lectureReq : sessionReq.getLectures()) {
+                        Lecture lecture = Lecture.builder()
+                                .agenda(agenda)
+                                .title(lectureReq.getTitle())
+                                .description(lectureReq.getDescription())
+                                .startTime(lectureReq.getStartTime())
+                                .endTime(lectureReq.getEndTime())
+                                .sequenceOrder(lectureReq.getSequenceOrder())
+                                .build();
+                                
+                        if (lectureReq.getSpeakerId() != null) {
+                            lecture.setSpeaker(guestSpeakerRepository.findById(lectureReq.getSpeakerId())
+                                    .orElseThrow(() -> new ResourceNotFoundException("Speaker not found with id " + lectureReq.getSpeakerId())));
+                        }
+                        lectures.add(lecture);
+                    }
+                    agenda.setLectures(lectures);
+                }
+                event.getAgendas().add(agenda);
+            }
+        }
+
         Event saved = eventRepository.save(event);
-        return eventMapper.toResponse(saved);
+        return toEventResponse(saved);
     }
 
     @Override
@@ -173,7 +223,7 @@ public class EventServiceImpl implements EventService {
         Event event = findEventOrThrow(id);
         transitionStatus(event, request.getStatus());
         Event saved = eventRepository.save(event);
-        return eventMapper.toResponse(saved);
+        return toEventResponse(saved);
     }
 
     @Override
@@ -185,7 +235,7 @@ public class EventServiceImpl implements EventService {
         event.setEndDateTime(request.getNewEndDateTime());
 
         Event saved = eventRepository.save(event);
-        return eventMapper.toResponse(saved);
+        return toEventResponse(saved);
     }
 
     @Override
@@ -193,7 +243,7 @@ public class EventServiceImpl implements EventService {
         Event event = findEventOrThrow(id);
         transitionStatus(event, EventStatus.CANCELLED);
         Event saved = eventRepository.save(event);
-        return eventMapper.toResponse(saved);
+        return toEventResponse(saved);
     }
 
     @Override
@@ -211,7 +261,7 @@ public class EventServiceImpl implements EventService {
         event.setCoordinatorEmail(request.getCoordinatorEmail());
 
         Event saved = eventRepository.save(event);
-        return eventMapper.toResponse(saved);
+        return toEventResponse(saved);
     }
 
     @Override
@@ -223,7 +273,7 @@ public class EventServiceImpl implements EventService {
         event.setCoordinatorEmail(null);
 
         Event saved = eventRepository.save(event);
-        return eventMapper.toResponse(saved);
+        return toEventResponse(saved);
     }
 
     private Event findEventOrThrow(Long id) {
@@ -243,5 +293,22 @@ public class EventServiceImpl implements EventService {
         }
 
         event.setStatus(targetStatus);
+    }
+
+    private EventResponse toEventResponse(Event event) {
+        EventResponse response = eventMapper.toResponse(event);
+        if ((response.getVenueName() == null || response.getVenueName().isBlank()) 
+                && event.getAgendas() != null && !event.getAgendas().isEmpty()) {
+            for (Agenda a : event.getAgendas()) {
+                if (a.getVenue() != null && a.getVenue().getName() != null && !a.getVenue().getName().isBlank()) {
+                    response.setVenueName(a.getVenue().getName());
+                    if (response.getVenueId() == null) {
+                        response.setVenueId(a.getVenue().getId());
+                    }
+                    break;
+                }
+            }
+        }
+        return response;
     }
 }

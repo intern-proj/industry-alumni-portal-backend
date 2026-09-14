@@ -32,6 +32,7 @@ public interface EventMapper {
     void updateEntityFromRequest(UpdateEventRequest request, @MappingTarget Event event);
 
     @Mapping(target = "venueId", source = "venue.id")
+    @Mapping(target = "venueName", source = "venue.name")
     @Mapping(target = "sessions", source = "agendas")
     EventResponse toResponse(Event event);
 }

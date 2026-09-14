@@ -1,6 +1,6 @@
 package com.nsbm.eventmanagementservice.dto;
 
-import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -28,6 +28,7 @@ public class CreateEventRequest {
     private List<AgendaRequest> sessions;
 
     @NotNull(message = "Start date/time is required")
+    @FutureOrPresent(message = "Start date/time cannot be in the past")
     private LocalDateTime startDateTime;
 
     private LocalDateTime endDateTime;

@@ -31,7 +31,7 @@ public class GuestSpeakerController {
     @Value("${app.frontend.url:${FRONTEND_URL:https://wonderful-wave-0320abf00.3.azurestaticapps.net}}")
     private String frontendUrl;
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR')")
     @PostMapping
     public ResponseEntity<GuestSpeakerResponse> createSpeaker(@Valid @RequestBody GuestSpeakerRequest request) {
         GuestSpeakerResponse response = guestSpeakerService.createSpeaker(request);
@@ -45,7 +45,7 @@ public class GuestSpeakerController {
         return ResponseEntity.ok(guestSpeakerService.getSpeakerById(speakerId));
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR')")
     @PostMapping("/{id}/invite")
     public ResponseEntity<Void> sendInvite(@PathVariable Long id, HttpServletRequest httpRequest) {
         GuestSpeakerResponse speaker = guestSpeakerService.getSpeakerById(id);
@@ -96,7 +96,7 @@ public class GuestSpeakerController {
         return ResponseEntity.ok(guestSpeakerService.getAllSpeakers());
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'GUEST_SPEAKER')")
     @PutMapping("/{id}")
     public ResponseEntity<GuestSpeakerResponse> updateSpeaker(
             @PathVariable Long id,
@@ -104,7 +104,7 @@ public class GuestSpeakerController {
         return ResponseEntity.ok(guestSpeakerService.updateSpeaker(id, request));
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSpeaker(@PathVariable Long id) {
         guestSpeakerService.deleteSpeaker(id);

@@ -19,7 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 public class AgendaController {
     private final AgendaService agendaService;
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR')")
     @PostMapping
     public ResponseEntity<AgendaResponse> createAgendaItem(@Valid @RequestBody AgendaRequest request) {
         AgendaResponse response = agendaService.createAgendaItem(request);
@@ -45,7 +45,7 @@ public class AgendaController {
         return ResponseEntity.badRequest().build();
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR')")
     @PutMapping("/{id}")
     public ResponseEntity<AgendaResponse> updateAgendaItem(
             @PathVariable Long id,
@@ -53,7 +53,7 @@ public class AgendaController {
         return ResponseEntity.ok(agendaService.updateAgendaItem(id, request));
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAgendaItem(@PathVariable Long id) {
         agendaService.deleteAgendaItem(id);

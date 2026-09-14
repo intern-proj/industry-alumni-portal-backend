@@ -26,5 +26,9 @@ public class UpdateEventRequest {
 
     private Long organizationId;
 
+    private Integer requiredAttendanceRate;
+
+    private java.util.List<AgendaRequest> sessions;
+
     private com.nsbm.eventmanagementservice.model.EventStatus status;
 }
