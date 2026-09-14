@@ -15,6 +15,8 @@ public interface PartnerVerificationRepository extends JpaRepository<PartnerVeri
 
     Optional<PartnerVerification> findByUserId(UUID userId);
 
+    Optional<PartnerVerification> findByContactEmailSnapshotIgnoreCase(String contactEmailSnapshot);
+
     Page<PartnerVerification> findByStatus(VerificationStatus status, Pageable pageable);
 
     List<PartnerVerification> findBySyncStatus(SyncStatus syncStatus);

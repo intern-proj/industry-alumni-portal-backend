@@ -66,6 +66,9 @@ public class AuthService {
     @Value("${app.frontend.url:https://wonderful-wave-0320abf00.3.azurestaticapps.net}")
     private String frontendUrl;
 
+    @Value("${app.platform-service.url:${API_GATEWAY_URL:https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io}/api/v1}")
+    private String platformServiceUrl;
+
     public AuthService(ManagementStaffRepository staffRepository,
                        PendingStaffRepository pendingStaffRepository,
                        PendingPartnerRepository pendingPartnerRepository,
@@ -229,6 +232,7 @@ public class AuthService {
                 .companyAddress(request.companyAddress())
                 .companyDescription(request.companyDescription())
                 .registrationToken(token)
+                .status("PENDING")
                 .build();
         pendingPartnerRepository.save(pendingPartner);
         UpdateEmailDTO message = new UpdateEmailDTO(
@@ -243,7 +247,30 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public java.util.List<PendingPartner> getAllPendingPartners() {
-        return pendingPartnerRepository.findAll();
+        return pendingPartnerRepository.findByStatusIsNullOrStatus("PENDING");
+    }
+
+    private void createStage2VerificationRecord(PendingPartner partner) {
+        try {
+            UUID userId = UUID.nameUUIDFromBytes(partner.getEmail().toLowerCase().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            java.util.Map<String, Object> req = java.util.Map.of(
+                "userId", userId.toString(),
+                "organizationNameSnapshot", partner.getCompanyName(),
+                "contactEmailSnapshot", partner.getEmail()
+            );
+            org.springframework.web.client.RestClient restClient = org.springframework.web.client.RestClient.builder()
+                .baseUrl(platformServiceUrl)
+                .build();
+            restClient.post()
+                .uri("/internal/partner-verifications")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(req)
+                .retrieve()
+                .toBodilessEntity();
+            log.info("Created Stage 2 partner verification record for {}", partner.getEmail());
+        } catch (Exception e) {
+            log.warn("Could not automatically notify platform service of partner verification: {}", e.getMessage());
+        }
     }
 
     @Transactional
@@ -251,6 +278,11 @@ public class AuthService {
         PendingPartner pendingPartner = pendingPartnerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pending partner not found"));
         
+        pendingPartner.setStatus("APPROVED");
+        pendingPartnerRepository.save(pendingPartner);
+
+        createStage2VerificationRecord(pendingPartner);
+
         String invitationUrl = frontendUrl + "/partner/complete-registration?token=" + pendingPartner.getRegistrationToken();
         UpdateEmailDTO message = new UpdateEmailDTO(
                 pendingPartner.getEmail(),

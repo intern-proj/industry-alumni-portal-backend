@@ -44,6 +44,8 @@ app:
   rabbitmq:
     exchange: ${RABBITMQ_EXCHANGE:notification.exchange}
     routing-key: ${RABBITMQ_ROUTING_KEY:notification.update}
+  platform-service:
+    url: ${PLATFORM_SERVICE_URL:${API_GATEWAY_URL:https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io}/api/v1}
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,https://*.azurecontainerapps.io,https://*.azurestaticapps.net}
 

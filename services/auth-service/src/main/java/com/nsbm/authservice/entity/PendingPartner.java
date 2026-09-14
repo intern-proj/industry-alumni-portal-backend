@@ -48,6 +48,10 @@ public class PendingPartner {
     @Column(name = "registration_token", nullable = false, unique = true)
     private String registrationToken;
 
+    @Column(name = "status", length = 30)
+    @Builder.Default
+    private String status = "PENDING";
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

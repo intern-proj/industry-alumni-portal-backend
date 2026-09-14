@@ -1,5 +1,6 @@
 package com.portal.platformservice.controller;
 
+import com.nsbm.common.security.JwtTokenProvider;
 import com.portal.platformservice.dto.request.PartnerVerificationSubmitRequest;
 import com.portal.platformservice.dto.response.PartnerVerificationResponse;
 import com.portal.platformservice.exception.ResourceNotFoundException;
@@ -18,21 +19,22 @@ import java.util.UUID;
 public class PartnerVerificationPartnerController {
 
     private final PartnerVerificationService verificationService;
+    private final JwtTokenProvider tokenProvider;
 
     @PreAuthorize("hasRole('INDUSTRY_PARTNER')")
     @GetMapping("/me")
-    public ResponseEntity<PartnerVerificationResponse> getMyVerificationStatus(Principal principal) {
+    public ResponseEntity<PartnerVerificationResponse> getMyVerificationStatus(
+            Principal principal,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         UUID generatedUserId = UUID.nameUUIDFromBytes(principal.getName().getBytes());
-        try {
-            return ResponseEntity.ok(verificationService.getByUserId(generatedUserId));
-        } catch (ResourceNotFoundException e) {
-            // Lazy initialization for partner verification
-            PartnerVerificationSubmitRequest req = new PartnerVerificationSubmitRequest();
-            req.setUserId(generatedUserId);
-            req.setOrganizationNameSnapshot(principal.getName());
-            req.setContactEmailSnapshot(principal.getName() + "@example.com"); // Placeholder
-            return ResponseEntity.ok(verificationService.submit(req));
+        String email = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                email = tokenProvider.getEmailFromToken(authHeader.substring(7));
+            } catch (Exception ignored) {
+            }
         }
+        return ResponseEntity.ok(verificationService.getOrLinkVerification(generatedUserId, email, principal.getName()));
     }
     @PreAuthorize("hasRole('INDUSTRY_PARTNER')")
     @PostMapping("/me/reapply")

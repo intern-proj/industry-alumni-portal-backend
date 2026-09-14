@@ -34,6 +34,19 @@ public class PartnerVerificationService {
 
     @Transactional
     public PartnerVerificationResponse submit(PartnerVerificationSubmitRequest request) {
+        if (request.getUserId() != null) {
+            java.util.Optional<PartnerVerification> existingByUserId = verificationRepository.findByUserId(request.getUserId());
+            if (existingByUserId.isPresent()) {
+                return PartnerVerificationMapper.toResponse(existingByUserId.get());
+            }
+        }
+        if (request.getContactEmailSnapshot() != null && !request.getContactEmailSnapshot().isBlank()) {
+            java.util.Optional<PartnerVerification> existingByEmail = verificationRepository.findByContactEmailSnapshotIgnoreCase(request.getContactEmailSnapshot());
+            if (existingByEmail.isPresent()) {
+                return PartnerVerificationMapper.toResponse(existingByEmail.get());
+            }
+        }
+
         PartnerVerification verification = PartnerVerification.builder()
                 .userId(request.getUserId())
                 .organizationNameSnapshot(request.getOrganizationNameSnapshot())
@@ -58,6 +71,31 @@ public class PartnerVerificationService {
         PartnerVerification verification = verificationRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Partner verification not found for user: " + userId));
         return PartnerVerificationMapper.toResponse(verification);
+    }
+
+    @Transactional
+    public PartnerVerificationResponse getOrLinkVerification(UUID userId, String email, String organizationName) {
+        java.util.Optional<PartnerVerification> byUserId = verificationRepository.findByUserId(userId);
+        if (byUserId.isPresent()) {
+            return PartnerVerificationMapper.toResponse(byUserId.get());
+        }
+
+        if (email != null && !email.isBlank()) {
+            java.util.Optional<PartnerVerification> byEmail = verificationRepository.findByContactEmailSnapshotIgnoreCase(email);
+            if (byEmail.isPresent()) {
+                PartnerVerification v = byEmail.get();
+                v.setUserId(userId);
+                verificationRepository.save(v);
+                return PartnerVerificationMapper.toResponse(v);
+            }
+        }
+
+        PartnerVerificationSubmitRequest req = PartnerVerificationSubmitRequest.builder()
+                .userId(userId)
+                .organizationNameSnapshot(organizationName != null ? organizationName : "Company")
+                .contactEmailSnapshot(email != null && !email.isBlank() ? email : (organizationName + "@example.com"))
+                .build();
+        return submit(req);
     }
 
     @Transactional(readOnly = true)
