@@ -57,8 +57,8 @@ class Settings(BaseSettings):
 
     # Gemini Cloud LLM API Settings (Preferred for serverless / no-GPU hosting)
     USE_GEMINI_API: bool = True
-    GEMINI_API_KEY: str = "AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg"
-    GEMINI_MODEL: str = "gemini-3.1-flash-lite"
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
     # Local LLM Settings (Disabled when USE_GEMINI_API is True)
     LLM_REPO_ID: str = "lmstudio-community/Qwen3-4B-Instruct-2507-GGUF"

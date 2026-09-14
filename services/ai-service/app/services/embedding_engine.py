@@ -59,7 +59,7 @@ class EmbeddingEngine:
             return [0.0] * 768
 
         clean_text = text.strip()
-        api_key = getattr(settings, "GEMINI_API_KEY", "AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg")
+        api_key = getattr(settings, "GEMINI_API_KEY", "")
         if not api_key:
             return cls._compute_fallback_vector(clean_text)
 
@@ -96,7 +96,7 @@ class EmbeddingEngine:
             return []
 
         clean_texts = [t.strip()[:4000] if (t and t.strip()) else "empty" for t in texts]
-        api_key = getattr(settings, "GEMINI_API_KEY", "AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg")
+        api_key = getattr(settings, "GEMINI_API_KEY", "")
         if not api_key:
             return [cls._compute_fallback_vector(t) for t in clean_texts]
 

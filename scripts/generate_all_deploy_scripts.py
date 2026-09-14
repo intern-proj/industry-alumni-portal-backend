@@ -176,8 +176,8 @@ def generate_ps1(svc):
 
     eureka_param = '    [string]$EurekaUrl = "",\n' if has_eureka else ''
     build_param = '    [switch]$BuildJar,\n' if is_java else ''
-    ai_params = """    [string]$GeminiApiKey = "AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg",
-    [string]$GeminiModel = "gemini-3.5-flash",\n""" if is_ai else ""
+    ai_params = """    [string]$GeminiApiKey = $env:GEMINI_API_KEY,
+    [string]$GeminiModel = "gemini-2.0-flash",\n""" if is_ai else ""
 
     eureka_discovery = f"""
 # 2. Resolve Eureka Server URL
@@ -443,8 +443,8 @@ fi
 """ if is_java else ""
 
     if is_ai:
-        create_env_str = '--env-vars "EUREKA_SERVER_URL=${EUREKA_URL}" "USE_GEMINI_API=true" "GEMINI_API_KEY=AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg" "GEMINI_MODEL=gemini-3.5-flash"'
-        update_env_str = '--set-env-vars "EUREKA_SERVER_URL=${EUREKA_URL}" "USE_GEMINI_API=true" "GEMINI_API_KEY=AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg" "GEMINI_MODEL=gemini-3.5-flash"'
+        create_env_str = '--env-vars "EUREKA_SERVER_URL=${EUREKA_URL}" "USE_GEMINI_API=true" "GEMINI_API_KEY=${GEMINI_API_KEY}" "GEMINI_MODEL=gemini-2.0-flash"'
+        update_env_str = '--set-env-vars "EUREKA_SERVER_URL=${EUREKA_URL}" "USE_GEMINI_API=true" "GEMINI_API_KEY=${GEMINI_API_KEY}" "GEMINI_MODEL=gemini-2.0-flash"'
     elif has_eureka:
         create_env_str = '--env-vars "EUREKA_SERVER_URL=${EUREKA_URL}" "FRONTEND_URL=https://wonderful-wave-0320abf00.3.azurestaticapps.net" "API_GATEWAY_URL=https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io" "CERTIFICATE_BASE_URL=https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io"'
         update_env_str = '--set-env-vars "EUREKA_SERVER_URL=${EUREKA_URL}" "FRONTEND_URL=https://wonderful-wave-0320abf00.3.azurestaticapps.net" "API_GATEWAY_URL=https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io" "CERTIFICATE_BASE_URL=https://api-gateway.happybush-76206934.centralindia.azurecontainerapps.io"'

@@ -12,6 +12,8 @@ REGISTRY="${REGISTRY:-nicregistery}"
 RESOURCE_GROUP="${RESOURCE_GROUP:-NIC_System}"
 ENVIRONMENT="${ENVIRONMENT:-nic-system-env}"
 EUREKA_URL="${EUREKA_URL:-}"
+GEMINI_API_KEY="${GEMINI_API_KEY:-}"
+GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.0-flash}"
 BUILD_JAR=false
 
 for arg in "$@"; do
@@ -70,7 +72,7 @@ if [ -z "$APP_EXISTS" ]; then
         --min-replicas 1 \
         --cpu 0.5 \
         --memory 1.0Gi \
-        --env-vars "EUREKA_SERVER_URL=${EUREKA_URL}" "USE_GEMINI_API=true" "GEMINI_API_KEY=AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg" "GEMINI_MODEL=gemini-3.5-flash"
+        --env-vars "EUREKA_SERVER_URL=${EUREKA_URL}" "USE_GEMINI_API=true" "GEMINI_API_KEY=${GEMINI_API_KEY}" "GEMINI_MODEL=${GEMINI_MODEL}"
 else
     echo "Updating Container App 'ai-service'..."
     az containerapp update \
@@ -79,7 +81,7 @@ else
         --image "${REGISTRY}.azurecr.io/ai-service:${VERSION}" \
         --cpu 0.5 \
         --memory 1.0Gi \
-        --set-env-vars "EUREKA_SERVER_URL=${EUREKA_URL}" "USE_GEMINI_API=true" "GEMINI_API_KEY=AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg" "GEMINI_MODEL=gemini-3.5-flash"
+        --set-env-vars "EUREKA_SERVER_URL=${EUREKA_URL}" "USE_GEMINI_API=true" "GEMINI_API_KEY=${GEMINI_API_KEY}" "GEMINI_MODEL=${GEMINI_MODEL}"
 fi
 
 FQDN=$(az containerapp show --name "ai-service" --resource-group "$RESOURCE_GROUP" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)

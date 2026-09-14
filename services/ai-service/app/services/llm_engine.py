@@ -13,10 +13,12 @@ logger = logging.getLogger("ai_service.llm_engine")
 _llm_lock = threading.Lock()
 
 GEMINI_MODELS = [
-    "gemini-3.1-flash-lite",
     "gemini-3.5-flash-lite",
-    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-3.6-flash",
     "gemini-flash-lite-latest",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
 ]
 
 
@@ -30,8 +32,8 @@ class LLMEngine:
     _active_config = None
 
     def __init__(self):
-        self.api_key = getattr(settings, "GEMINI_API_KEY", "AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg")
-        self.default_model = getattr(settings, "GEMINI_MODEL", "gemini-3.1-flash-lite")
+        self.api_key = getattr(settings, "GEMINI_API_KEY", "")
+        self.default_model = getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
         logger.info(f"[LLM Service] Initialized Gemini Cloud LLM Engine with default model '{self.default_model}'.")
 
     def reset(self):

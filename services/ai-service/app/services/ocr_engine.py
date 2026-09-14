@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import Union
 import pymupdf
@@ -12,12 +13,13 @@ logger = logging.getLogger(__name__)
 
 class OCREngine:
     def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY", "AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg")
-        self.model = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+        self.api_key = os.getenv("GEMINI_API_KEY", "")
+        self.model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
     def _ocr_image(self, img_path: Path) -> str:
         """Extract text from an image using Gemini Flash multimodal vision with automatic failover."""
         if not self.api_key:
+            logger.error("Gemini API key is not configured. OCR extraction cannot proceed.")
             return ""
         try:
             with open(img_path, "rb") as f:
@@ -38,7 +40,7 @@ class OCREngine:
                 }
             }
 
-            models_to_try = [self.model] + [m for m in ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3-flash-preview", "gemini-flash-lite-latest"] if m != self.model]
+            models_to_try = [self.model] + [m for m in ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"] if m != self.model]
 
             for model_name in models_to_try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.api_key}"
@@ -55,6 +57,10 @@ class OCREngine:
                             parts = candidates[0]["content"].get("parts", [])
                             if parts:
                                 return parts[0].get("text", "").strip()
+                except urllib.error.HTTPError as exc:
+                    err_detail = exc.read().decode("utf-8", errors="ignore")
+                    logger.warning(f"Gemini OCR model '{model_name}' failed: HTTP {exc.code} - {err_detail}")
+                    continue
                 except Exception as exc:
                     logger.warning(f"Gemini OCR model '{model_name}' failed: {exc}")
                     continue

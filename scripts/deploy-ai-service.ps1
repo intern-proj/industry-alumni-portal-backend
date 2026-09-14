@@ -6,8 +6,8 @@
 [CmdletBinding()]
 param (
     [string]$EurekaUrl = "",
-    [string]$GeminiApiKey = "AIzaSyCwVuiV4796KTvQ8CFj2BBBQ-4z6WwJQAg",
-    [string]$GeminiModel = "gemini-3.1-flash-lite",
+    [string]$GeminiApiKey = $env:GEMINI_API_KEY,
+    [string]$GeminiModel = "gemini-2.0-flash",
     [string]$Version = "v1",
     [string]$Registry = "nicregistery",
     [string]$ResourceGroup = "NIC_System",

@@ -3,36 +3,7 @@ NSBM INDUSTRY & ALUMNI COLLABORATION PORTAL
 COMPLETE SYSTEM ARCHITECTURE, SERVICE FLOW & SERVICE-BY-SERVICE REFERENCE
 ================================================================================
 
-TABLE OF CONTENTS
---------------------------------------------------------------------------------
-1. High-Level Architectural Overview
-2. How Services Work Together (Communication & Topology)
-3. End-to-End Website Workflows
-   3.1 Student Registration & Profile Setup
-   3.2 AI-Powered Resume Enhancement Flow
-   3.3 Industry Partner Onboarding & Verification Flow
-   3.4 Vacancy Creation, Flyer OCR & Gemini Processing Flow
-   3.5 Job Application & AI Match Scoring Flow
-   3.6 Events, QR Attendance & Certificate Generation Flow
-4. Detailed Breakdown Divided By Service
-   - Service 1:  Frontend Client (React + Vite)
-   - Service 2:  API Gateway (Spring Cloud Gateway)
-   - Service 3:  Discovery Server (Netflix Eureka)
-   - Service 4:  Auth Service
-   - Service 5:  User Service
-   - Service 6:  Vacancy Service
-   - Service 7:  AI Service (Python FastAPI + Google Gemini)
-   - Service 8:  Application Service
-   - Service 9:  Event Management Service
-   - Service 10: Event Participation Service
-   - Service 11: Certificate Service
-   - Service 12: Notification Service
-   - Service 13: Platform Management Service
-   - Service 14: Audit & Storage Service
-   - Service 15: Common Security Library
-5. Service Port, Database & API Mapping Summary
-6. Student Login Credentials & Passwords
-7. Administrative & Partner Login Credentials
+Azure Hosted URL - https://wonderful-wave-0320abf00.3.azurestaticapps.net/
 
 
 ================================================================================
@@ -521,7 +492,7 @@ SERVICE 15: COMMON SECURITY LIBRARY (`services/common-security`)
 
 Service Name                 Port   Database               Key Base Endpoint
 --------------------------------------------------------------------------------
-API Gateway                  8080   (None - Netty Proxy)   /api/v1/*
+API Gateway                  8080   (None)   /api/v1/*
 Eureka Discovery Server      8761   (In-Memory Registry)   /eureka/*
 Auth Service                 8081   auth_db                /api/v1/auth
 Event Management Service     8082   event_management_db    /api/v1/events
@@ -533,7 +504,7 @@ Vacancy Service              8087   vacancy_db             /api/v1/vacancies
 Notification Service         8088   notification           /api/v1/notifications
 Audit & Storage Service      8089   audit_storage_db       /api/v1/storage
 Certificate Service          8090   certificate_db         /api/v1/certificates
-AI Service                   8000   (SQLite / Postgres)    /api/v1/ai
+AI Service                   8000   ai_service_db          /api/v1/ai
 --------------------------------------------------------------------------------
 
 
@@ -544,22 +515,6 @@ AI Service                   8000   (SQLite / Postgres)    /api/v1/ai
 All 10 student accounts have been initialized with official university email
 addresses, authentic academic records, and populated project portfolios.
 
-Below is the complete list of student usernames, emails, passwords, and degree programs:
-
--------------------------------------------------------------------------------------------------------------------------------------------
-Username    Full Name          Email Address                   Password     Faculty & Degree Program                             GPA   Spec.
--------------------------------------------------------------------------------------------------------------------------------------------
-student1    John Smith         student1@students.nsbm.ac.lk    Student@1    Computing - BSc (Hons) in Software Engineering       3.82  Full-Stack
-student2    Emma Johnson       student2@students.nsbm.ac.lk    Student@2    Computing - BSc (Hons) in Computer Networks          3.75  Cloud/DevOps
-student3    Michael Brown      student3@students.nsbm.ac.lk    Student@3    Computing - BSc (Hons) in Software Engineering       3.91  Backend/Sys
-student4    Sophia Taylor      student4@students.nsbm.ac.lk    Student@4    Computing - BSc (Hons) in Multimedia & Web           3.84  Frontend/UX
-student5    William Anderson   student5@students.nsbm.ac.lk    Student@5    Computing - BSc (Hons) in Data Science               3.88  AI/ML Data
-student6    Olivia Thomas      student6@students.nsbm.ac.lk    Student@6    Computing - BSc (Hons) in Software Engineering       3.68  Mobile Dev
-student7    James Jackson      student7@students.nsbm.ac.lk    Student@7    Computing - BSc (Hons) in Computer Security          3.70  Cybersecurity
-student8    Ava White          student8@students.nsbm.ac.lk    Student@8    Engineering - BSc (Hons) in Computer Systems Eng.    3.78  Enterprise C#
-student9    Alexander Harris   student9@students.nsbm.ac.lk    Student@9    Computing - BSc (Hons) in Data Science               3.65  Data Platform
-student10   Mia Martin         student10@students.nsbm.ac.lk   Student@10   Engineering - BSc (Hons) in Computer Systems Eng.    3.95  SRE & Infra
--------------------------------------------------------------------------------------------------------------------------------------------
 
 Summary of Student Passwords Pattern:
 - student1  ->  Student@1
@@ -572,18 +527,6 @@ Summary of Student Passwords Pattern:
 - student8  ->  Student@8
 - student9  ->  Student@9
 - student10 ->  Student@10
-
-
-================================================================================
-7. ADMINISTRATIVE & PARTNER LOGIN CREDENTIALS
-================================================================================
-
-Role                  Username    Email Address              Password     Purpose
--------------------------------------------------------------------------------------------------------------------------------------------
-System Administrator  admin       prasadkvithana@gmail.com   Admin@123    Super-admin access, partner verification, system config
-Staff Member          staff       staff@nsbm.ac.lk           Staff@123    Career guidance coordinator, vacancy & event approvals
-Industry Partner      synnext     contact@synnext.com        Partner@123  Verified recruitment partner, post vacancies & hire
--------------------------------------------------------------------------------------------------------------------------------------------
 
 ================================================================================
 END OF REFERENCE DOCUMENT
