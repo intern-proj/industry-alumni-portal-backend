@@ -40,4 +40,6 @@ public class CreateEventRequest {
     private Integer requiredAttendanceRate;
 
     private com.nsbm.eventmanagementservice.model.EventStatus status;
+
+    private List<String> galleryImages;
 }

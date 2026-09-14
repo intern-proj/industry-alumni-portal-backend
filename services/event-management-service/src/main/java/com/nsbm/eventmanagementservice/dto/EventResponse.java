@@ -31,4 +31,5 @@ public class EventResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<AgendaResponse> sessions;
+    private List<String> galleryImages;
 }

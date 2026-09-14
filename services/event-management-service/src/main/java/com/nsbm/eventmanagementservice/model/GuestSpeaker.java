@@ -27,6 +27,7 @@ public class GuestSpeaker {
     @Column(columnDefinition = "TEXT")
     private String bio;
 
+    @Column(nullable = false, unique = true)
     private String email;
 
     private String phone;

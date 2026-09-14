@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+import com.nsbm.eventmanagementservice.exception.DuplicateSpeakerEmailException;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -22,6 +24,12 @@ public class GuestSpeakerServiceImpl implements GuestSpeakerService {
 
     @Override
     public GuestSpeakerResponse createSpeaker(GuestSpeakerRequest request) {
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            String trimmedEmail = request.getEmail().trim();
+            if (guestSpeakerRepository.existsByEmailIgnoreCase(trimmedEmail)) {
+                throw new DuplicateSpeakerEmailException("A guest speaker with email '" + trimmedEmail + "' already exists.");
+            }
+        }
         GuestSpeaker speaker = guestSpeakerMapper.toEntity(request);
         GuestSpeaker saved = guestSpeakerRepository.save(speaker);
         return guestSpeakerMapper.toResponse(saved);
@@ -53,6 +61,12 @@ public class GuestSpeakerServiceImpl implements GuestSpeakerService {
     @Override
     public GuestSpeakerResponse updateSpeaker(Long id, GuestSpeakerRequest request) {
         GuestSpeaker speaker = findSpeakerOrThrow(id);
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            String trimmedEmail = request.getEmail().trim();
+            if (guestSpeakerRepository.existsByEmailIgnoreCaseAndIdNot(trimmedEmail, id)) {
+                throw new DuplicateSpeakerEmailException("A guest speaker with email '" + trimmedEmail + "' already exists.");
+            }
+        }
         guestSpeakerMapper.updateEntityFromRequest(request, speaker);
         GuestSpeaker saved = guestSpeakerRepository.save(speaker);
         return guestSpeakerMapper.toResponse(saved);

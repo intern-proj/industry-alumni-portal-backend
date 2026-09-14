@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
@@ -103,5 +105,29 @@ public class EventController {
     @DeleteMapping("/{id}/coordinator")
     public ResponseEntity<EventResponse> removeCoordinator(@PathVariable Long id) {
         return ResponseEntity.ok(eventService.removeCoordinator(id));
+    }
+
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR')")
+    @PostMapping("/{id}/gallery")
+    public ResponseEntity<EventResponse> addGalleryImages(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> payload) {
+        List<String> images = new ArrayList<>();
+        if (payload.containsKey("images") && payload.get("images") instanceof List<?>) {
+            for (Object obj : (List<?>) payload.get("images")) {
+                if (obj != null) images.add(obj.toString());
+            }
+        } else if (payload.containsKey("image") && payload.get("image") != null) {
+            images.add(payload.get("image").toString());
+        }
+        return ResponseEntity.ok(eventService.addGalleryImages(id, images));
+    }
+
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR')")
+    @DeleteMapping("/{id}/gallery")
+    public ResponseEntity<EventResponse> removeGalleryImage(
+            @PathVariable Long id,
+            @RequestParam String imageUrl) {
+        return ResponseEntity.ok(eventService.removeGalleryImage(id, imageUrl));
     }
 }

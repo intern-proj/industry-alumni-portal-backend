@@ -33,4 +33,8 @@ public interface EventService {
     EventResponse assignCoordinator(Long id, AssignCoordinatorRequest request);
 
     EventResponse removeCoordinator(Long id);
+
+    EventResponse addGalleryImages(Long id, List<String> imageUrls);
+
+    EventResponse removeGalleryImage(Long id, String imageUrl);
 }

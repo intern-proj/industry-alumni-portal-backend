@@ -31,4 +31,6 @@ public class UpdateEventRequest {
     private java.util.List<AgendaRequest> sessions;
 
     private com.nsbm.eventmanagementservice.model.EventStatus status;
+
+    private java.util.List<String> galleryImages;
 }

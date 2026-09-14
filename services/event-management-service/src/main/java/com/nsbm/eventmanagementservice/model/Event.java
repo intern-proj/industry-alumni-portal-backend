@@ -71,6 +71,12 @@ public class Event {
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Agenda> agendas;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "event_gallery_images", joinColumns = @JoinColumn(name = "event_id"))
+    @Column(name = "image_url")
+    @Builder.Default
+    private List<String> galleryImages = new java.util.ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

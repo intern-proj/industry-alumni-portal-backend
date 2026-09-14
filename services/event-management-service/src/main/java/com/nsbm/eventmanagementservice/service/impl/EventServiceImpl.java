@@ -100,6 +100,10 @@ public class EventServiceImpl implements EventService {
             event.setAgendas(agendas);
         }
 
+        if (request.getGalleryImages() != null && !request.getGalleryImages().isEmpty()) {
+            event.setGalleryImages(new ArrayList<>(request.getGalleryImages()));
+        }
+
         Event saved = eventRepository.save(event);
         return toEventResponse(saved);
     }
@@ -214,6 +218,10 @@ public class EventServiceImpl implements EventService {
             }
         }
 
+        if (request.getGalleryImages() != null) {
+            event.setGalleryImages(new ArrayList<>(request.getGalleryImages()));
+        }
+
         Event saved = eventRepository.save(event);
         return toEventResponse(saved);
     }
@@ -295,8 +303,40 @@ public class EventServiceImpl implements EventService {
         event.setStatus(targetStatus);
     }
 
+    @Override
+    public EventResponse addGalleryImages(Long id, List<String> imageUrls) {
+        Event event = findEventOrThrow(id);
+        if (event.getGalleryImages() == null) {
+            event.setGalleryImages(new ArrayList<>());
+        }
+        if (imageUrls != null) {
+            for (String img : imageUrls) {
+                if (img != null && !img.isBlank() && !event.getGalleryImages().contains(img.trim())) {
+                    event.getGalleryImages().add(img.trim());
+                }
+            }
+        }
+        Event saved = eventRepository.save(event);
+        return toEventResponse(saved);
+    }
+
+    @Override
+    public EventResponse removeGalleryImage(Long id, String imageUrl) {
+        Event event = findEventOrThrow(id);
+        if (event.getGalleryImages() != null && imageUrl != null) {
+            event.getGalleryImages().remove(imageUrl.trim());
+        }
+        Event saved = eventRepository.save(event);
+        return toEventResponse(saved);
+    }
+
     private EventResponse toEventResponse(Event event) {
         EventResponse response = eventMapper.toResponse(event);
+        if (event.getGalleryImages() != null) {
+            response.setGalleryImages(new ArrayList<>(event.getGalleryImages()));
+        } else {
+            response.setGalleryImages(new ArrayList<>());
+        }
         if ((response.getVenueName() == null || response.getVenueName().isBlank()) 
                 && event.getAgendas() != null && !event.getAgendas().isEmpty()) {
             for (Agenda a : event.getAgendas()) {

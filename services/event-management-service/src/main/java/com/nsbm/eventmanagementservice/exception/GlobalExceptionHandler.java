@@ -32,8 +32,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
-    @ExceptionHandler(InvalidEventStatusTransitionException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidStatusTransition(InvalidEventStatusTransitionException ex) {
+    @ExceptionHandler({InvalidEventStatusTransitionException.class, DuplicateSpeakerEmailException.class})
+    public ResponseEntity<ErrorResponse> handleConflictExceptions(RuntimeException ex) {
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.CONFLICT.value())

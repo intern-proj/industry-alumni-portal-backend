@@ -5,7 +5,12 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+import java.util.Optional;
+
 @Repository
 public interface GuestSpeakerRepository extends JpaRepository<GuestSpeaker, Long>{
     List<GuestSpeaker> findByOrganizationId(Long organizationId);
+    boolean existsByEmailIgnoreCase(String email);
+    boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);
+    Optional<GuestSpeaker> findByEmailIgnoreCase(String email);
 }
