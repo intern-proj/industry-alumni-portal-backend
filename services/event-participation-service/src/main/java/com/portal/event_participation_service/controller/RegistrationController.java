@@ -36,12 +36,22 @@ public class RegistrationController {
 
     
     @GetMapping
-    public ResponseEntity<List<RegistrationResponse>> getAll(@RequestParam(required = false) UUID eventId) {
-    if (eventId != null) {
-        return ResponseEntity.ok(registrationService.getByEvent(eventId));
+    public ResponseEntity<List<RegistrationResponse>> getAll(
+            @RequestParam(required = false) String eventId,
+            @RequestParam(required = false) String studentId,
+            @RequestParam(required = false) String userId) {
+        String effectiveStudentId = (studentId != null && !studentId.isBlank()) ? studentId : userId;
+        if (eventId != null && !eventId.isBlank() && effectiveStudentId != null && !effectiveStudentId.isBlank()) {
+            return ResponseEntity.ok(registrationService.getByEventAndStudent(eventId, effectiveStudentId));
+        }
+        if (effectiveStudentId != null && !effectiveStudentId.isBlank()) {
+            return ResponseEntity.ok(registrationService.getByStudent(effectiveStudentId));
+        }
+        if (eventId != null && !eventId.isBlank()) {
+            return ResponseEntity.ok(registrationService.getByEvent(eventId));
+        }
+        return ResponseEntity.ok(registrationService.getAll());
     }
-    return ResponseEntity.ok(registrationService.getAll());
-}
 
 @PatchMapping("/{registrationId}/status")
 public ResponseEntity<RegistrationResponse> updateStatus(@PathVariable UUID registrationId,

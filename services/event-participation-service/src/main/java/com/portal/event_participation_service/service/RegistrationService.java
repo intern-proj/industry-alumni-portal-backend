@@ -18,10 +18,17 @@ public class RegistrationService {
     private final RegistrationRepository registrationRepository;
 
     public RegistrationResponse register(RegistrationRequest request) {
+        var existing = registrationRepository.findByEventIdAndStudentId(request.eventId(), request.studentId());
+        if (existing.isPresent()) {
+            return RegistrationResponse.from(existing.get());
+        }
+
         Registration registration = Registration.builder()
                 .eventId(request.eventId())
                 .studentId(request.studentId())
-                .status(Registration.RegistrationStatus.PENDING)
+                .eventTitle(request.eventTitle())
+                .venueName(request.venueName())
+                .status(Registration.RegistrationStatus.REGISTERED)
                 .build();
         return RegistrationResponse.from(registrationRepository.save(registration));
     }
@@ -33,8 +40,20 @@ public class RegistrationService {
         return RegistrationResponse.from(registration);
     }
 
-    public List<RegistrationResponse> getByEvent(UUID eventId) {
+    public List<RegistrationResponse> getByEvent(String eventId) {
         return registrationRepository.findByEventId(eventId).stream()
+                .map(RegistrationResponse::from)
+                .toList();
+    }
+
+    public List<RegistrationResponse> getByStudent(String studentId) {
+        return registrationRepository.findByStudentId(studentId).stream()
+                .map(RegistrationResponse::from)
+                .toList();
+    }
+
+    public List<RegistrationResponse> getByEventAndStudent(String eventId, String studentId) {
+        return registrationRepository.findByEventIdAndStudentId(eventId, studentId).stream()
                 .map(RegistrationResponse::from)
                 .toList();
     }

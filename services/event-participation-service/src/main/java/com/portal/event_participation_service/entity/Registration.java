@@ -22,10 +22,16 @@ public class Registration {
     private UUID registrationId;
 
     @Column(name = "event_id", nullable = false)
-    private UUID eventId; // external ref — owned by Event Management Service
+    private String eventId; // external ref — owned by Event Management Service
 
     @Column(name = "student_id", nullable = false)
-    private UUID studentId; // external ref — owned by Student Profile Service
+    private String studentId; // external ref — owned by Student Profile Service
+
+    @Column(name = "event_title")
+    private String eventTitle;
+
+    @Column(name = "venue_name")
+    private String venueName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -36,6 +42,6 @@ public class Registration {
     private Instant registeredAt;
 
     public enum RegistrationStatus {
-        PENDING, APPROVED, REJECTED
+        PENDING, APPROVED, REJECTED, REGISTERED
     }
 }
