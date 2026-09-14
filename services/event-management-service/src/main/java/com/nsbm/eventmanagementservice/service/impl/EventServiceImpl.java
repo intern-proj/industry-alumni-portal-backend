@@ -41,11 +41,11 @@ public class EventServiceImpl implements EventService {
 
     static {
         ALLOWED_TRANSITIONS.put(EventStatus.DRAFT, EnumSet.of(EventStatus.SCHEDULED, EventStatus.CANCELLED));
-        ALLOWED_TRANSITIONS.put(EventStatus.SCHEDULED, EnumSet.of(EventStatus.ONGOING, EventStatus.RESCHEDULED, EventStatus.CANCELLED));
-        ALLOWED_TRANSITIONS.put(EventStatus.RESCHEDULED, EnumSet.of(EventStatus.SCHEDULED, EventStatus.ONGOING, EventStatus.CANCELLED));
-        ALLOWED_TRANSITIONS.put(EventStatus.ONGOING, EnumSet.of(EventStatus.COMPLETED, EventStatus.CANCELLED));
-        ALLOWED_TRANSITIONS.put(EventStatus.COMPLETED, EnumSet.noneOf(EventStatus.class));
-        ALLOWED_TRANSITIONS.put(EventStatus.CANCELLED, EnumSet.noneOf(EventStatus.class));
+        ALLOWED_TRANSITIONS.put(EventStatus.SCHEDULED, EnumSet.of(EventStatus.DRAFT, EventStatus.ONGOING, EventStatus.RESCHEDULED, EventStatus.CANCELLED, EventStatus.COMPLETED));
+        ALLOWED_TRANSITIONS.put(EventStatus.RESCHEDULED, EnumSet.of(EventStatus.SCHEDULED, EventStatus.ONGOING, EventStatus.DRAFT, EventStatus.CANCELLED));
+        ALLOWED_TRANSITIONS.put(EventStatus.ONGOING, EnumSet.of(EventStatus.COMPLETED, EventStatus.SCHEDULED, EventStatus.CANCELLED));
+        ALLOWED_TRANSITIONS.put(EventStatus.COMPLETED, EnumSet.of(EventStatus.SCHEDULED, EventStatus.DRAFT));
+        ALLOWED_TRANSITIONS.put(EventStatus.CANCELLED, EnumSet.of(EventStatus.DRAFT, EventStatus.SCHEDULED));
     }
 
     @Override
@@ -58,7 +58,7 @@ public class EventServiceImpl implements EventService {
             event.setVenue(venue);
         }
 
-        event.setStatus(EventStatus.DRAFT);
+        event.setStatus(request.getStatus() != null ? request.getStatus() : EventStatus.DRAFT);
 
         if (request.getSessions() != null && !request.getSessions().isEmpty()) {
             List<Agenda> agendas = new ArrayList<>();
@@ -154,6 +154,10 @@ public class EventServiceImpl implements EventService {
 
         eventMapper.updateEntityFromRequest(request, event);
 
+        if (request.getStatus() != null) {
+            event.setStatus(request.getStatus());
+        }
+
         if (request.getVenueId() != null) {
             Venue venue = venueRepository.findById(request.getVenueId())
                     .orElseThrow(() -> new VenueNotFoundException(request.getVenueId()));
@@ -229,6 +233,9 @@ public class EventServiceImpl implements EventService {
 
     private void transitionStatus(Event event, EventStatus targetStatus) {
         EventStatus currentStatus = event.getStatus();
+        if (currentStatus == targetStatus) {
+            return;
+        }
         Set<EventStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(currentStatus, EnumSet.noneOf(EventStatus.class));
 
         if (!allowed.contains(targetStatus)) {

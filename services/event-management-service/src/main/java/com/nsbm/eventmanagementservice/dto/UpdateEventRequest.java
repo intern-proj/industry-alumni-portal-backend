@@ -25,4 +25,6 @@ public class UpdateEventRequest {
     private Long venueId;
 
     private Long organizationId;
+
+    private com.nsbm.eventmanagementservice.model.EventStatus status;
 }

@@ -37,4 +37,6 @@ public class CreateEventRequest {
     private Long organizationId;
 
     private Integer requiredAttendanceRate;
+
+    private com.nsbm.eventmanagementservice.model.EventStatus status;
 }
