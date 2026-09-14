@@ -16,14 +16,18 @@ public class VacancyApprovalStateMachine {
             new EnumMap<>(VacancyApprovalStatus.class);
 
     static {
-        TRANSITIONS.put(VacancyApprovalStatus.PENDING_REVIEW, EnumSet.of(VacancyApprovalStatus.UNDER_REVIEW));
+        TRANSITIONS.put(VacancyApprovalStatus.PENDING_REVIEW, EnumSet.of(
+                VacancyApprovalStatus.UNDER_REVIEW, VacancyApprovalStatus.APPROVED, VacancyApprovalStatus.REJECTED));
         TRANSITIONS.put(VacancyApprovalStatus.UNDER_REVIEW, EnumSet.of(
                 VacancyApprovalStatus.APPROVED, VacancyApprovalStatus.REJECTED));
-        TRANSITIONS.put(VacancyApprovalStatus.APPROVED, EnumSet.noneOf(VacancyApprovalStatus.class));
-        TRANSITIONS.put(VacancyApprovalStatus.REJECTED, EnumSet.noneOf(VacancyApprovalStatus.class));
+        TRANSITIONS.put(VacancyApprovalStatus.APPROVED, EnumSet.of(VacancyApprovalStatus.APPROVED));
+        TRANSITIONS.put(VacancyApprovalStatus.REJECTED, EnumSet.of(VacancyApprovalStatus.REJECTED));
     }
 
     public void validateTransition(VacancyApprovalStatus from, VacancyApprovalStatus to) {
+        if (from == to) {
+            return;
+        }
         Set<VacancyApprovalStatus> allowed = TRANSITIONS.get(from);
         if (allowed == null || !allowed.contains(to)) {
             throw new InvalidStateTransitionException(

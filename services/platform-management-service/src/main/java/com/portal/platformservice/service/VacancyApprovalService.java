@@ -98,6 +98,15 @@ public class VacancyApprovalService {
     }
 
     @Transactional
+    public VacancyApprovalResponse decideByVacancyId(String vacancyId, VacancyApprovalDecisionRequest request) {
+        VacancyApproval approval = approvalRepository.findByVacancyId(vacancyId).orElse(null);
+        if (approval == null) {
+            return null;
+        }
+        return decide(approval.getId(), request);
+    }
+
+    @Transactional
     public VacancyApprovalResponse adminEdit(UUID id, VacancyApprovalAdminEditRequest request) {
         VacancyApproval approval = findOrThrow(id);
 

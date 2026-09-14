@@ -83,6 +83,14 @@ public class VacancyApprovalAdminController {
     }
 
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
+    @PostMapping("/by-vacancy/{vacancyId}/decision")
+    public ResponseEntity<VacancyApprovalResponse> decideByVacancyId(
+            @PathVariable String vacancyId, @Valid @RequestBody VacancyApprovalDecisionRequest request) {
+        VacancyApprovalResponse response = vacancyApprovalService.decideByVacancyId(vacancyId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF')")
     @DeleteMapping("/by-vacancy/{vacancyId}")
     public ResponseEntity<Void> deleteByVacancyId(@PathVariable String vacancyId) {
         vacancyApprovalService.deleteByVacancyId(vacancyId);
