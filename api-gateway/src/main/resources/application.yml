@@ -60,6 +60,9 @@ spring:
                       - ${api.path}/events/*/qr-sessions
                       - ${api.path}/registrations/**
                       - ${api.path}/qr-sessions/**
+                      - ${api.path}/attendance/**
+                      - ${api.path}/feedback/**
+                      - ${api.path}/certificate-eligibility/**
 
             - id: event-management-service
               uri: lb://event-management-service
