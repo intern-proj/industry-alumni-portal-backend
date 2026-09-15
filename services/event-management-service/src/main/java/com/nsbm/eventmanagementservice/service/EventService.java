@@ -10,7 +10,11 @@ public interface EventService {
 
     EventResponse getEventById(Long id);
 
+    EventResponse getEventById(Long id, boolean allowDraft);
+
     List<EventResponse> getAllEvents();
+
+    List<EventResponse> getAllEvents(boolean includeDrafts);
 
     List<EventResponse> getEventsByStatus(EventStatus status);
 

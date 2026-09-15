@@ -11,6 +11,8 @@ import java.util.List;
 public interface EventRepository extends JpaRepository<Event, Long> {
     List<Event> findByStatus(EventStatus status);
 
+    List<Event> findByStatusNot(EventStatus status);
+
     List<Event> findByVenueId(Long venueId);
 
     List<Event> findByCoordinatorUserId(Long coordinatorUserId);

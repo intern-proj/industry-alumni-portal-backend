@@ -104,14 +104,32 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public EventResponse getEventById(Long id) {
+        return getEventById(id, true);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EventResponse getEventById(Long id, boolean allowDraft) {
         Event event = findEventOrThrow(id);
+        if (!allowDraft && event.getStatus() == EventStatus.DRAFT) {
+            throw new ResourceNotFoundException("Event not found with id " + id);
+        }
         return eventMapper.toResponse(event);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<EventResponse> getAllEvents() {
-        return eventRepository.findAll().stream()
+        return getAllEvents(true);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventResponse> getAllEvents(boolean includeDrafts) {
+        List<Event> events = includeDrafts
+                ? eventRepository.findAll()
+                : eventRepository.findByStatusNot(EventStatus.DRAFT);
+        return events.stream()
                 .map(eventMapper::toResponse)
                 .toList();
     }

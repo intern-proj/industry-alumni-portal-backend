@@ -67,12 +67,13 @@ public class UserAccountSyncService implements CommandLineRunner {
 
                 if (email == null || email.isBlank()) continue;
 
-                if (!userProfileRepository.existsByEmail(email)) {
-                    UserRole role = UserRole.ADMINISTRATIVE_STAFF;
-                    try {
-                        role = UserRole.valueOf(roleStr);
-                    } catch (Exception ignored) {}
+                UserRole role = UserRole.ADMINISTRATIVE_STAFF;
+                try {
+                    role = UserRole.valueOf(roleStr);
+                } catch (Exception ignored) {}
 
+                java.util.Optional<UserProfile> existingOpt = userProfileRepository.findByEmail(email);
+                if (existingOpt.isEmpty()) {
                     UserProfile profile = UserProfile.builder()
                             .userId(username != null ? username : email)
                             .firstName(username != null ? username : "Staff")
@@ -87,6 +88,13 @@ public class UserAccountSyncService implements CommandLineRunner {
 
                     userProfileRepository.save(profile);
                     log.info("[UserAccountSyncService] Synced staff member into user_profiles: {} ({})", email, role);
+                } else {
+                    UserProfile profile = existingOpt.get();
+                    if (profile.getUserRole() != role) {
+                        profile.setUserRole(role);
+                        userProfileRepository.save(profile);
+                        log.info("[UserAccountSyncService] Updated staff member role in user_profiles: {} to {}", email, role);
+                    }
                 }
             }
         } catch (Exception e) {

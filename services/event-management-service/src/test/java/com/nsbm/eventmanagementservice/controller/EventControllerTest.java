@@ -90,7 +90,7 @@ public class EventControllerTest {
 
     @Test
     void getEventById_whenExists_returns200() throws Exception {
-        when(eventService.getEventById(1L)).thenReturn(eventResponse);
+        when(eventService.getEventById(eq(1L), anyBoolean())).thenReturn(eventResponse);
 
         mockMvc.perform(get("/api/v1/events/{id}", 1L))
                 .andExpect(status().isOk())
@@ -100,7 +100,7 @@ public class EventControllerTest {
 
     @Test
     void getEventById_whenNotFound_returns404() throws Exception {
-        when(eventService.getEventById(999L)).thenThrow(new EventNotFoundException(999L));
+        when(eventService.getEventById(eq(999L), anyBoolean())).thenThrow(new EventNotFoundException(999L));
 
         mockMvc.perform(get("/api/v1/events/{id}", 999L))
                 .andExpect(status().isNotFound())
@@ -109,13 +109,13 @@ public class EventControllerTest {
 
     @Test
     void getAllEvents_noFilters_returnsAllEvents() throws Exception {
-        when(eventService.getAllEvents()).thenReturn(List.of(eventResponse));
+        when(eventService.getAllEvents(anyBoolean())).thenReturn(List.of(eventResponse));
 
         mockMvc.perform(get("/api/v1/events"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
 
-        verify(eventService).getAllEvents();
+        verify(eventService).getAllEvents(false);
     }
 
     @Test
