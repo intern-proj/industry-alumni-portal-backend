@@ -4,5 +4,6 @@ public enum FileType {
     RESUME,
     SLIDE,
     CERTIFICATE,
+    VACANCY_FLYER,
     OTHER
 }

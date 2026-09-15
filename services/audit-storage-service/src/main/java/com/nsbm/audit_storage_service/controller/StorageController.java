@@ -39,7 +39,9 @@ public class StorageController {
     }
 
     @GetMapping("/download/{id}")
-    public ResponseEntity<Resource> download(@PathVariable("id") UUID id) {
+    public ResponseEntity<Resource> download(
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "inline", required = false, defaultValue = "false") boolean inline) {
         StoredFileResponse metadata = storageService.getMetadata(id);
         Resource resource = storageService.download(id);
 
@@ -48,11 +50,13 @@ public class StorageController {
             mediaType = MediaType.parseMediaType(metadata.getContentType());
         }
 
+        String dispositionType = inline ? "inline" : "attachment";
+
         return ResponseEntity.ok()
                 .contentType(mediaType)
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + metadata.getOriginalFilename() + "\""
+                        dispositionType + "; filename=\"" + metadata.getOriginalFilename() + "\""
                 )
                 .body(resource);
     }

@@ -5,15 +5,17 @@ import com.nsbm.eventmanagementservice.dto.CertificateEligibilityCriteriaRequest
 import com.nsbm.eventmanagementservice.dto.CertificateEligibilityCriteriaResponse;
 import com.nsbm.eventmanagementservice.exception.CertificateEligibilityCriteriaNotFoundException;
 import com.nsbm.eventmanagementservice.exception.EventNotFoundException;
+import com.nsbm.eventmanagementservice.exception.GlobalExceptionHandler;
 import com.nsbm.eventmanagementservice.service.CertificateEligibilityCriteriaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -21,23 +23,28 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(CertificateEligibilityCriteriaController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@ExtendWith(MockitoExtension.class)
 public class CertificateEligibilityCriteriaControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
     private ObjectMapper objectMapper;
 
-    @MockitoBean
+    @Mock
     private CertificateEligibilityCriteriaService criteriaService;
+
+    @InjectMocks
+    private CertificateEligibilityCriteriaController criteriaController;
 
     private CertificateEligibilityCriteriaResponse criteriaResponse;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(criteriaController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+        objectMapper = new ObjectMapper();
+
         criteriaResponse = CertificateEligibilityCriteriaResponse.builder()
                 .id(1L)
                 .eventId(1L)

@@ -3,17 +3,19 @@ package com.nsbm.eventmanagementservice.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nsbm.eventmanagementservice.dto.*;
 import com.nsbm.eventmanagementservice.exception.EventNotFoundException;
+import com.nsbm.eventmanagementservice.exception.GlobalExceptionHandler;
 import com.nsbm.eventmanagementservice.exception.InvalidEventStatusTransitionException;
 import com.nsbm.eventmanagementservice.model.EventStatus;
 import com.nsbm.eventmanagementservice.service.EventService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,23 +26,28 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(EventController.class)
-@AutoConfigureMockMvc(addFilters = false) // disables Spring Security filters for this slice test
+@ExtendWith(MockitoExtension.class)
 public class EventControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
     private ObjectMapper objectMapper;
 
-    @MockitoBean
+    @Mock
     private EventService eventService;
+
+    @InjectMocks
+    private EventController eventController;
 
     private EventResponse eventResponse;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(eventController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+        objectMapper = new ObjectMapper().findAndRegisterModules();
+
         eventResponse = EventResponse.builder()
                 .id(1L)
                 .title("Industry Panel")
@@ -83,7 +90,7 @@ public class EventControllerTest {
 
     @Test
     void getEventById_whenExists_returns200() throws Exception {
-        when(eventService.getEventById(1L)).thenReturn(eventResponse);
+        when(eventService.getEventById(eq(1L), anyBoolean())).thenReturn(eventResponse);
 
         mockMvc.perform(get("/api/v1/events/{id}", 1L))
                 .andExpect(status().isOk())
@@ -93,7 +100,7 @@ public class EventControllerTest {
 
     @Test
     void getEventById_whenNotFound_returns404() throws Exception {
-        when(eventService.getEventById(999L)).thenThrow(new EventNotFoundException(999L));
+        when(eventService.getEventById(eq(999L), anyBoolean())).thenThrow(new EventNotFoundException(999L));
 
         mockMvc.perform(get("/api/v1/events/{id}", 999L))
                 .andExpect(status().isNotFound())
@@ -102,13 +109,13 @@ public class EventControllerTest {
 
     @Test
     void getAllEvents_noFilters_returnsAllEvents() throws Exception {
-        when(eventService.getAllEvents()).thenReturn(List.of(eventResponse));
+        when(eventService.getAllEvents(anyBoolean())).thenReturn(List.of(eventResponse));
 
         mockMvc.perform(get("/api/v1/events"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
 
-        verify(eventService).getAllEvents();
+        verify(eventService).getAllEvents(false);
     }
 
     @Test

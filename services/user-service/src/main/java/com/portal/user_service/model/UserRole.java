@@ -1,0 +1,13 @@
+package com.portal.user_service.model;
+
+public enum UserRole {
+    SYSTEM_ADMIN,
+    FACULTY_MANAGEMENT,
+    FACULTY_COORDINATOR,
+    INTERNSHIP_COORDINATOR,
+    EVENT_COORDINATOR,
+    ADMINISTRATIVE_STAFF,
+    GUEST_SPEAKER,
+    STUDENT,
+    INDUSTRY_PARTNER
+}

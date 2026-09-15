@@ -16,6 +16,29 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: event_participation_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: event_participation_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      EVENT_PARTICIPATION_SERVICE_PORT: 8082
+
     steps:
       - name: Clone Repository
         uses: actions/checkout@v7

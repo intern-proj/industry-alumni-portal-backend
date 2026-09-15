@@ -7,6 +7,7 @@ import com.nsbm.audit_storage_service.exception.StorageException;
 import com.nsbm.audit_storage_service.model.FileType;
 import com.nsbm.audit_storage_service.model.StoredFile;
 import com.nsbm.audit_storage_service.repository.StoredFileRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,41 +18,22 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.Resource;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.core.ResponseBytes;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectResponse;
-import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class StorageServiceImplTest {
-
-    @Mock
-    private S3Client s3Client;
 
     @Mock
     private StorageProperties storageProperties;
@@ -65,9 +47,10 @@ class StorageServiceImplTest {
     private UUID fileId;
     private StoredFile storedFile;
     private MockMultipartFile multipartFile;
+    private Path storageDirectory;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws IOException {
         fileId = UUID.randomUUID();
 
         storedFile = StoredFile.builder()
@@ -89,6 +72,23 @@ class StorageServiceImplTest {
                 "application/pdf",
                 "pdf-content".getBytes()
         );
+
+        storageDirectory = Paths.get(System.getProperty("java.io.tmpdir"), "icu-uploads");
+        Files.createDirectories(storageDirectory);
+    }
+
+    @AfterEach
+    void tearDown() throws IOException {
+        // Clean up test files
+        if (Files.exists(storageDirectory)) {
+            Files.list(storageDirectory).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    // ignore
+                }
+            });
+        }
     }
 
     @Test
@@ -97,8 +97,6 @@ class StorageServiceImplTest {
         when(storageProperties.getEndpoint()).thenReturn("http://localhost:9000");
         when(storedFileRepository.findByUploaderIdAndFileTypeOrderByVersionDesc("user-1", FileType.RESUME))
                 .thenReturn(List.of());
-        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
-                .thenReturn(PutObjectResponse.builder().build());
         when(storedFileRepository.save(any(StoredFile.class))).thenAnswer(invocation -> {
             StoredFile toSave = invocation.getArgument(0);
             return StoredFile.builder()
@@ -123,8 +121,11 @@ class StorageServiceImplTest {
         assertEquals(FileType.RESUME, response.getFileType());
         assertEquals(1, response.getVersion());
         assertTrue(response.getStorageUrl().contains("icu-platform-files"));
-        verify(s3Client, times(1)).putObject(any(PutObjectRequest.class), any(RequestBody.class));
         verify(storedFileRepository, times(1)).save(any(StoredFile.class));
+        
+        boolean fileFound = Files.list(storageDirectory)
+                .anyMatch(path -> path.getFileName().toString().contains("_resume.pdf"));
+        assertTrue(fileFound);
     }
 
     @Test
@@ -140,8 +141,6 @@ class StorageServiceImplTest {
         when(storageProperties.getEndpoint()).thenReturn("http://localhost:9000/");
         when(storedFileRepository.findByUploaderIdAndFileTypeOrderByVersionDesc("user-1", FileType.RESUME))
                 .thenReturn(List.of(existing));
-        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
-                .thenReturn(PutObjectResponse.builder().build());
         when(storedFileRepository.save(any(StoredFile.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         StoredFileResponse response = storageService.upload(multipartFile, "user-1", FileType.RESUME);
@@ -158,7 +157,6 @@ class StorageServiceImplTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> storageService.upload(emptyFile, "user-1", FileType.RESUME));
-        verify(s3Client, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
         verify(storedFileRepository, never()).save(any(StoredFile.class));
     }
 
@@ -170,49 +168,33 @@ class StorageServiceImplTest {
     }
 
     @Test
-    void upload_wrapsS3Failures() {
-        when(storageProperties.getBucketName()).thenReturn("icu-platform-files");
-        when(storageProperties.getEndpoint()).thenReturn("http://localhost:9000");
-        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
-                .thenThrow(S3Exception.builder().message("boom").build());
-
-        assertThrows(StorageException.class,
-                () -> storageService.upload(multipartFile, "user-1", FileType.RESUME));
-        verify(storedFileRepository, never()).save(any(StoredFile.class));
-    }
-
-    @Test
     void upload_wrapsIoFailures() throws Exception {
         MultipartFile failingFile = mock(MultipartFile.class);
         when(failingFile.isEmpty()).thenReturn(false);
         when(failingFile.getOriginalFilename()).thenReturn("resume.pdf");
-        when(failingFile.getContentType()).thenReturn("application/pdf");
-        when(failingFile.getSize()).thenReturn(10L);
         when(failingFile.getBytes()).thenThrow(new IOException("read failed"));
-        when(storageProperties.getBucketName()).thenReturn("icu-platform-files");
-        when(storageProperties.getEndpoint()).thenReturn("http://localhost:9000");
+        
+        lenient().when(storageProperties.getBucketName()).thenReturn("icu-platform-files");
+        lenient().when(storageProperties.getEndpoint()).thenReturn("http://localhost:9000");
 
         StorageException exception = assertThrows(StorageException.class,
                 () -> storageService.upload(failingFile, "user-1", FileType.RESUME));
 
-        assertEquals("Failed to read uploaded file bytes", exception.getMessage());
+        assertEquals("Failed to upload file to local storage", exception.getMessage());
     }
 
     @Test
-    void download_returnsResourceBytes() {
-        @SuppressWarnings("unchecked")
-        ResponseBytes<GetObjectResponse> responseBytes = mock(ResponseBytes.class);
+    void download_returnsResourceBytes() throws IOException {
         when(storedFileRepository.findById(fileId)).thenReturn(Optional.of(storedFile));
-        when(storageProperties.getBucketName()).thenReturn("icu-platform-files");
-        when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
-        when(responseBytes.asByteArray()).thenReturn("pdf-content".getBytes());
+        
+        Path filePath = storageDirectory.resolve(storedFile.getStorageKey().replace("/", "_"));
+        Files.write(filePath, "pdf-content".getBytes());
 
         Resource resource = storageService.download(fileId);
 
         assertNotNull(resource);
         assertEquals("resume.pdf", resource.getFilename());
         assertArrayEquals("pdf-content".getBytes(), ((org.springframework.core.io.ByteArrayResource) resource).getByteArray());
-        verify(s3Client, times(1)).getObjectAsBytes(any(GetObjectRequest.class));
     }
 
     @Test
@@ -220,16 +202,11 @@ class StorageServiceImplTest {
         when(storedFileRepository.findById(fileId)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> storageService.download(fileId));
-        verify(s3Client, never()).getObjectAsBytes(any(GetObjectRequest.class));
     }
 
     @Test
-    void download_wrapsS3Failures() {
+    void download_wrapsIoFailures() {
         when(storedFileRepository.findById(fileId)).thenReturn(Optional.of(storedFile));
-        when(storageProperties.getBucketName()).thenReturn("icu-platform-files");
-        when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
-                .thenThrow(S3Exception.builder().message("missing").build());
-
         assertThrows(StorageException.class, () -> storageService.download(fileId));
     }
 
@@ -264,16 +241,16 @@ class StorageServiceImplTest {
     }
 
     @Test
-    void delete_removesObjectAndMetadata() {
+    void delete_removesObjectAndMetadata() throws IOException {
         when(storedFileRepository.findById(fileId)).thenReturn(Optional.of(storedFile));
-        when(storageProperties.getBucketName()).thenReturn("icu-platform-files");
-        when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
-                .thenReturn(DeleteObjectResponse.builder().build());
+        
+        Path filePath = storageDirectory.resolve(storedFile.getStorageKey().replace("/", "_"));
+        Files.write(filePath, "pdf-content".getBytes());
 
         storageService.delete(fileId);
 
-        verify(s3Client, times(1)).deleteObject(any(DeleteObjectRequest.class));
         verify(storedFileRepository, times(1)).delete(storedFile);
+        assertFalse(Files.exists(filePath));
     }
 
     @Test
@@ -281,18 +258,6 @@ class StorageServiceImplTest {
         when(storedFileRepository.findById(fileId)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> storageService.delete(fileId));
-        verify(s3Client, never()).deleteObject(any(DeleteObjectRequest.class));
-        verify(storedFileRepository, never()).delete(any(StoredFile.class));
-    }
-
-    @Test
-    void delete_wrapsS3Failures() {
-        when(storedFileRepository.findById(fileId)).thenReturn(Optional.of(storedFile));
-        when(storageProperties.getBucketName()).thenReturn("icu-platform-files");
-        doThrow(S3Exception.builder().message("delete failed").build())
-                .when(s3Client).deleteObject(any(DeleteObjectRequest.class));
-
-        assertThrows(StorageException.class, () -> storageService.delete(fileId));
         verify(storedFileRepository, never()).delete(any(StoredFile.class));
     }
 }

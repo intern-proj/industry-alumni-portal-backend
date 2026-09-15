@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -12,7 +13,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class AgendaRequest {
-    @NotNull(message = "Event ID is required")
     private Long eventId;
 
     @NotBlank(message = "Title is required")
@@ -20,7 +20,7 @@ public class AgendaRequest {
 
     private String description;
 
-    private Long speakerId;
+    private List<LectureRequest> lectures;
 
     @NotNull(message = "Start time is required")
     private LocalDateTime startTime;
@@ -28,4 +28,10 @@ public class AgendaRequest {
     private LocalDateTime endTime;
 
     private Integer sequenceOrder;
+
+    private Long venueId;
+
+    private Integer capacity;
+
+    private String posterImage;
 }

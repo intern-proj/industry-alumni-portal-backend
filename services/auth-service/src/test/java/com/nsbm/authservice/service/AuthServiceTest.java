@@ -1,6 +1,20 @@
 package com.nsbm.authservice.service;
 
-import com.nsbm.authservice.dto.*;
+import com.nsbm.authservice.dto.ApplyPartnerRegistrationRequest;
+import com.nsbm.authservice.dto.AuthResponse;
+import com.nsbm.authservice.dto.CompletePartnerRegistrationRequest;
+import com.nsbm.authservice.dto.CompleteStaffRegistrationRequest;
+import com.nsbm.authservice.dto.CreateAdminRequest;
+import com.nsbm.authservice.dto.ForgotPasswordRequest;
+import com.nsbm.authservice.dto.LoginRequest;
+import com.nsbm.authservice.dto.LoginResponse;
+import com.nsbm.authservice.dto.OtpEmailPayload;
+import com.nsbm.authservice.dto.OtpVerificationRequest;
+import com.nsbm.authservice.dto.ResetPasswordRequest;
+import com.nsbm.authservice.dto.StaffInvitationRequest;
+import com.nsbm.authservice.dto.Step1LoginResponse;
+import com.nsbm.authservice.dto.TokenValidationResponse;
+import com.nsbm.notification_service.dto.UpdateEmailDTO;
 import com.nsbm.authservice.entity.*;
 import com.nsbm.authservice.exception.*;
 import com.nsbm.authservice.repository.*;
@@ -49,6 +63,9 @@ class AuthServiceTest {
     private OtpCodeRepository otpCodeRepository;
 
     @Mock
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Mock
     private RabbitTemplate rabbitTemplate;
 
     @Mock
@@ -65,6 +82,45 @@ class AuthServiceTest {
         ReflectionTestUtils.setField(authService, "exchange", "notification.exchange");
         ReflectionTestUtils.setField(authService, "routingKey", "notification.routingkey");
         ReflectionTestUtils.setField(authService, "otpExpirationMinutes", 5L);
+        ReflectionTestUtils.setField(authService, "resetPasswordExpirationMinutes", 15L);
+        ReflectionTestUtils.setField(authService, "resetPasswordFrontendUrl", "https://portal.domain.com/reset-password");
+    }
+
+    @Nested
+    @DisplayName("createAdmin Tests")
+    class CreateAdminTests {
+
+        @Test
+        @DisplayName("Should successfully create admin when username and email are unique")
+        void createAdmin_Success() {
+            CreateAdminRequest request = new CreateAdminRequest("new_admin", "admin.new@nsbm.ac.lk", "SecurePass123!");
+            when(staffRepository.existsByUsername(request.username())).thenReturn(false);
+            when(staffRepository.existsByEmail(request.email())).thenReturn(false);
+            when(passwordEncoder.encode(request.password())).thenReturn("encoded_pass");
+
+            authService.createAdmin(request);
+
+            ArgumentCaptor<ManagementStaff> captor = ArgumentCaptor.forClass(ManagementStaff.class);
+            verify(staffRepository).save(captor.capture());
+            ManagementStaff saved = captor.getValue();
+            assertThat(saved.getUsername()).isEqualTo("new_admin");
+            assertThat(saved.getEmail()).isEqualTo("admin.new@nsbm.ac.lk");
+            assertThat(saved.getPasswordHash()).isEqualTo("encoded_pass");
+            assertThat(saved.getRole()).isEqualTo(Role.SYSTEM_ADMIN);
+        }
+
+        @Test
+        @DisplayName("Should throw UsernameAlreadyExistsException when username already taken")
+        void createAdmin_ThrowsException_WhenUsernameExists() {
+            CreateAdminRequest request = new CreateAdminRequest("existing_admin", "admin.new@nsbm.ac.lk", "SecurePass123!");
+            when(staffRepository.existsByUsername(request.username())).thenReturn(true);
+
+            assertThatThrownBy(() -> authService.createAdmin(request))
+                    .isInstanceOf(UsernameAlreadyExistsException.class)
+                    .hasMessageContaining("already taken");
+
+            verify(staffRepository, never()).save(any());
+        }
     }
 
     @Nested
@@ -75,7 +131,7 @@ class AuthServiceTest {
         @DisplayName("Should successfully invite staff when email does not exist")
         void inviteStaff_Success() {
             // Arrange
-            StaffInvitationRequest request = new StaffInvitationRequest("lecturer@nsbm.ac.lk", Role.ACADEMIC_STAFF);
+            StaffInvitationRequest request = new StaffInvitationRequest("lecturer@nsbm.ac.lk", Role.EVENT_COORDINATOR);
             when(staffRepository.existsByEmail(request.email())).thenReturn(false);
             when(pendingStaffRepository.existsByEmail(request.email())).thenReturn(false);
 
@@ -87,22 +143,22 @@ class AuthServiceTest {
             verify(pendingStaffRepository).save(pendingStaffCaptor.capture());
             PendingStaff savedPending = pendingStaffCaptor.getValue();
             assertThat(savedPending.getEmail()).isEqualTo("lecturer@nsbm.ac.lk");
-            assertThat(savedPending.getRole()).isEqualTo(Role.ACADEMIC_STAFF);
+            assertThat(savedPending.getRole()).isEqualTo(Role.EVENT_COORDINATOR);
             assertThat(savedPending.getInvitationToken()).isNotBlank();
 
             // Assert - Verify RabbitMQ message published
-            ArgumentCaptor<EmailNotificationMessage> messageCaptor = ArgumentCaptor.forClass(EmailNotificationMessage.class);
+            ArgumentCaptor<UpdateEmailDTO> messageCaptor = ArgumentCaptor.forClass(UpdateEmailDTO.class);
             verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), messageCaptor.capture());
-            EmailNotificationMessage sentMessage = messageCaptor.getValue();
-            assertThat(sentMessage.recipientEmail()).isEqualTo("lecturer@nsbm.ac.lk");
-            assertThat(sentMessage.eventType()).isEqualTo("STAFF_INVITATION");
+            UpdateEmailDTO sentMessage = messageCaptor.getValue();
+            assertThat(sentMessage.toEmail()).isEqualTo("lecturer@nsbm.ac.lk");
+            assertThat(sentMessage.updateType()).isEqualTo("GENERAL_UPDATE");
         }
 
         @Test
         @DisplayName("Should throw StaffAlreadyExistsException when email already registered as ManagementStaff")
         void inviteStaff_ThrowsException_WhenEmailExistsInStaff() {
             // Arrange
-            StaffInvitationRequest request = new StaffInvitationRequest("existing@nsbm.ac.lk", Role.ADMIN);
+            StaffInvitationRequest request = new StaffInvitationRequest("existing@nsbm.ac.lk", Role.SYSTEM_ADMIN);
             when(staffRepository.existsByEmail(request.email())).thenReturn(true);
 
             // Act & Assert
@@ -114,22 +170,7 @@ class AuthServiceTest {
             verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
         }
 
-        @Test
-        @DisplayName("Should throw StaffAlreadyExistsException when email already exists in PendingStaff")
-        void inviteStaff_ThrowsException_WhenEmailExistsInPendingStaff() {
-            // Arrange
-            StaffInvitationRequest request = new StaffInvitationRequest("pending@nsbm.ac.lk", Role.FACULTY_COORDINATOR);
-            when(staffRepository.existsByEmail(request.email())).thenReturn(false);
-            when(pendingStaffRepository.existsByEmail(request.email())).thenReturn(true);
 
-            // Act & Assert
-            assertThatThrownBy(() -> authService.inviteStaff(request))
-                    .isInstanceOf(StaffAlreadyExistsException.class)
-                    .hasMessageContaining("pending@nsbm.ac.lk");
-
-            verify(pendingStaffRepository, never()).save(any());
-            verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
-        }
     }
 
     @Nested
@@ -148,7 +189,7 @@ class AuthServiceTest {
             PendingStaff pendingStaff = PendingStaff.builder()
                     .id(1L)
                     .email("john@nsbm.ac.lk")
-                    .role(Role.ACADEMIC_STAFF)
+                    .role(Role.EVENT_COORDINATOR)
                     .invitationToken(token)
                     .build();
 
@@ -165,7 +206,7 @@ class AuthServiceTest {
             ManagementStaff savedStaff = staffCaptor.getValue();
             assertThat(savedStaff.getUsername()).isEqualTo("john_doe");
             assertThat(savedStaff.getEmail()).isEqualTo("john@nsbm.ac.lk");
-            assertThat(savedStaff.getRole()).isEqualTo(Role.ACADEMIC_STAFF);
+            assertThat(savedStaff.getRole()).isEqualTo(Role.EVENT_COORDINATOR);
             assertThat(savedStaff.getPasswordHash()).isEqualTo("encodedPasswordHash");
 
             // Assert - Verify PendingStaff record removed
@@ -204,7 +245,7 @@ class AuthServiceTest {
             PendingStaff pendingStaff = PendingStaff.builder()
                     .id(1L)
                     .email("john@nsbm.ac.lk")
-                    .role(Role.ACADEMIC_STAFF)
+                    .role(Role.EVENT_COORDINATOR)
                     .invitationToken(token)
                     .build();
 
@@ -249,11 +290,11 @@ class AuthServiceTest {
             assertThat(savedPartner.getRegistrationToken()).isNotBlank();
 
             // Assert - Verify RabbitMQ message published
-            ArgumentCaptor<EmailNotificationMessage> messageCaptor = ArgumentCaptor.forClass(EmailNotificationMessage.class);
+            ArgumentCaptor<UpdateEmailDTO> messageCaptor = ArgumentCaptor.forClass(UpdateEmailDTO.class);
             verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), messageCaptor.capture());
-            EmailNotificationMessage sentMessage = messageCaptor.getValue();
-            assertThat(sentMessage.recipientEmail()).isEqualTo("jane@company.com");
-            assertThat(sentMessage.eventType()).isEqualTo("PARTNER_REGISTRATION");
+            UpdateEmailDTO sentMessage = messageCaptor.getValue();
+            assertThat(sentMessage.toEmail()).isEqualTo("jane@company.com");
+            assertThat(sentMessage.updateType()).isEqualTo("GENERAL_UPDATE");
         }
 
         @Test
@@ -344,12 +385,12 @@ class AuthServiceTest {
     }
 
     @Nested
-    @DisplayName("loginStudentOrPartner Tests")
-    class LoginStudentOrPartnerTests {
+    @DisplayName("login Tests")
+    class LoginTests {
 
         @Test
-        @DisplayName("Should successfully authenticate Student and return AuthResponse")
-        void loginStudentOrPartner_Student_Success() {
+        @DisplayName("Should successfully authenticate Student directly and return LoginResponse")
+        void login_Student_Success() {
             // Arrange
             LoginRequest request = new LoginRequest("student_user", "password123");
             Student student = Student.builder()
@@ -365,10 +406,11 @@ class AuthServiceTest {
                     .thenReturn("mock-jwt-token-student");
 
             // Act
-            AuthResponse response = authService.loginStudentOrPartner(request);
+            LoginResponse response = authService.login(request);
 
             // Assert
             assertThat(response).isNotNull();
+            assertThat(response.requiresOtp()).isFalse();
             assertThat(response.accessToken()).isEqualTo("mock-jwt-token-student");
             assertThat(response.username()).isEqualTo("student_user");
             assertThat(response.role()).isEqualTo("STUDENT");
@@ -376,8 +418,8 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Should successfully authenticate IndustryPartner and return AuthResponse")
-        void loginStudentOrPartner_Partner_Success() {
+        @DisplayName("Should initiate 2FA OTP for IndustryPartner and return LoginResponse with requiresOtp true")
+        void login_Partner_Success() {
             // Arrange
             LoginRequest request = new LoginRequest("partner_user", "password123");
             IndustryPartner partner = IndustryPartner.builder()
@@ -388,31 +430,62 @@ class AuthServiceTest {
                     .build();
 
             when(studentRepository.findByUsername("partner_user")).thenReturn(Optional.empty());
+            when(staffRepository.findByUsername("partner_user")).thenReturn(Optional.empty());
             when(partnerRepository.findByUsername("partner_user")).thenReturn(Optional.of(partner));
             when(passwordEncoder.matches("password123", "encoded_pass")).thenReturn(true);
-            when(jwtTokenProvider.generateToken("partner_user", "partner@company.com", "INDUSTRY_PARTNER", "INDUSTRY_PARTNER"))
-                    .thenReturn("mock-jwt-token-partner");
 
             // Act
-            AuthResponse response = authService.loginStudentOrPartner(request);
+            LoginResponse response = authService.login(request);
 
             // Assert
             assertThat(response).isNotNull();
-            assertThat(response.accessToken()).isEqualTo("mock-jwt-token-partner");
-            assertThat(response.role()).isEqualTo("INDUSTRY_PARTNER");
-            assertThat(response.userType()).isEqualTo("INDUSTRY_PARTNER");
+            assertThat(response.requiresOtp()).isTrue();
+            assertThat(response.sessionToken()).isNotBlank();
+            assertThat(response.username()).isEqualTo("partner_user");
+            verify(otpCodeRepository).save(any(OtpCode.class));
+            verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.otp"), any(OtpEmailPayload.class));
+        }
+
+        @Test
+        @DisplayName("Should initiate 2FA OTP for Academic Staff and return LoginResponse with requiresOtp true")
+        void login_AcademicStaff_Success() {
+            // Arrange
+            LoginRequest request = new LoginRequest("academic_staff", "password123");
+            ManagementStaff staff = ManagementStaff.builder()
+                    .id(1L)
+                    .username("academic_staff")
+                    .email("academic@nsbm.ac.lk")
+                    .role(Role.EVENT_COORDINATOR)
+                    .passwordHash("encoded_pass")
+                    .build();
+
+            when(studentRepository.findByUsername("academic_staff")).thenReturn(Optional.empty());
+            when(staffRepository.findByUsername("academic_staff")).thenReturn(Optional.of(staff));
+            when(passwordEncoder.matches("password123", "encoded_pass")).thenReturn(true);
+
+            // Act
+            LoginResponse response = authService.login(request);
+
+            // Assert
+            assertThat(response).isNotNull();
+            assertThat(response.requiresOtp()).isTrue();
+            assertThat(response.sessionToken()).isNotBlank();
+            assertThat(response.username()).isEqualTo("academic_staff");
+            verify(otpCodeRepository).save(any(OtpCode.class));
+            verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.otp"), any(OtpEmailPayload.class));
         }
 
         @Test
         @DisplayName("Should throw InvalidCredentialsException when credentials do not match")
-        void loginStudentOrPartner_ThrowsException_WhenInvalidCredentials() {
+        void login_ThrowsException_WhenInvalidCredentials() {
             // Arrange
             LoginRequest request = new LoginRequest("unknown_user", "wrong_pass");
             when(studentRepository.findByUsername("unknown_user")).thenReturn(Optional.empty());
+            when(staffRepository.findByUsername("unknown_user")).thenReturn(Optional.empty());
             when(partnerRepository.findByUsername("unknown_user")).thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> authService.loginStudentOrPartner(request))
+            assertThatThrownBy(() -> authService.login(request))
                     .isInstanceOf(InvalidCredentialsException.class)
                     .hasMessageContaining("Invalid username or password.");
         }
@@ -431,7 +504,7 @@ class AuthServiceTest {
                     .id(1L)
                     .username("admin_staff")
                     .email("admin@nsbm.ac.lk")
-                    .role(Role.ADMIN)
+                    .role(Role.SYSTEM_ADMIN)
                     .passwordHash("hashedAdminPassword")
                     .build();
 
@@ -450,9 +523,9 @@ class AuthServiceTest {
             assertThat(savedOtp.getSessionToken()).isNotBlank();
 
             // Assert - Verify RabbitMQ message published
-            ArgumentCaptor<EmailNotificationMessage> msgCaptor = ArgumentCaptor.forClass(EmailNotificationMessage.class);
-            verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), msgCaptor.capture());
-            assertThat(msgCaptor.getValue().eventType()).isEqualTo("STAFF_OTP");
+            ArgumentCaptor<OtpEmailPayload> msgCaptor = ArgumentCaptor.forClass(OtpEmailPayload.class);
+            verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.otp"), msgCaptor.capture());
+            assertThat(msgCaptor.getValue().toEmail()).isEqualTo("admin@nsbm.ac.lk");
 
             // Assert - Verify returned Step1LoginResponse
             assertThat(response).isNotNull();
@@ -467,6 +540,7 @@ class AuthServiceTest {
             LoginRequest request = new LoginRequest("admin_staff", "WrongPassword");
             ManagementStaff staff = ManagementStaff.builder()
                     .username("admin_staff")
+                    .role(Role.SYSTEM_ADMIN)
                     .passwordHash("hashedAdminPassword")
                     .build();
 
@@ -502,13 +576,13 @@ class AuthServiceTest {
             ManagementStaff staff = ManagementStaff.builder()
                     .username("admin_staff")
                     .email("admin@nsbm.ac.lk")
-                    .role(Role.ADMIN)
+                    .role(Role.SYSTEM_ADMIN)
                     .build();
 
             when(otpCodeRepository.findTopBySessionTokenAndCodeOrderByCreatedAtDesc("session-token-123", "123456"))
                     .thenReturn(Optional.of(otpCode));
             when(staffRepository.findByUsername("admin_staff")).thenReturn(Optional.of(staff));
-            when(jwtTokenProvider.generateToken("admin_staff", "admin@nsbm.ac.lk", "ADMIN", "MANAGEMENT_STAFF"))
+            when(jwtTokenProvider.generateToken("admin_staff", "admin@nsbm.ac.lk", "SYSTEM_ADMIN", "MANAGEMENT_STAFF"))
                     .thenReturn("jwt-token-staff");
 
             // Act
@@ -517,7 +591,7 @@ class AuthServiceTest {
             // Assert
             assertThat(response).isNotNull();
             assertThat(response.accessToken()).isEqualTo("jwt-token-staff");
-            assertThat(response.role()).isEqualTo("ADMIN");
+            assertThat(response.role()).isEqualTo("SYSTEM_ADMIN");
             assertThat(response.userType()).isEqualTo("MANAGEMENT_STAFF");
             verify(otpCodeRepository).delete(otpCode);
         }
@@ -584,6 +658,234 @@ class AuthServiceTest {
             // Assert
             assertThat(response.valid()).isFalse();
             assertThat(response.username()).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("forgotPassword Tests")
+    class ForgotPasswordTests {
+
+        @Test
+        @DisplayName("Should successfully create reset token and send notification for valid non-admin staff email")
+        void forgotPassword_Staff_Success() {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("staff@nsbm.ac.lk");
+            ManagementStaff staff = ManagementStaff.builder()
+                    .id(1L)
+                    .email("staff@nsbm.ac.lk")
+                    .role(Role.FACULTY_COORDINATOR)
+                    .build();
+
+            when(studentRepository.findByEmail("staff@nsbm.ac.lk")).thenReturn(Optional.empty());
+            when(staffRepository.findByEmail("staff@nsbm.ac.lk")).thenReturn(Optional.of(staff));
+
+            // Act
+            authService.forgotPassword(request);
+
+            // Assert - Verify existing tokens deleted
+            verify(passwordResetTokenRepository).deleteByEmail("staff@nsbm.ac.lk");
+
+            // Assert - Verify PasswordResetToken saved
+            ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
+            verify(passwordResetTokenRepository).save(tokenCaptor.capture());
+            PasswordResetToken savedToken = tokenCaptor.getValue();
+            assertThat(savedToken.getEmail()).isEqualTo("staff@nsbm.ac.lk");
+            assertThat(savedToken.getUserType()).isEqualTo("MANAGEMENT_STAFF");
+            assertThat(savedToken.getToken()).isNotBlank();
+
+            // Assert - Verify RabbitMQ notification sent
+            ArgumentCaptor<UpdateEmailDTO> messageCaptor = ArgumentCaptor.forClass(UpdateEmailDTO.class);
+            verify(rabbitTemplate).convertAndSend(eq("notification.exchange"), eq("notification.routingkey"), messageCaptor.capture());
+            UpdateEmailDTO sentMsg = messageCaptor.getValue();
+            assertThat(sentMsg.toEmail()).isEqualTo("staff@nsbm.ac.lk");
+            assertThat(sentMsg.updateType()).isEqualTo("GENERAL_UPDATE");
+        }
+
+        @Test
+        @DisplayName("Should successfully create reset token and send notification for valid partner email")
+        void forgotPassword_Partner_Success() {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("partner@company.com");
+            IndustryPartner partner = IndustryPartner.builder()
+                    .id(1L)
+                    .email("partner@company.com")
+                    .build();
+
+            when(studentRepository.findByEmail("partner@company.com")).thenReturn(Optional.empty());
+            when(staffRepository.findByEmail("partner@company.com")).thenReturn(Optional.empty());
+            when(partnerRepository.findByEmail("partner@company.com")).thenReturn(Optional.of(partner));
+
+            // Act
+            authService.forgotPassword(request);
+
+            // Assert
+            verify(passwordResetTokenRepository).deleteByEmail("partner@company.com");
+            ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
+            verify(passwordResetTokenRepository).save(tokenCaptor.capture());
+            assertThat(tokenCaptor.getValue().getUserType()).isEqualTo("INDUSTRY_PARTNER");
+        }
+
+        @Test
+        @DisplayName("Should throw IllegalArgumentException when email belongs to a student")
+        void forgotPassword_ThrowsException_ForStudent() {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("student@nsbm.ac.lk");
+            Student student = Student.builder().email("student@nsbm.ac.lk").build();
+            when(studentRepository.findByEmail("student@nsbm.ac.lk")).thenReturn(Optional.of(student));
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.forgotPassword(request))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Forgot password feature is not available for students.");
+        }
+
+        @Test
+        @DisplayName("Should throw IllegalArgumentException when email belongs to an Admin staff")
+        void forgotPassword_ThrowsException_ForAdmin() {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("admin@nsbm.ac.lk");
+            ManagementStaff adminStaff = ManagementStaff.builder()
+                    .email("admin@nsbm.ac.lk")
+                    .role(Role.SYSTEM_ADMIN)
+                    .build();
+            when(studentRepository.findByEmail("admin@nsbm.ac.lk")).thenReturn(Optional.empty());
+            when(staffRepository.findByEmail("admin@nsbm.ac.lk")).thenReturn(Optional.of(adminStaff));
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.forgotPassword(request))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Forgot password feature is not available for admins.");
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidCredentialsException when email is not found")
+        void forgotPassword_ThrowsException_WhenEmailNotFound() {
+            // Arrange
+            ForgotPasswordRequest request = new ForgotPasswordRequest("unknown@nsbm.ac.lk");
+            when(studentRepository.findByEmail("unknown@nsbm.ac.lk")).thenReturn(Optional.empty());
+            when(staffRepository.findByEmail("unknown@nsbm.ac.lk")).thenReturn(Optional.empty());
+            when(partnerRepository.findByEmail("unknown@nsbm.ac.lk")).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.forgotPassword(request))
+                    .isInstanceOf(InvalidCredentialsException.class)
+                    .hasMessageContaining("No user account found with the provided email address.");
+        }
+    }
+
+    @Nested
+    @DisplayName("resetPassword Tests")
+    class ResetPasswordTests {
+
+        @Test
+        @DisplayName("Should successfully reset password for staff member with valid token")
+        void resetPassword_Staff_Success() {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("reset-token-123", "NewPassword123", "NewPassword123");
+            PasswordResetToken resetToken = PasswordResetToken.builder()
+                    .id(1L)
+                    .email("staff@nsbm.ac.lk")
+                    .token("reset-token-123")
+                    .userType("MANAGEMENT_STAFF")
+                    .expiresAt(LocalDateTime.now().plusMinutes(10))
+                    .build();
+
+            ManagementStaff staff = ManagementStaff.builder()
+                    .id(1L)
+                    .email("staff@nsbm.ac.lk")
+                    .role(Role.FACULTY_COORDINATOR)
+                    .build();
+
+            when(passwordResetTokenRepository.findByToken("reset-token-123")).thenReturn(Optional.of(resetToken));
+            when(staffRepository.findByEmail("staff@nsbm.ac.lk")).thenReturn(Optional.of(staff));
+            when(passwordEncoder.encode("NewPassword123")).thenReturn("newHashedPassword");
+
+            // Act
+            authService.resetPassword(request);
+
+            // Assert
+            verify(staffRepository).save(staff);
+            assertThat(staff.getPasswordHash()).isEqualTo("newHashedPassword");
+            verify(passwordResetTokenRepository).delete(resetToken);
+        }
+
+        @Test
+        @DisplayName("Should successfully reset password for industry partner with valid token")
+        void resetPassword_Partner_Success() {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("partner-reset-token", "NewPartnerPass123", "NewPartnerPass123");
+            PasswordResetToken resetToken = PasswordResetToken.builder()
+                    .id(2L)
+                    .email("partner@company.com")
+                    .token("partner-reset-token")
+                    .userType("INDUSTRY_PARTNER")
+                    .expiresAt(LocalDateTime.now().plusMinutes(10))
+                    .build();
+
+            IndustryPartner partner = IndustryPartner.builder()
+                    .id(1L)
+                    .email("partner@company.com")
+                    .build();
+
+            when(passwordResetTokenRepository.findByToken("partner-reset-token")).thenReturn(Optional.of(resetToken));
+            when(partnerRepository.findByEmail("partner@company.com")).thenReturn(Optional.of(partner));
+            when(passwordEncoder.encode("NewPartnerPass123")).thenReturn("newHashedPartnerPassword");
+
+            // Act
+            authService.resetPassword(request);
+
+            // Assert
+            verify(partnerRepository).save(partner);
+            assertThat(partner.getPasswordHash()).isEqualTo("newHashedPartnerPassword");
+            verify(passwordResetTokenRepository).delete(resetToken);
+        }
+
+        @Test
+        @DisplayName("Should throw IllegalArgumentException when passwords do not match")
+        void resetPassword_ThrowsException_WhenPasswordsDoNotMatch() {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("token-123", "NewPassword123", "MismatchPassword");
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.resetPassword(request))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Passwords do not match.");
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidTokenException when reset token is invalid")
+        void resetPassword_ThrowsException_WhenTokenInvalid() {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("invalid-token", "NewPassword123", "NewPassword123");
+            when(passwordResetTokenRepository.findByToken("invalid-token")).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.resetPassword(request))
+                    .isInstanceOf(InvalidTokenException.class)
+                    .hasMessageContaining("Invalid or expired password reset token.");
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidTokenException when reset token is expired")
+        void resetPassword_ThrowsException_WhenTokenExpired() {
+            // Arrange
+            ResetPasswordRequest request = new ResetPasswordRequest("expired-token", "NewPassword123", "NewPassword123");
+            PasswordResetToken expiredToken = PasswordResetToken.builder()
+                    .id(1L)
+                    .email("staff@nsbm.ac.lk")
+                    .token("expired-token")
+                    .userType("MANAGEMENT_STAFF")
+                    .expiresAt(LocalDateTime.now().minusMinutes(5)) // Expired
+                    .build();
+
+            when(passwordResetTokenRepository.findByToken("expired-token")).thenReturn(Optional.of(expiredToken));
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.resetPassword(request))
+                    .isInstanceOf(InvalidTokenException.class)
+                    .hasMessageContaining("Password reset token has expired.");
+
+            verify(passwordResetTokenRepository).delete(expiredToken);
         }
     }
 }

@@ -53,10 +53,6 @@ jobs:
             path: services/certificate-service
             artifact: certificate-service-jar
 
-          - service: ai-service
-            path: services/ai-service
-            artifact: ai-service-jar
-
     steps:
       - name: Clone Repository
         uses: actions/checkout@v7
@@ -83,3 +79,19 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}/target/*.jar
           retention-days: 7
+
+  build-and-test-ai:
+    name: Build & Test — ai-service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Syntax Check Python Source
+        run: python -m compileall services/ai-service/app
+

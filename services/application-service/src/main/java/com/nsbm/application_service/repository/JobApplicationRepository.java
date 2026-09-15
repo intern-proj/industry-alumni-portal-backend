@@ -8,6 +8,6 @@ import java.util.UUID;
 
 @Repository
 public interface JobApplicationRepository extends JpaRepository<JobApplication, UUID> {
-    List<JobApplication> findByVacancyId(UUID vacancyId);
+    List<JobApplication> findByVacancyId(Long vacancyId);
     List<JobApplication> findByAlumniId(UUID alumniId);
 }

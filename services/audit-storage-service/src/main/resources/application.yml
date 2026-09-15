@@ -57,3 +57,5 @@ management:
 logging:
   level:
     com.nsbm.audit_storage_service: INFO
+
+

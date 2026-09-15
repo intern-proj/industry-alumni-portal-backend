@@ -16,6 +16,12 @@ public class CertificateEligibilityCriteriaResponse {
     private boolean requiresFeedbackSubmission;
     private Integer minSessionsAttended;
     private String otherCriteriaNotes;
+
+    private String templateImage;
+    private Integer namePosX;
+    private Integer namePosY;
+    private Integer nameFontSize;
+    private String nameFontColor;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

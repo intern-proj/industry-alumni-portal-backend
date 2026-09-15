@@ -1,4 +1,4 @@
-CREATE TABLE partner_documents (
+CREATE TABLE IF NOT EXISTS partner_documents (
     id                       UUID PRIMARY KEY,
     partner_verification_id UUID NOT NULL REFERENCES partner_verifications (id) ON DELETE CASCADE,
     document_type            VARCHAR(40) NOT NULL,
@@ -10,4 +10,4 @@ CREATE TABLE partner_documents (
     is_verified               BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX idx_partner_documents_verification_id ON partner_documents (partner_verification_id);
+CREATE INDEX IF NOT EXISTS idx_partner_documents_verification_id ON partner_documents (partner_verification_id);

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "events")
@@ -22,6 +23,12 @@ public class Event {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "cover_image")
+    private String coverImage;
+
+    @Column(name = "target_faculties")
+    private String targetFaculties;
 
     @Column(name = "event_type")
     private String eventType;
@@ -43,6 +50,9 @@ public class Event {
     @Column(name = "organization_id")
     private Long organizationId;
 
+    @Column(name = "required_attendance_rate")
+    private Integer requiredAttendanceRate;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -57,6 +67,9 @@ public class Event {
 
     @Column(name = "coordinator_email")
     private String coordinatorEmail;
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Agenda> agendas;
 
     @PrePersist
     protected void onCreate() {
